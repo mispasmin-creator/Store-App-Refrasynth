@@ -173,7 +173,7 @@ const schema = z.object({
     description: z.string(),
     indents: z.array(
         z.object({
-            id: z.number(),
+            id: z.number(), 
             indentNumber: z.string().nonempty(),
             quotationNumber: z.string().optional(),
             productName: z.string().optional(),
