@@ -166,7 +166,7 @@ const schema = z.object({
     supplierName: z.string().nonempty(),
     supplierAddress: z.string().nonempty(),
     gstin: z.string().nonempty(),
-    companyEmail: z.string().email().optional(),
+    companyEmail: z.union([z.string().email(), z.literal('')]).optional(),
 
     ourEnqNo: z.string().optional(),
     enquiryDate: z.coerce.date().optional(),
