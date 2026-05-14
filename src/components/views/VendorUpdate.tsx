@@ -43,6 +43,7 @@ interface VendorUpdateData {
     planned2: string;
     actual2: string;
     specifications: string;
+    areaOfUse: string;
 }
 
 interface HistoryData {
@@ -60,6 +61,7 @@ interface HistoryData {
     actual2: string;
     specifications: string;
     firmNameMatch?: string;
+    areaOfUse: string;
     // For Three Party
     vendorName1?: string;
     rate1?: number;
@@ -132,6 +134,7 @@ export default () => {
                 planned2: r.planned2 || '',
                 actual2: r.actual2 || '',
                 specifications: r.specifications || '',
+                areaOfUse: r.area_of_use || '',
             }));
 
             setTableData(mappedData);
@@ -180,6 +183,7 @@ export default () => {
                 planned2: r.planned2 || '',
                 actual2: r.actual2 || '',
                 specifications: r.specifications || '',
+                areaOfUse: r.area_of_use || '',
                 vendorName1: r.vendor_name1 || '',
                 rate1: parseFloat(r.rate1) || 0,
                 vendorName2: r.vendor_name2 || '',
@@ -227,7 +231,8 @@ export default () => {
                 item.indenter.toLowerCase().includes(query) ||
                 item.department.toLowerCase().includes(query) ||
                 item.product.toLowerCase().includes(query) ||
-                item.specifications.toLowerCase().includes(query)
+                item.specifications.toLowerCase().includes(query) ||
+                item.areaOfUse?.toLowerCase().includes(query)
             );
         }
 
@@ -269,7 +274,8 @@ export default () => {
                 item.indenter.toLowerCase().includes(query) ||
                 item.department.toLowerCase().includes(query) ||
                 item.product.toLowerCase().includes(query) ||
-                item.specifications.toLowerCase().includes(query)
+                item.specifications.toLowerCase().includes(query) ||
+                item.areaOfUse?.toLowerCase().includes(query)
             );
         }
 
@@ -440,6 +446,10 @@ export default () => {
             ),
         },
         {
+            accessorKey: 'areaOfUse',
+            header: 'Area of Use',
+        },
+        {
             accessorKey: 'quantity',
             header: 'Quantity',
         },
@@ -527,6 +537,10 @@ export default () => {
                     {getValue() as string}
                 </div>
             ),
+        },
+        {
+            accessorKey: 'areaOfUse',
+            header: 'Area of Use',
         },
         {
             accessorKey: 'quantity',

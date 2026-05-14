@@ -38,6 +38,9 @@ interface RateApprovalData {
     date: string;
     firmNameMatch?: string;
     plannedDate: string;
+    quantity: number;
+    uom: string;
+    areaOfUse: string;
 }
 
 interface HistoryData {
@@ -49,6 +52,9 @@ interface HistoryData {
     product: string;
     vendors: [string, string, string, string, string, string, string, string, string, string, string][];
     date: string;
+    quantity: number;
+    uom: string;
+    areaOfUse: string;
 }
 
 const technicalApprovalSchema = z.object({
@@ -115,6 +121,9 @@ export default () => {
                         comparisonSheet: r.comparison_sheet || '',
                         date: formatDateTime(new Date(r.timestamp)).replace(/\//g, '-'),
                         plannedDate: r.planned3 ? formatDate(new Date(r.planned3)) : 'Not Set',
+                        quantity: r.approved_quantity || r.quantity || 0,
+                        uom: r.uom || '',
+                        areaOfUse: r.area_of_use || '',
                         vendors: [
                             [
                                 r.vendor_name1 || '',
@@ -202,6 +211,9 @@ export default () => {
                         department: r.department || '',
                         product: r.product_name || '',
                         date: r.actual3 ? formatDate(new Date(r.actual3)) : formatDate(new Date(r.timestamp)),
+                        quantity: r.approved_quantity || r.quantity || 0,
+                        uom: r.uom || '',
+                        areaOfUse: r.area_of_use || '',
                         vendors: [
                             [
                                 r.vendor_name1 || '',
@@ -287,6 +299,9 @@ export default () => {
         { accessorKey: 'indenter', header: 'Indenter' },
         { accessorKey: 'department', header: 'Department' },
         { accessorKey: 'product', header: 'Product' },
+        { accessorKey: 'quantity', header: 'Quantity' },
+        { accessorKey: 'uom', header: 'UOM' },
+        { accessorKey: 'areaOfUse', header: 'Area of Use' },
         {
             accessorKey: 'plannedDate',
             header: 'Planned Date', // ✅ ADD THIS COLUMN
@@ -346,6 +361,9 @@ export default () => {
         { accessorKey: 'indenter', header: 'Indenter' },
         { accessorKey: 'department', header: 'Department' },
         { accessorKey: 'product', header: 'Product' },
+        { accessorKey: 'quantity', header: 'Quantity' },
+        { accessorKey: 'uom', header: 'UOM' },
+        { accessorKey: 'areaOfUse', header: 'Area of Use' },
         {
             accessorKey: 'vendors',
             header: 'Vendors',
@@ -604,7 +622,7 @@ export default () => {
                         <DataTable
                             data={tableData}
                             columns={columns}
-                            searchFields={['product', 'department', 'indenter', 'firmNameMatch']}
+                            searchFields={['product', 'department', 'indenter', 'firmNameMatch', 'areaOfUse']}
                             dataLoading={dataLoading}
                         />
                     </TabsContent>
@@ -612,7 +630,7 @@ export default () => {
                         <DataTable
                             data={historyData}
                             columns={historyColumns}
-                            searchFields={['product', 'department', 'indenter', 'firmNameMatch']}
+                            searchFields={['product', 'department', 'indenter', 'firmNameMatch', 'areaOfUse']}
                             dataLoading={dataLoading}
                         />
                     </TabsContent>

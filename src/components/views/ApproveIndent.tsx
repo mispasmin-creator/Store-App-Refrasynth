@@ -200,6 +200,7 @@ export default function ApproveIndent() {
                 </div>
             ),
         },
+        { accessorKey: 'area_of_use', header: 'Area of Use' },
         {
             accessorKey: 'quantity',
             header: 'Req Qty',
@@ -323,6 +324,7 @@ export default function ApproveIndent() {
                 </div>
             ),
         },
+        { accessorKey: 'area_of_use', header: 'Area of Use' },
         {
             accessorKey: 'approved_quantity',
             header: 'Quantity',
@@ -591,7 +593,7 @@ export default function ApproveIndent() {
                         <DataTable
                             data={pendingData}
                             columns={columns}
-                            searchFields={['product_name', 'department', 'indenter_name', 'vendor_type', 'firm_name_match']}
+                            searchFields={['product_name', 'department', 'indenter_name', 'vendor_type', 'firm_name_match', 'area_of_use']}
                             dataLoading={dataLoading}
                             rowSelection={rowSelection}
                             onRowSelectionChange={setRowSelection}
@@ -643,7 +645,7 @@ export default function ApproveIndent() {
                         <DataTable
                             data={historyData}
                             columns={historyColumns}
-                            searchFields={['product_name', 'department', 'indenter_name', 'vendor_type', 'firm_name_match']}
+                            searchFields={['product_name', 'department', 'indenter_name', 'vendor_type', 'firm_name_match', 'area_of_use']}
                             dataLoading={dataLoading}
                             meta={{
                                 editingRow,
