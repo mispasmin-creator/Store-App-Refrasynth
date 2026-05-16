@@ -179,37 +179,6 @@ export default function PIApprovals() {
 
                     const outstanding = totalPo - totalPaid;
 
-                    // Only show if received
-                    const isReceived = receivedPoNumbersSet.has(record.poNumber || record.po_number || record.po_no || '');
-                    if (!isReceived) return false;
-
-                    // ✅ Check if Bill Type is "common" in Store In
-                    // If so, do not show in HOD Approval (Process ends after Store In)
-                    const linkedStoreIn = safeStoreInSheet.find((s: any) =>
-                        (s.poNumber || s.po_number || '') === (record.poNumber || record.po_number || record.po_no || '')
-                    );
-
-                    if (linkedStoreIn?.typeOfBill) {
-                        if (linkedStoreIn.typeOfBill.toLowerCase() !== 'independent') {
-                            return false;
-                        }
-                    }
-
-                    // ✅ HOD Status Check: Only show if Approved
-                    if (linkedStoreIn && (linkedStoreIn.hodStatus || linkedStoreIn.hod_status) !== 'Approved') {
-                        return false;
-                    }
-
-                    // ✅ Relaxed Payment Terms Check
-                    // Allow everything if it's already been received,
-                    // or if it matches the PI terms for pre-receipt payment.
-                    const paymentTerms = (record.paymentTerms || record.payment_terms || '').toString().trim();
-                    const isPI = paymentTerms.toLowerCase().includes("partly pi") || 
-                                 paymentTerms.toLowerCase().includes("partly advance");
-                    
-                    if (!isReceived && !isPI) {
-                        return false;
-                    }
 
                     return outstanding > 0;
                 })
