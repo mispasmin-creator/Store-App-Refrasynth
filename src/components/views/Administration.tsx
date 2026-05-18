@@ -51,7 +51,7 @@ function camelToTitleCase(str: string): string {
 
 const PERMISSION_GROUPS = {
     'Core Access': ['administrate'],
-    'Procurement & PO': ['createIndent', 'indentApprovalView', 'indentApprovalAction', 'pendingIndentsView', 'createPo', 'updateVendorView', 'updateVendorAction', 'threePartyApprovalView', 'threePartyApprovalAction', 'poHistory', 'pendingPo'],
+    'Procurement & PO': ['createIndent', 'indentApprovalView', 'indentApprovalAction', 'pendingIndentsView', 'createPo', 'updateVendorView', 'updateVendorAction', 'threePartyApprovalView', 'threePartyApprovalAction', 'poHistory', 'pendingPo', 'lifting'],
     'Store & Inventory': ['receiveItemView', 'receiveItemAction', 'storeIn', 'storeOutApprovalView', 'storeOutApprovalAction', 'hodStoreApproval', 'storeIssue', 'issueData', 'inventory', 'fullKiting'],
     'Audit & Finance': ['againAuditing', 'takeEntryByTelly', 'reauditData', 'rectifyTheMistake', 'auditData', 'sendDebitNote', 'returnMaterialToParty', 'exchangeMaterials', 'insteadOfQualityCheckInReceivedItem', 'dbForPc', 'billNotReceived', 'makePayment']
 };
