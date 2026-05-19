@@ -260,7 +260,6 @@ export async function insertPoRecords(poRecords: any[]) {
             advance_amount: record.advanceAmount || 0,
             packaging: String(record.packaging || 0),
             forwarding: String(record.forwarding || 0),
-            packaging_and_forwarding: String(record.packagingAndForwarding || 0),
         }));
 
         const { data, error } = await supabase
@@ -269,15 +268,14 @@ export async function insertPoRecords(poRecords: any[]) {
             .select();
 
         if (error) {
-            // Check if packaging, forwarding, or packaging_and_forwarding column error
+            // Check if packaging or forwarding column error
             if (error.code === 'PGRST204' || (error.message && (
                 error.message.includes('packaging') || 
-                error.message.includes('forwarding') ||
-                error.message.includes('packaging_and_forwarding')
+                error.message.includes('forwarding')
             ))) {
                 console.warn('packaging or forwarding columns not found, retrying insert without them');
                 const cleanedRecords = mappedRecords.map((r) => {
-                    const { packaging, forwarding, packaging_and_forwarding, ...rest } = r as any;
+                    const { packaging, forwarding, ...rest } = r as any;
                     return rest;
                 });
                 const { data: retryData, error: retryError } = await supabase
