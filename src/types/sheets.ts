@@ -185,6 +185,9 @@ export type PoMasterSheet = {
     discount: number;
     amount: number;
     totalPoAmount: number;
+    packaging?: number;
+    forwarding?: number;
+    packagingAndForwarding?: number;
     // preparedBy: string;
     // approvedBy: string;
     pdf: string;

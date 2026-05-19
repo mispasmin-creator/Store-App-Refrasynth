@@ -80,6 +80,9 @@ export async function fetchPoMaster() {
             discountPercent: Number(r.discount) || 0, // discount field is used for percentage
             amount: Number(r.amount) || 0,
             totalPoAmount: Number(r.total_po_amount) || 0,
+            packaging: Number(r.packaging) || 0,
+            forwarding: Number(r.forwarding) || 0,
+            packagingAndForwarding: Number(r.packaging_and_forwarding) || ((Number(r.packaging) || 0) + (Number(r.forwarding) || 0)),
             pdf: r.pdf || '',
             quotationNumber: r.quotation_number || '',
             quotationDate: r.quotation_date || '',
@@ -139,6 +142,7 @@ export async function fetchMasterData() {
                 companyPan: '',
                 companyAddress: '',
                 billingAddress: '',
+                paymentTerms: [],
             };
         }
 
@@ -254,6 +258,9 @@ export async function insertPoRecords(poRecords: any[]) {
             company_email: record.companyEmail || '',
             advance_percent: record.advancePercent || 0,
             advance_amount: record.advanceAmount || 0,
+            packaging: String(record.packaging || 0),
+            forwarding: String(record.forwarding || 0),
+            packaging_and_forwarding: String(record.packagingAndForwarding || 0),
         }));
 
         const { data, error } = await supabase
@@ -261,7 +268,27 @@ export async function insertPoRecords(poRecords: any[]) {
             .insert(mappedRecords)
             .select();
 
-        if (error) throw error;
+        if (error) {
+            // Check if packaging, forwarding, or packaging_and_forwarding column error
+            if (error.code === 'PGRST204' || (error.message && (
+                error.message.includes('packaging') || 
+                error.message.includes('forwarding') ||
+                error.message.includes('packaging_and_forwarding')
+            ))) {
+                console.warn('packaging or forwarding columns not found, retrying insert without them');
+                const cleanedRecords = mappedRecords.map((r) => {
+                    const { packaging, forwarding, packaging_and_forwarding, ...rest } = r as any;
+                    return rest;
+                });
+                const { data: retryData, error: retryError } = await supabase
+                    .from('po_master')
+                    .insert(cleanedRecords)
+                    .select();
+                if (retryError) throw retryError;
+                return retryData;
+            }
+            throw error;
+        }
 
         return data;
     } catch (error) {

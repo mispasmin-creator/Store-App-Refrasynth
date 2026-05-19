@@ -43,6 +43,9 @@ export interface PoMasterSheet {
     discount: number;
     amount: number;
     totalPoAmount: number;
+    packaging?: number;
+    forwarding?: number;
+    packagingAndForwarding?: number;
     pdf: string;
     preparedBy: string;
     approvedBy: string;
