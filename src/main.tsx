@@ -269,7 +269,7 @@ const routes: RouteAttributes[] = [
 
     {
         path: 'po-history',
-        gateKey: 'ordersView',
+        gateKey: 'poHistory',
         name: 'PO History',
         icon: <History size={20} />,
         element: <Order />, // Changed from <Order /> to <POHistory />

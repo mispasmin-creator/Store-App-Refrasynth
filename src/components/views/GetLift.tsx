@@ -2,6 +2,8 @@ import type { ColumnDef, Row } from '@tanstack/react-table';
 import { useEffect, useState } from 'react';
 import DataTable from '../element/DataTable';
 import { Button } from '../ui/button';
+import { Checkbox } from '../ui/checkbox';
+import { supabase } from '@/lib/supabase';
 import {
     Dialog,
     DialogContent,
@@ -84,16 +86,34 @@ interface HistoryData {
     products?: string[];
     indentNumbers?: string[];
     originalItems?: any[];
+    liftNumber: string;
+    qty?: number;
+    billNo?: string;
+    billStatus?: string;
+    typeOfBill?: string;
+    billAmount?: number;
+    transportationInclude?: string;
+    transporterName?: string;
+    vehicleNo?: string;
+    driverName?: string;
+    driverMobileNo?: string;
+    amount?: number;
+    billRemark?: string;
+    approvedRate?: string;
+    taxValue?: number;
+    withTax?: string;
 }
 
 interface AuthUser {
     firmNameMatch?: string;
     receiveItemAction?: boolean;
+    administrate?: boolean;
 }
 
 export default function GetPurchase() {
     const { user } = useAuth() as { user: AuthUser };
     const [selectedIndent, setSelectedIndent] = useState<GetPurchaseData | null>(null);
+    const [selectedHistory, setSelectedHistory] = useState<HistoryData | null>(null);
     const [historyData, setHistoryData] = useState<HistoryData[]>([]);
     const [tableData, setTableData] = useState<GetPurchaseData[]>([]);
     const [openDialog, setOpenDialog] = useState(false);
@@ -289,6 +309,7 @@ export default function GetPurchase() {
                     const pendingLift = approvedQty - receivedQty;
 
                     return {
+                        liftNumber: sheet.liftNumber || '',
                         indentNo: sheet.indentNo || '',
                         firmNameMatch: indentData.firmNameMatch || sheet.firmNameMatch || '',
                         vendorName: indentData.approvedVendorName || sheet.vendorName || '',
@@ -306,6 +327,21 @@ export default function GetPurchase() {
                         areaOfUse: indentRecord?.areaOfUse || '',
                         approvedVendorName: indentRecord?.approvedVendorName || '',
                         liftingStatus: indentRecord?.liftingStatus || '',
+                        qty: sheet.qty || 0,
+                        billNo: sheet.billNo || '',
+                        billStatus: sheet.billStatus || '',
+                        typeOfBill: sheet.typeOfBill || '',
+                        billAmount: sheet.billAmount || 0,
+                        transportationInclude: sheet.transportationInclude || '',
+                        transporterName: sheet.transporterName || '',
+                        vehicleNo: sheet.vehicleNo || '',
+                        driverName: sheet.driverName || '',
+                        driverMobileNo: sheet.driverMobileNo || '',
+                        amount: sheet.amount || 0,
+                        billRemark: sheet.billRemark || '',
+                        approvedRate: indentRecord?.approvedRate || '',
+                        taxValue: indentRecord?.taxValue || 0,
+                        withTax: indentRecord?.withTax || 'No',
                     };
                 })
                 .sort((a, b) => b.indentNo.localeCompare(a.indentNo))
@@ -414,6 +450,34 @@ export default function GetPurchase() {
     ];
 
     const historyColumns: ColumnDef<HistoryData>[] = [
+        ...(user?.administrate
+            ? [
+                {
+                    id: 'edit',
+                    header: 'Edit',
+                    cell: ({ row }: { row: Row<HistoryData> }) => {
+                        const item = row.original;
+                        return (
+                            <div className="flex items-center justify-center">
+                                <Checkbox
+                                    checked={selectedHistory?.liftNumber === item.liftNumber}
+                                    onCheckedChange={(checked) => {
+                                        if (checked) {
+                                            setSelectedHistory(item);
+                                            setSelectedIndent(null);
+                                            setOpenDialog(true);
+                                        } else {
+                                            setSelectedHistory(null);
+                                            setOpenDialog(false);
+                                        }
+                                    }}
+                                />
+                            </div>
+                        );
+                    },
+                },
+              ]
+            : []),
         {
             accessorKey: 'timestamp',
             header: 'Timestamp',
@@ -494,11 +558,12 @@ export default function GetPurchase() {
         typeOfBill: z.string().optional(),
         billAmount: z.coerce.number().optional(),
         photoOfBill: z
-            .instanceof(File)
+            .union([z.instanceof(File), z.string()])
             .optional()
             .refine((file) => {
                 // Allow both images and PDFs
                 if (!file) return true; // Optional field
+                if (typeof file === 'string') return true; // Already uploaded URL string
                 const allowedTypes = [
                     'image/jpeg',
                     'image/jpg',
@@ -674,6 +739,43 @@ export default function GetPurchase() {
         }
     }, [selectedIndent, form, tableData]);
 
+    useEffect(() => {
+        if (selectedHistory) {
+            form.reset({
+                billStatus: selectedHistory.billStatus === 'Not Received' ? 'Bill Not Received' : selectedHistory.billStatus || '',
+                billNo: selectedHistory.billNo || '',
+                qty: selectedHistory.qty || 0,
+                typeOfBill: selectedHistory.typeOfBill || 'independent',
+                billAmount: selectedHistory.billAmount || 0,
+                billRemark: selectedHistory.billRemark || '',
+                vendorName: selectedHistory.vendorName || '',
+                transportationInclude: selectedHistory.transportationInclude || 'No',
+                transporterName: selectedHistory.transporterName || '',
+                vehicleNo: selectedHistory.vehicleNo || '',
+                driverName: selectedHistory.driverName || '',
+                driverMobileNo: selectedHistory.driverMobileNo || '',
+                amount: selectedHistory.amount || 0,
+                cancelPendingQty: 0,
+                items: [
+                    {
+                        indentNo: selectedHistory.indentNo || '',
+                        product: selectedHistory.product || '',
+                        poNumber: selectedHistory.poNumber || '',
+                        quantity: selectedHistory.quantity || 0,
+                        pendingLiftQty: (selectedHistory.pendingLiftQty || 0) + (selectedHistory.qty || 0),
+                        receivedQty: selectedHistory.receivedQty || 0,
+                        pendingPoQty: selectedHistory.pendingPoQty || 0,
+                        approvedRate: selectedHistory.approvedRate || '0',
+                        taxValue: selectedHistory.taxValue || 0,
+                        withTax: selectedHistory.withTax || 'No',
+                        liftQty: selectedHistory.qty || 0,
+                    }
+                ],
+            });
+            setVendorSearch('');
+        }
+    }, [selectedHistory, form]);
+
     const typeOfBillWatcher = useWatch({ control: form.control, name: 'typeOfBill' }) || 'independent';
     const itemsWatcher = useWatch({ control: form.control, name: 'items' }) || [];
 
@@ -698,6 +800,7 @@ export default function GetPurchase() {
         setOpenDialog(open);
         if (!open) {
             setSelectedIndent(null);
+            setSelectedHistory(null);
             setShowCancelQty(false);
             setCancelQtyValue('');
             form.reset();
@@ -707,8 +810,91 @@ export default function GetPurchase() {
     async function onSubmit() {
         const values = form.getValues();
         try {
-            console.log('📝 Selected indent:', selectedIndent);
             console.log('📋 Form values:', values);
+
+            if (selectedHistory) {
+                let photoUrl = selectedHistory.photoOfBill || '';
+                if (values.photoOfBill) {
+                    if (values.photoOfBill instanceof File) {
+                        try {
+                            photoUrl = await uploadBillPhoto(values.photoOfBill, selectedHistory.indentNo || '');
+                            if (values.photoOfBill.type === 'application/pdf') {
+                                toast.success('PDF document uploaded successfully');
+                            } else {
+                                toast.success('Image uploaded successfully');
+                            }
+                        } catch (uploadError) {
+                            console.error('❌ File upload error:', uploadError);
+                            toast.error('Failed to upload file. Please try again.');
+                            return;
+                        }
+                    } else if (typeof values.photoOfBill === 'string') {
+                        photoUrl = values.photoOfBill;
+                    }
+                }
+
+                const newLiftQty = Number(values.items?.[0]?.liftQty || selectedHistory.qty || 0);
+
+                const updatedStoreInRecord = {
+                    bill_no: values.billNo || '',
+                    vendor_name: values.vendorName || selectedHistory.vendorName || '',
+                    qty: newLiftQty.toString(),
+                    type_of_bill: values.typeOfBill || '',
+                    bill_amount: Number(values.billAmount) || 0,
+                    photo_of_bill: photoUrl,
+                    transportation_include: values.transportationInclude || '',
+                    transporter_name: values.transporterName || '',
+                    amount: Number(values.amount) || 0,
+                    bill_status: values.billStatus === 'Bill Not Received' ? 'Not Received' : values.billStatus,
+                    quantity_as_per_bill: newLiftQty.toString(),
+                    vehicle_no: values.vehicleNo || '',
+                    driver_name: values.driverName || '',
+                    driver_mobile_no: values.driverMobileNo || '',
+                    bill_remark: values.billRemark || '',
+                    not_bill_received_no: values.billStatus === 'Bill Not Received' ? values.billNo : '',
+                };
+
+                console.log('📤 Updating store-in record for lift number:', selectedHistory.liftNumber, updatedStoreInRecord);
+
+                const { error: updateError } = await supabase
+                    .from('store_in')
+                    .update(updatedStoreInRecord)
+                    .eq('lift_number', selectedHistory.liftNumber);
+
+                if (updateError) {
+                    console.error('❌ Supabase update error:', updateError);
+                    throw updateError;
+                }
+
+                // Auto-complete status check for indent
+                const originalPendingBeforeLift = (selectedHistory.pendingLiftQty || 0) + (selectedHistory.qty || 0);
+                const remaining = originalPendingBeforeLift - newLiftQty;
+
+                if (remaining <= 0) {
+                    await updateLiftingStatus(selectedHistory.indentNo, 'Complete');
+                } else {
+                    await updateLiftingStatus(selectedHistory.indentNo, 'Pending');
+                }
+
+                toast.success(`Updated store record for Lift: ${selectedHistory.liftNumber}`);
+                setOpenDialog(false);
+                setSelectedHistory(null);
+                form.reset();
+
+                setTimeout(async () => {
+                    const [indents, storeIns] = await Promise.all([
+                        fetchIndentRecords(),
+                        fetchStoreInRecords(),
+                    ]);
+                    setIndentRecords(indents);
+                    setStoreInRecords(storeIns);
+                    console.log('🔄 Data refreshed after update');
+                }, 1500);
+
+                return;
+            }
+
+            console.log('📝 Selected indent:', selectedIndent);
 
             // ✅ VALIDATION: Ensure lifting quantity does not exceed pending lift quantity
             if (Number(values.qty) > (selectedIndent?.pendingLiftQty || 0)) {
@@ -735,17 +921,21 @@ export default function GetPurchase() {
             if (values.billStatus && values.items) {
                 let photoUrl = '';
                 if (values.photoOfBill) {
-                    try {
-                        photoUrl = await uploadBillPhoto(values.photoOfBill, selectedIndent?.indentNo || '');
-                        if (values.photoOfBill.type === 'application/pdf') {
-                            toast.success('PDF document uploaded successfully');
-                        } else {
-                            toast.success('Image uploaded successfully');
+                    if (values.photoOfBill instanceof File) {
+                        try {
+                            photoUrl = await uploadBillPhoto(values.photoOfBill, selectedIndent?.indentNo || '');
+                            if (values.photoOfBill.type === 'application/pdf') {
+                                toast.success('PDF document uploaded successfully');
+                            } else {
+                                toast.success('Image uploaded successfully');
+                            }
+                        } catch (uploadError) {
+                            console.error('❌ File upload error:', uploadError);
+                            toast.error('Failed to upload file. Please try again.');
+                            return;
                         }
-                    } catch (uploadError) {
-                        console.error('❌ File upload error:', uploadError);
-                        toast.error('Failed to upload file. Please try again.');
-                        return;
+                    } else if (typeof values.photoOfBill === 'string') {
+                        photoUrl = values.photoOfBill;
                     }
                 }
 
@@ -872,7 +1062,7 @@ export default function GetPurchase() {
                     </TabsContent>
                 </Tabs>
 
-                {selectedIndent && (
+                {(selectedIndent || selectedHistory) && (
                     <DialogContent
                         className="max-h-[95vh] overflow-y-auto"
                         style={{ maxWidth: '80vw', width: '60vw' }}
@@ -886,16 +1076,16 @@ export default function GetPurchase() {
                                     <DialogTitle className="text-xl font-bold flex items-center justify-between w-full border-b pb-3 mb-2">
                                         <div className="flex items-center gap-2 text-primary">
                                             <ShoppingCart size={22} />
-                                            <span>Update Purchase Details</span>
+                                            <span>{selectedHistory ? 'Edit History Purchase Details' : 'Update Purchase Details'}</span>
                                         </div>
                                     </DialogTitle>
                                 </DialogHeader>
 
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 bg-muted/50 p-4 rounded-xl border shadow-sm">
                                     {[
-                                        ["Indent Number", selectedIndent.indentNo],
-                                        ["PO Number", selectedIndent.poNumber],
-                                        ["Approved Vendor Name", selectedIndent.vendorName || "-"],
+                                        ["Indent Number", selectedIndent?.indentNo || selectedHistory?.indentNo],
+                                        ["PO Number", selectedIndent?.poNumber || selectedHistory?.poNumber],
+                                        ["Approved Vendor Name", selectedIndent?.vendorName || selectedHistory?.vendorName || "-"],
                                     ].map(([label, value]) => (
                                         <div key={label} className="space-y-1">
                                             <p className="text-xs text-muted-foreground">{label}</p>
@@ -997,7 +1187,7 @@ export default function GetPurchase() {
                                 </div>
 
                                 {/* Cancel Section */}
-                                {!showCancelQty ? (
+                                {selectedIndent && !showCancelQty ? (
                                     <div className="flex justify-between items-center border rounded-xl p-4 bg-orange-50 border-orange-200 shadow-sm">
                                         <div>
                                             <h3 className="font-medium text-orange-800">
@@ -1016,7 +1206,7 @@ export default function GetPurchase() {
                                             Cancel Pending PO
                                         </Button>
                                     </div>
-                                ) : (
+                                ) : selectedIndent ? (
                                     <div className="border rounded-xl p-4 bg-orange-50 border-orange-200 shadow-sm space-y-3">
                                         <div className="flex justify-between items-center">
                                             <h3 className="font-medium text-orange-800">
@@ -1064,7 +1254,7 @@ export default function GetPurchase() {
                                             </Button>
                                         </div>
                                     </div>
-                                )}
+                                ) : null}
 
                                 {/* Hidden */}
                                 <FormField

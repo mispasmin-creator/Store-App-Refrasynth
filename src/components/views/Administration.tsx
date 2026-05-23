@@ -44,6 +44,8 @@ interface UsersTableData {
 }
 
 function camelToTitleCase(str: string): string {
+    if (str === 'ordersView') return 'Lifting';
+    if (str === 'poHistory') return 'PO History';
     return str
         .replace(/([a-z])([A-Z])/g, '$1 $2') // insert space before capitals
         .replace(/^./, (char) => char.toUpperCase()); // capitalize first letter
@@ -51,7 +53,7 @@ function camelToTitleCase(str: string): string {
 
 const PERMISSION_GROUPS = {
     'Core Access': ['administrate'],
-    'Procurement & PO': ['createIndent', 'indentApprovalView', 'indentApprovalAction', 'pendingIndentsView', 'createPo', 'updateVendorView', 'updateVendorAction', 'threePartyApprovalView', 'threePartyApprovalAction', 'poHistory', 'pendingPo', 'lifting'],
+    'Procurement & PO': ['createIndent', 'indentApprovalView', 'indentApprovalAction', 'pendingIndentsView', 'createPo', 'updateVendorView', 'updateVendorAction', 'threePartyApprovalView', 'threePartyApprovalAction', 'poHistory', 'pendingPo', 'ordersView'],
     'Store & Inventory': ['receiveItemView', 'receiveItemAction', 'storeIn', 'storeOutApprovalView', 'storeOutApprovalAction', 'hodStoreApproval', 'storeIssue', 'issueData', 'inventory', 'fullKiting'],
     'Audit & Finance': ['againAuditing', 'takeEntryByTelly', 'reauditData', 'rectifyTheMistake', 'auditData', 'sendDebitNote', 'returnMaterialToParty', 'exchangeMaterials', 'insteadOfQualityCheckInReceivedItem', 'dbForPc', 'billNotReceived', 'makePayment']
 };

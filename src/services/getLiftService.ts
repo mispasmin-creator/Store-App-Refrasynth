@@ -35,6 +35,7 @@ export interface GetLiftIndentRecord {
 }
 
 export interface GetLiftStoreInRecord {
+    liftNumber: string;
     indentNo: string;
     firmNameMatch: string;
     vendorName: string;
@@ -42,6 +43,17 @@ export interface GetLiftStoreInRecord {
     qty: number;
     photoOfBill: string;
     timestamp: string;
+    billNo?: string;
+    typeOfBill?: string;
+    billAmount?: number;
+    transportationInclude?: string;
+    transporterName?: string;
+    vehicleNo?: string;
+    driverName?: string;
+    driverMobileNo?: string;
+    amount?: number;
+    billRemark?: string;
+    billStatus?: string;
 }
 
 export interface VendorOption {
@@ -155,6 +167,17 @@ export async function fetchStoreInRecords() {
             receivedQuantity: Number(r.received_quantity) || 0,
             photoOfBill: r.photo_of_bill || '',
             timestamp: r.timestamp || '',
+            billNo: r.bill_no || '',
+            typeOfBill: r.type_of_bill || '',
+            billAmount: Number(r.bill_amount) || 0,
+            transportationInclude: r.transportation_include || '',
+            transporterName: r.transporter_name || '',
+            vehicleNo: r.vehicle_no || '',
+            driverName: r.driver_name || '',
+            driverMobileNo: r.driver_mobile_no || '',
+            amount: Number(r.amount) || 0,
+            billRemark: r.bill_remark || '',
+            billStatus: r.bill_status || '',
         }));
     } catch (error) {
         console.error('Error fetching store-in records:', error);
