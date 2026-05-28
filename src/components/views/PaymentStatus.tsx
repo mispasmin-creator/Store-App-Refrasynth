@@ -1,5 +1,6 @@
 import { Package2, FileText, Building, DollarSign, Calendar, Upload, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import Heading from '../element/Heading';
 import { useEffect, useState } from 'react';
 import type { ColumnDef, Row } from '@tanstack/react-table';
 import DataTable from '../element/DataTable';
@@ -778,19 +779,14 @@ export default function PIApprovals() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-purple-50 p-4 md:p-6">
-            <div className="mx-auto max-w-7xl">
-                {/* Header Section */}
-                <div className="mb-6">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="p-3 bg-purple-600 rounded-lg shadow">
-                            <Package2 size={28} className="text-white" />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Process for Payment / Debit Note</h1>
-                            <p className="text-gray-600">Approved GRN need to process payments for pending purchase orders</p>
-                        </div>
-                    </div>
+        <div>
+            <Heading heading="Process for Payment / Debit Note" subtext="Approved GRN need to process payments for pending purchase orders">
+                <Package2 size={28} className="text-primary" />
+            </Heading>
+            <div className="p-4 md:p-6">
+                <div className="mx-auto max-w-7xl">
+                    {/* Header Section */}
+                    <div className="mb-6">
 
                     {/* Stats Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -1126,6 +1122,7 @@ export default function PIApprovals() {
                     )}
                 </Dialog>
             </div>
+        </div>
         </div>
     );
 }

@@ -33,6 +33,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { PDFViewer } from '@react-pdf/renderer';
 import { supabase, supabaseEnabled } from '@/lib/supabase';
 import { fetchIndents, fetchPoMaster, fetchMasterData, insertPoRecords, updateIndentsAfterPoCreation } from '@/services/poService';
+import Heading from '../element/Heading';
 
 function generatePoNumber(poNumbers: string[]): string {
     const prefix = 'STORE-PO-25-26-';
@@ -870,20 +871,12 @@ const CreatePO = () => {
     }
 
     return (
-        <div className="grid place-items-center w-full bg-gradient-to-br from-blue-100 via-purple-50 to-blue-50 rounded-md">
-            <div className="flex justify-between p-5 w-full">
-                <div className="flex gap-2 items-center">
-                    <FilePlus2 size={50} className="text-primary" />
-                    <div>
-                        <h1 className="text-2xl font-bold text-primary">Create or Revise PO</h1>
-                        <p className="text-muted-foreground text-sm">
-                            Create purchase order for indents or revise previous orders
-                        </p>
-                    </div>
-                </div>
-                <SidebarTrigger />
-            </div>
-            <div className="sm:p-4 max-w-6xl">
+        <div>
+            <Heading heading="Create or Revise PO" subtext="Create purchase order for indents or revise previous orders">
+                <FilePlus2 size={50} className="text-primary" />
+            </Heading>
+            <div className="grid place-items-center w-full">
+                <div className="sm:p-4 max-w-6xl w-full">
                 <div className="w-full">
                     <Tabs defaultValue="create" onValueChange={(v) => setMode(v === 'create' ? v : 'revise')}>
                         <TabsList className="h-10 w-full rounded-none">
@@ -1538,6 +1531,7 @@ const CreatePO = () => {
                     </form>
                 </Form>
             </div>
+        </div>
         </div>
     );
 };
