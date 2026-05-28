@@ -262,23 +262,6 @@ export default function MakePayment() {
                         const hasPlanned = plannedValue !== '';
                         const status = String(sheet?.status || '').toLowerCase();
                         const isCompleted = status === 'completed';
-
-                        // Check payment terms: Only show if Partly Advance or Partly PI
-                        const terms = String(sheet?.paymentTerms || '').toLowerCase();
-                        const isPartlyTerms = terms.includes('partly') && (terms.includes('advance') || terms.includes('pi'));
-
-                        if (!isPartlyTerms) {
-                            return false;
-                        }
-
-                        // Check linked Store In for HOD status: Only show if Approved
-                        const linkedStoreIn = storeInRecords.find((s: any) =>
-                            (s.indent_no || s.indent_number) === (sheet.internalCode)
-                        );
-                        if (linkedStoreIn && linkedStoreIn.hod_status !== 'Approved') {
-                            return false;
-                        }
-
                         return hasPlanned && !isCompleted;
                     });
 
@@ -1120,7 +1103,7 @@ export default function MakePayment() {
                                         ) : (
                                             <>
                                                 <CheckSquare className="mr-2 h-4 w-4" />
-                                                Submit Selected ({selectedRows.size})
+                                                Mark Done ({selectedRows.size})
                                             </>
                                         )}
                                     </Button>

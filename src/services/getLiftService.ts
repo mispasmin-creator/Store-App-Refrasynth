@@ -32,6 +32,7 @@ export interface GetLiftIndentRecord {
     areaOfUse?: string;
     approvedQuantity: number;
     receivedQuantity: number;
+    uom: string;
 }
 
 export interface GetLiftStoreInRecord {
@@ -138,6 +139,7 @@ export async function fetchIndentRecords() {
             expectedDate: r.expected_req_date || '',
             approvedQuantity: Number(r.approved_quantity) || 0,
             receivedQuantity: Number(r.received_quantity) || 0,
+            uom: r.uom || '',
         }));
     } catch (error) {
         console.error('Error fetching indent records:', error);

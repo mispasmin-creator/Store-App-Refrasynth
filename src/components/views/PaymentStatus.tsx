@@ -302,7 +302,56 @@ export default function PIApprovals() {
                     };
                 });
 
-            // Combine both lists and remove duplicates by Party Name + billNo
+            // 3. Store-In based items: directly from Get Purchase (GetLift) history
+            const storeInBasedItems: PIPendingData[] = safeStoreInSheet
+                .filter((record: any) => {
+                    // Firm filtering
+                    const firmMatch = !user || user.firmNameMatch?.toLowerCase() === 'all' ||
+                        record.firmNameMatch === user.firmNameMatch;
+                    if (!firmMatch) return false;
+
+                    // Must have a bill number or bill amount
+                    const hasBill = Number(record.billAmount || 0) > 0 || (record.billNo || '').trim() !== '';
+                    if (!hasBill) return false;
+
+                    // Must have a bill status (submitted from Get Purchase form)
+                    const billStatus = (record.billStatus || '').trim();
+                    if (!billStatus) return false;
+
+                    return true;
+                })
+                .map((record: any) => {
+                    const billAmt = Number(record.billAmount || 0);
+                    return {
+                        rowIndex: record.id || 0,
+                        timestamp: record.timestamp || '',
+                        partyName: record.vendorName || '',
+                        poNumber: record.poNumber || '',
+                        internalCode: record.indentNo || '',
+                        product: record.productName || record.product || '',
+                        description: record.productName || record.product || '',
+                        quantity: Number(record.qty || 0),
+                        unit: record.uom || '',
+                        rate: Number(record.priceAsPerPo || 0),
+                        gstPercent: 0,
+                        discountPercent: 0,
+                        amount: billAmt,
+                        totalPoAmount: billAmt,
+                        deliveryDate: '',
+                        paymentTerms: record.paymentTerms || '',
+                        numberOfDays: 0,
+                        firmNameMatch: record.firmNameMatch || '',
+                        totalPaidAmount: 0,
+                        outstandingAmount: billAmt,
+                        status: 'Pending',
+                        billNo: record.billNo || '',
+                        billAmount: billAmt,
+                        rowIds: [record.id || 0],
+                        liftNumber: record.liftNumber || '',
+                    } as PIPendingData;
+                });
+
+            // Combine all three lists and remove duplicates by Party Name + billNo
             const uniqueBillMap = new Map<string, PIPendingData>();
 
             // Process poBasedPendingItems first
@@ -338,6 +387,27 @@ export default function PIApprovals() {
                     // Concatenate unique products
                     const existingProducts = (existing.product || '').split(', ').map(p => p.trim()).filter(Boolean);
                     const newProduct = paymentItem.product?.trim();
+                    if (newProduct && !existingProducts.includes(newProduct)) {
+                        existing.product = [...existingProducts, newProduct].join(', ');
+                    }
+                }
+            });
+
+            // Process storeInBasedItems (Get Purchase history)
+            storeInBasedItems.forEach(storeItem => {
+                const billKey = storeItem.billNo || 'NoBill';
+                const uniqueKey = `${storeItem.partyName || 'NoVendor'}-${billKey}`;
+
+                if (!uniqueBillMap.has(uniqueKey)) {
+                    uniqueBillMap.set(uniqueKey, { ...storeItem });
+                } else {
+                    const existing = uniqueBillMap.get(uniqueKey)!;
+                    // Enrich existing with liftNumber and billAmount if missing
+                    if (!existing.liftNumber) existing.liftNumber = storeItem.liftNumber;
+                    if (!existing.billAmount) existing.billAmount = storeItem.billAmount;
+                    existing.rowIds = Array.from(new Set([...existing.rowIds, ...storeItem.rowIds]));
+                    const existingProducts = (existing.product || '').split(', ').map(p => p.trim()).filter(Boolean);
+                    const newProduct = storeItem.product?.trim();
                     if (newProduct && !existingProducts.includes(newProduct)) {
                         existing.product = [...existingProducts, newProduct].join(', ');
                     }
@@ -580,8 +650,9 @@ export default function PIApprovals() {
         },
     ];
 
-    // ✅ UPDATED SCHEMA - Only Pay Amount, File, Remarks
+    // ✅ UPDATED SCHEMA - Pay Amount, File, Remarks
     const schema = z.object({
+        payAmount: z.coerce.number().min(1, 'Amount must be greater than 0'),
         file: z.string().optional(),
         remark: z.string().min(1, 'Remarks are required'),
     });
@@ -589,6 +660,7 @@ export default function PIApprovals() {
     const form = useForm({
         resolver: zodResolver(schema),
         defaultValues: {
+            payAmount: 0,
             file: '',
             remark: '',
         },
@@ -597,8 +669,13 @@ export default function PIApprovals() {
     useEffect(() => {
         if (!openDialog) {
             form.reset();
+        } else if (selectedItem) {
+            const defaultAmt = selectedItem.billAmount && selectedItem.billAmount > 0
+                ? selectedItem.billAmount
+                : selectedItem.outstandingAmount || 0;
+            form.setValue('payAmount', defaultAmt);
         }
-    }, [openDialog, form]);
+    }, [openDialog, selectedItem, form]);
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -633,7 +710,6 @@ export default function PIApprovals() {
         }
     };
 
-    // ✅ Generate Unique Number for PAYMENTS sheet
     function generateUniqueNo(): string {
         const existingCount = Array.isArray(paymentsSheet) ? paymentsSheet.length : 0;
         return `PAY-${(existingCount + 1).toString().padStart(4, '0')}`;
@@ -646,102 +722,48 @@ export default function PIApprovals() {
                 return;
             }
 
-            const currentDateTime = new Date().toISOString();
-            const formattedDateOnly = currentDateTime.split('T')[0];
-            const formattedDateTime = currentDateTime;
-
-            // ✅ Prioritize Bill Amount from lifting if available, otherwise fallback to outstanding
-            const payAmount = selectedItem.billAmount && selectedItem.billAmount > 0
-                ? Number(selectedItem.billAmount)
-                : Number(selectedItem.outstandingAmount) || 0;
-
-            const newTotalPaid = (selectedItem.totalPaidAmount || 0) + payAmount;
+            const isoNow = new Date().toISOString();
+            const payAmount = Number(values.payAmount) || 0;
             const newOutstanding = (selectedItem.outstandingAmount || 0) - payAmount;
             const newStatus = newOutstanding <= 0 ? 'Complete' : 'Pending';
-
-            // ✅ CHECK IF THIS IS A PAYMENT-BASED ITEM (from payments table) OR PO-BASED ITEM
-            const isPaymentBased = selectedItem.rowIndex > 0 &&
-                Array.isArray(paymentsSheet) &&
-                paymentsSheet.some((p: any) => p.id === selectedItem.rowIndex);
-
             const finalRemark = selectedItem.billNo
                 ? `${values.remark} | Bill: ${selectedItem.billNo}`
                 : values.remark;
 
-            if (isPaymentBased) {
-                // ✅ FOR PAYMENT-BASED ITEMS: Update the existing payment record
-                const { error: updatePaymentError } = await supabase
-                    .from('payments')
-                    .update({
-                        planned: formattedDateOnly,
-                        status: 'Approved',
-                        status1: 'approved',
-                        pay_amount: payAmount,
-                        file: values.file || '',
-                        remark: finalRemark,
-                    })
-                    .eq('id', selectedItem.rowIndex);
+            const uniqueNo = generateUniqueNo();
 
-                if (updatePaymentError) {
-                    throw updatePaymentError;
-                }
+            const paymentData = {
+                timestamp: isoNow,
+                unique_no: uniqueNo,
+                party_name: selectedItem.partyName,
+                po_number: selectedItem.poNumber,
+                total_po_amount: String(selectedItem.totalPoAmount || ''),
+                internal_code: selectedItem.internalCode,
+                product: selectedItem.product,
+                delivery_date: selectedItem.deliveryDate || '',
+                payment_terms: selectedItem.paymentTerms || '',
+                number_of_days: String(selectedItem.numberOfDays || '0'),
+                pdf: selectedItem.pdf || '',
+                pay_amount: String(payAmount),
+                file: values.file || '',
+                remark: finalRemark,
+                total_paid_amount: String((selectedItem.totalPaidAmount || 0) + payAmount),
+                outstanding_amount: String(newOutstanding),
+                status: newStatus,
+                planned: isoNow.split('T')[0],
+                actual: null,
+                firm_name: selectedItem.firmNameMatch || user?.firmNameMatch || '',
+                status1: 'pending',
+                payment_form: 'store_in',
+            };
 
-                toast.success(`✅ Payment approved for: ${selectedItem.partyName}`);
-            } else {
-                // ✅ FOR PO-BASED ITEMS: Create a new payment entry
-                const uniqueNo = generateUniqueNo();
+            const { error: insertError } = await supabase
+                .from('payments')
+                .insert([paymentData]);
 
-                const paymentData = {
-                    timestamp: formattedDateTime,
-                    unique_no: uniqueNo,
-                    party_name: selectedItem.partyName,
-                    po_number: selectedItem.poNumber,
-                    total_po_amount: String(selectedItem.totalPoAmount || ''),
-                    internal_code: selectedItem.internalCode,
-                    product: selectedItem.product,
-                    delivery_date: selectedItem.deliveryDate,
-                    payment_terms: selectedItem.paymentTerms,
-                    number_of_days: String(selectedItem.numberOfDays || '0'),
-                    pdf: selectedItem.pdf || '',
-                    pay_amount: String(payAmount),
-                    file: values.file || '',
-                    remark: finalRemark,
-                    total_paid_amount: String(newTotalPaid),
-                    outstanding_amount: String(newOutstanding),
-                    status: newStatus,
-                    planned: formattedDateOnly,
-                    actual: null,
-                    firm_name: user?.firmNameMatch || '',
-                    status1: 'pending',
-                    payment_form: selectedItem.paymentForm || 'po_based',
-                };
+            if (insertError) throw insertError;
 
-                // ✅ Insert to PAYMENTS table in Supabase
-                const { error: insertError } = await supabase
-                    .from('payments')
-                    .insert([paymentData]);
-
-                if (insertError) {
-                    throw insertError;
-                }
-
-                // ✅ Update PO MASTER table with new totals and status
-                const { error: updateError } = await supabase
-                    .from('po_master')
-                    .update({
-                        total_paid_amount: newTotalPaid,
-                        outstanding_amount: newOutstanding,
-                        status: newStatus,
-                    })
-                    .in('id', selectedItem.rowIds);
-
-                if (updateError) {
-                    throw updateError;
-                }
-
-                toast.success(`Payment submitted for PO: ${selectedItem.poNumber}`);
-            }
-
+            toast.success(`✅ Payment queued for: ${selectedItem.partyName}`);
             setOpenDialog(false);
             setTimeout(() => updateAll(), 1000);
         } catch (error) {
@@ -967,6 +989,33 @@ export default function PIApprovals() {
                                                 ₹{selectedItem.billAmount?.toLocaleString('en-IN') || '0'}
                                             </p>
                                         </div>
+
+                                        {/* Amount to Pay (editable) */}
+                                        <FormField
+                                            control={form.control}
+                                            name="payAmount"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="font-medium">
+                                                        Amount to Pay <span className="text-red-500">*</span>
+                                                        <span className="ml-2 text-xs text-gray-400 font-normal">
+                                                            (Max: ₹{selectedItem.outstandingAmount?.toLocaleString('en-IN') || '0'})
+                                                        </span>
+                                                    </FormLabel>
+                                                    <FormControl>
+                                                        <Input
+                                                            type="number"
+                                                            placeholder="Enter amount to pay"
+                                                            className="border-gray-300 focus:border-purple-500 text-lg font-semibold"
+                                                            min={1}
+                                                            max={selectedItem.outstandingAmount || undefined}
+                                                            {...field}
+                                                        />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
 
                                         <FormField
                                             control={form.control}

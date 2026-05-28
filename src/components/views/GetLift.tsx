@@ -594,6 +594,7 @@ export default function GetPurchase() {
             approvedRate: z.union([z.string(), z.number()]),
             taxValue: z.coerce.number(),
             withTax: z.string(),
+            uom: z.string().optional(),
             liftQty: z.coerce.number().min(0),
         })).superRefine((items, ctx) => {
             items.forEach((item, index) => {
@@ -720,6 +721,7 @@ export default function GetPurchase() {
                     approvedRate: item.approvedRate || '0',
                     taxValue: item.taxValue || 0,
                     withTax: item.withTax || 'No',
+                    uom: item.uom || '',
                     liftQty: item.pendingPoQty || 0,
                 })),
             });
@@ -768,6 +770,7 @@ export default function GetPurchase() {
                         approvedRate: selectedHistory.approvedRate || '0',
                         taxValue: selectedHistory.taxValue || 0,
                         withTax: selectedHistory.withTax || 'No',
+                        uom: '',
                         liftQty: selectedHistory.qty || 0,
                     }
                 ],
@@ -984,6 +987,28 @@ export default function GetPurchase() {
 
                     await insertStoreInRecord(newStoreInRecord);
 
+                    // Insert into fullkitting if transportation is included
+                    if ((values.transportationInclude || '').toLowerCase() === 'yes') {
+                        await supabase.from('fullkitting').insert([{
+                            timestamp: currentDateTime,
+                            indent_number: item.indentNo,
+                            vendor_name: values.vendorName || selectedIndent?.vendorName || '',
+                            product_name: item.product || '',
+                            qty: Number(item.liftQty),
+                            bill_no: values.billNo || '',
+                            transporting_include: 'Yes',
+                            transporter_name: values.transporterName || '',
+                            amount: Number(values.amount) || 0,
+                            vehical_no: values.vehicleNo || '',
+                            driver_name: values.driverName || '',
+                            driver_mobile_no: values.driverMobileNo || '',
+                            planned: currentDateTime,
+                            fms_name: selectedIndent?.firmNameMatch || user?.firmNameMatch || '',
+                            firm_name_match: selectedIndent?.firmNameMatch || user?.firmNameMatch || '',
+                            status: 'Pending',
+                        }]);
+                    }
+
                     // Auto-complete status check
                     const remaining = (item.pendingLiftQty) - (Number(item.liftQty));
                     if (remaining <= 0) {
@@ -1104,6 +1129,7 @@ export default function GetPurchase() {
                                                 <th className="px-4 py-3 text-right font-semibold">Tax %</th>
                                                 <th className="px-4 py-3 text-right font-semibold">Eff. Rate</th>
                                                 <th className="px-4 py-3 text-right font-semibold">Pending Qty</th>
+                                                <th className="px-4 py-3 text-center font-semibold">UOM</th>
                                                 <th className="px-4 py-3 text-right font-semibold w-32">Lift Qty</th>
                                                 <th className="px-4 py-3 text-right font-semibold">Amount</th>
                                                 <th className="px-4 py-3 text-center font-semibold w-16">Action</th>
@@ -1134,6 +1160,9 @@ export default function GetPurchase() {
                                                         </td>
                                                         <td className="px-4 py-3 text-right">
                                                             {field.pendingLiftQty}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-center text-muted-foreground text-xs">
+                                                            {field.uom || '-'}
                                                         </td>
                                                         <td className="px-4 py-3 text-right">
                                                             <FormField
@@ -1174,7 +1203,7 @@ export default function GetPurchase() {
                                         </tbody>
                                         <tfoot className="bg-muted/30 font-bold border-t">
                                             <tr>
-                                                <td className="px-4 py-3 text-left" colSpan={5}>Totals</td>
+                                                <td className="px-4 py-3 text-left" colSpan={6}>Totals</td>
                                                 <td className="px-4 py-3 text-right border-x">
                                                     {itemsWatcher?.reduce((sum, item) => sum + (Number(item.liftQty) || 0), 0) || 0}
                                                 </td>
