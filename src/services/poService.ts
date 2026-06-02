@@ -301,18 +301,21 @@ export async function insertPoRecords(poRecords: any[]) {
  * @param indentNumbers - Array of indent numbers to update
  * @param deliveryDate - The delivery date from the PO
  */
-export async function updateIndentsAfterPoCreation(ids: number[], deliveryDate?: string, poNumber?: string) {
+export async function updateIndentsAfterPoCreation(ids: number[], deliveryDate?: string, poNumber?: string, poCopy?: string) {
     try {
         const now = new Date().toISOString();
-        const updateData: any = { 
+        const updateData: any = {
             actual4: now,
-            planned5: now 
+            planned5: now
         };
         if (deliveryDate) {
             updateData.delivery_date = deliveryDate;
         }
         if (poNumber) {
             updateData.po_number = poNumber;
+        }
+        if (poCopy) {
+            updateData.po_copy = poCopy;
         }
 
         const { error } = await supabase

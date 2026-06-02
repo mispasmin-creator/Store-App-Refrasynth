@@ -187,7 +187,7 @@ const routes: RouteAttributes[] = [
     {
         path: 'technical-approval',
         gateKey: 'threePartyApprovalView',
-        name: 'Department Approval',
+        name: 'Technical Approval',
         icon: <Users size={20} />,
         element: <DepartmentApproval />,
         notifications: (sheetsData: any[], user: any) => {
@@ -205,7 +205,7 @@ const routes: RouteAttributes[] = [
     {
         path: 'management-approval',
         gateKey: 'threePartyApprovalView',
-        name: 'Management Approval',
+        name: 'Mgmt Approval',
         icon: <ShieldCheck size={20} />,
         element: <RateApproval />,
         notifications: (sheetsData: any[], user: any) => {
@@ -344,7 +344,7 @@ const routes: RouteAttributes[] = [
     {
         path: 'store-in',
         gateKey: 'storeIn',
-        name: 'Store Check',
+        name: 'Material Receipt / Store In',
         icon: <CheckCircle2 size={20} />,
         element: <StoreIn />,
         notifications: (sheetsData: any[], user: any) => {

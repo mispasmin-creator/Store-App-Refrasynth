@@ -211,8 +211,8 @@ const CreatePO = () => {
     const [readOnly, setReadOnly] = useState(-1);
     const [mode, setMode] = useState<'create' | 'revise'>('create');
     const [isEditingDestination, setIsEditingDestination] = useState(false);
-    const [destinationAddress, setDestinationAddress] = useState(`${localStorage.getItem('company_name') || 'M/S Passary Mineral Madhya Pvt.Ltd'}, Khasra No 297/2 & 297/6 Village AKoli, Near Tarpongi Toll Plaza, PO- Devri, Raipur - 493221 (CG)`);
-    const [firmCompanyName, setFirmCompanyName] = useState(localStorage.getItem('company_name') || 'M/S Passary Mineral Madhya Pvt.Ltd');
+    const [destinationAddress, setDestinationAddress] = useState(`${localStorage.getItem('company_name') || 'M/S Refrasynth Minerals India Private Limited'}, Khasra No 297/2 & 297/6 Village AKoli, Near Tarpongi Toll Plaza, PO- Devri, Raipur - 493221 (CG)`);
+    const [firmCompanyName, setFirmCompanyName] = useState(localStorage.getItem('company_name') || 'M/S Refrasynth Minerals India Private Limited');
     const [firmCompanyAddress, setFirmCompanyAddress] = useState('Shri Ram Business Park , Block - C, 2nd floor , Room No. 212');
     const [firmCompanyPhone, setFirmCompanyPhone] = useState('+91 7223844007');
     const [firmCompanyGstin, setFirmCompanyGstin] = useState('22AAHCP9274B1ZI');
@@ -353,7 +353,7 @@ const CreatePO = () => {
                     companyDetails.destinationAddress || (details as MasterDetails).destinationAddress || ''
                 );
             } else {
-                setFirmCompanyName((details as MasterDetails).companyName || localStorage.getItem('company_name') || 'M/S Passary Mineral Madhya Pvt.Ltd');
+                setFirmCompanyName((details as MasterDetails).companyName || localStorage.getItem('company_name') || 'M/S Refrasynth Minerals India Private Limited');
                 setFirmCompanyAddress((details as MasterDetails).companyAddress || 'Shri Ram Business Park , Block - C, 2nd floor , Room No. 212');
                 setFirmCompanyPhone((details as MasterDetails).companyPhone || '+91 7223844007');
                 setFirmCompanyGstin((details as MasterDetails).companyGstin || '22AAHCP9274B1ZI');
@@ -597,13 +597,13 @@ const CreatePO = () => {
         const grandTotal = subtotal + totalGst;
 
         return {
-            companyName: firmCompanyName || localStorage.getItem('company_name') || 'M/S Passary Mineral Madhya Pvt.Ltd',
+            companyName: firmCompanyName || localStorage.getItem('company_name') || 'M/S Refrasynth Minerals India Private Limited',
             companyPhone: firmCompanyPhone || '+91 7223844007',
             companyGstin: firmCompanyGstin || '22AAHCP9274B1ZI',
             companyPan: firmCompanyPan || 'AACCJ1154B',
             companyAddress: firmCompanyAddress || 'Shri Ram Business Park , Block - C, 2nd floor , Room No. 212',
-            billingAddress: `${firmCompanyName || localStorage.getItem('company_name') || 'M/S Passary Mineral Madhya Pvt.Ltd'}, ${firmCompanyAddress || 'Shri Ram Business Park , Block - C, 2nd floor , Room No. 212'}`,
-            destinationAddress: destinationAddress || `${localStorage.getItem('company_name') || 'M/S Passary Mineral Madhya Pvt.Ltd'}, Khasra No 297/2 & 297/6 Village AKoli, Near Tarpongi Toll Plaza, PO- Devri, Raipur - 493221 (CG)`,
+            billingAddress: `${firmCompanyName || localStorage.getItem('company_name') || 'M/S Refrasynth Minerals India Private Limited'}, ${firmCompanyAddress || 'Shri Ram Business Park , Block - C, 2nd floor , Room No. 212'}`,
+            destinationAddress: destinationAddress || `${localStorage.getItem('company_name') || 'M/S Refrasynth Minerals India Private Limited'}, Khasra No 297/2 & 297/6 Village AKoli, Near Tarpongi Toll Plaza, PO- Devri, Raipur - 493221 (CG)`,
             supplierName: values.supplierName,
             supplierAddress: values.supplierAddress,
             supplierGstin: values.gstin || '',
@@ -698,13 +698,13 @@ const CreatePO = () => {
             const logoBase64 = await getLogoBase64();
 
             const pdfProps: POPdfProps = {
-                companyName: firmCompanyName || localStorage.getItem('company_name') || 'M/S Passary Mineral Madhya Pvt.Ltd',
+                companyName: firmCompanyName || localStorage.getItem('company_name') || 'M/S Refrasynth Minerals India Private Limited',
                 companyPhone: firmCompanyPhone || '+91 7223844007',
                 companyGstin: firmCompanyGstin || '22AAHCP9274B1ZI',
                 companyPan: firmCompanyPan || 'AACCJ1154B',
                 companyAddress: firmCompanyAddress || 'Shri Ram Business Park , Block - C, 2nd floor , Room No. 212',
-                billingAddress: `${firmCompanyName || localStorage.getItem('company_name') || 'M/S Passary Mineral Madhya Pvt.Ltd'}, ${firmCompanyAddress || 'Shri Ram Business Park , Block - C, 2nd floor , Room No. 212'}`,
-                destinationAddress: destinationAddress || `${localStorage.getItem('company_name') || 'M/S Passary Mineral Madhya Pvt.Ltd'}, Khasra No 297/2 & 297/6 Village AKoli, Near Tarpongi Toll Plaza, PO- Devri, Raipur - 493221 (CG)`,
+                billingAddress: `${firmCompanyName || localStorage.getItem('company_name') || 'M/S Refrasynth Minerals India Private Limited'}, ${firmCompanyAddress || 'Shri Ram Business Park , Block - C, 2nd floor , Room No. 212'}`,
+                destinationAddress: destinationAddress || `${localStorage.getItem('company_name') || 'M/S Refrasynth Minerals India Private Limited'}, Khasra No 297/2 & 297/6 Village AKoli, Near Tarpongi Toll Plaza, PO- Devri, Raipur - 493221 (CG)`,
                 supplierName: values.supplierName,
                 supplierAddress: values.supplierAddress,
                 supplierGstin: values.gstin || '',
@@ -780,7 +780,14 @@ const CreatePO = () => {
                 uploadParams.emailBody = `Please find attached Purchase Order ${poNumber}`;
             }
 
-            const url = await uploadFile(uploadParams);
+            // Upload PDF — if storage bucket not set up yet, continue without PDF link
+            let url = '';
+            try {
+                url = await uploadFile(uploadParams);
+            } catch (uploadErr: any) {
+                console.warn('⚠️ PDF upload skipped:', uploadErr?.message);
+                toast.warning('PDF upload skipped — PO will be saved without attachment.');
+            }
 
             const rows: PoMasterSheet[] = values.indents.map((v) => {
                 const indent = indentSheet.find((i: IndentSheetItem) => i.indentNumber === v.indentNumber);
@@ -848,7 +855,7 @@ const CreatePO = () => {
             // Use ISO string for database compatibility to avoid "out of range" error
             const databaseDeliveryDate = values.deliveryDate.toISOString();
             if (indentIds.length > 0) {
-                await updateIndentsAfterPoCreation(indentIds, databaseDeliveryDate, poNumber);
+                await updateIndentsAfterPoCreation(indentIds, databaseDeliveryDate, poNumber, url || undefined);
             }
 
             toast.success(`Successfully ${mode}d purchase order`);
@@ -861,8 +868,10 @@ const CreatePO = () => {
             ]);
             setIndentSheet(indents);
             setPoMasterSheet(poMaster);
-        } catch (e) {
-            toast.error(`Failed to ${mode} purchase order`);
+        } catch (e: any) {
+            console.error('❌ PO Save Error:', e);
+            const msg = e?.message || e?.error_description || String(e) || 'Unknown error';
+            toast.error(`Failed to ${mode} purchase order: ${msg}`, { duration: 8000 });
         }
     }
 
@@ -889,11 +898,11 @@ const CreatePO = () => {
                     <form onSubmit={form.handleSubmit(onSubmit, onError)} className="flex flex-col items-center">
                         <div className="space-y-4 p-4 w-full bg-white shadow-md rounded-sm">
                             {/* Header Section */}
-                            <div className="flex items-center justify-center gap-4 bg-blue-50 p-2 h-25 rounded">
+                            <div className="flex items-center justify-center gap-4 bg-green-50 p-2 h-25 rounded">
                                 <img src="/Passary.jpeg" alt="Company Logo" className="w-40  object-contain" />
                                 <div className="text-center">
                                     <h1 className="text-2xl font-bold">
-                                        {firmCompanyName || 'Passary Mineral Madhya Pvt.Ltd'}
+                                        {firmCompanyName || 'Refrasynth Minerals India Private Limited'}
                                     </h1>
                                     <div>
                                         <p className="text-sm">
@@ -1145,7 +1154,7 @@ const CreatePO = () => {
                                     <CardContent className="p-5 text-sm">
                                         {vendor ? (
                                             <>
-                                                <p className="font-semibold text-xs">{firmCompanyName || 'M/S Passary Mineral Madhya Pvt.Ltd'}</p>
+                                                <p className="font-semibold text-xs">{firmCompanyName || 'M/S Refrasynth Minerals India Private Limited'}</p>
                                                 <p className="text-xs">{firmCompanyAddress || 'Shri Ram Business Park , Block - C, 2nd floor , Room No. 212'}</p>
                                             </>
                                         ) : (
@@ -1174,7 +1183,7 @@ const CreatePO = () => {
                                     <CardContent className="p-5 text-sm">
                                         {vendor ? (
                                             <>
-                                                <p className="font-semibold text-xs">{firmCompanyName || 'M/S Passary Mineral Madhya Pvt.Ltd'}</p>
+                                                <p className="font-semibold text-xs">{firmCompanyName || 'M/S Refrasynth Minerals India Private Limited'}</p>
                                                 {isEditingDestination ? (
                                                     <div className="flex items-center gap-2 mt-1">
                                                         <Input value={destinationAddress} onChange={(e) => setDestinationAddress(e.target.value)}

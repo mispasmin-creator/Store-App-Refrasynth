@@ -47,7 +47,7 @@ export default () => {
     }
 
     return (
-        <div className="grid place-items-center h-screen bg-gradient-to-br from-blue-100 via-purple-50 to-blue-50">
+        <div className="grid place-items-center h-screen bg-gradient-to-br from-green-100 via-emerald-50 to-green-50">
             <Card className="w-full max-w-sm">
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit, onError)} className="grid gap-6">
@@ -107,7 +107,7 @@ export default () => {
                         <CardFooter>
                             <Button
                                 type="submit"
-                                className="bg-gradient-to-br from-blue-600 to-purple-600 font-medium w-full"
+                                className="bg-gradient-to-br from-green-600 to-emerald-600 font-medium w-full"
                                 disabled={form.formState.isSubmitting}
                             >
                                 {form.formState.isSubmitting && (

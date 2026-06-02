@@ -169,7 +169,7 @@ export default function AgainAuditingTable() {
             href={image}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-600 hover:underline"
+            className="text-green-600 hover:underline"
           >
             View
           </a>
@@ -189,7 +189,7 @@ export default function AgainAuditingTable() {
             href={image}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-600 hover:underline"
+            className="text-green-600 hover:underline"
           >
             View
           </a>

@@ -366,13 +366,13 @@ export default () => {
             const filePath = `comparison-sheets/${fileName}`;
 
             const { error: uploadError } = await supabase.storage
-                .from('comparison_sheet')
+                .from('images')
                 .upload(filePath, file);
 
             if (uploadError) throw uploadError;
 
             const { data: { publicUrl } } = supabase.storage
-                .from('comparison_sheet')
+                .from('images')
                 .getPublicUrl(filePath);
 
             return publicUrl;
@@ -1625,7 +1625,7 @@ export default () => {
                                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                                     {fields.map((field, index) => (
                                         <div key={field.id} className="border p-4 rounded-xl shadow-sm space-y-4">
-                                            <h3 className="font-bold border-b pb-2 text-blue-600">Vendor {index + 1} {index === 2 && "(Optional)"}</h3>
+                                            <h3 className="font-bold border-b pb-2 text-green-600">Vendor {index + 1} {index === 2 && "(Optional)"}</h3>
 
                                             <div className="grid gap-4">
                                                 <FormField

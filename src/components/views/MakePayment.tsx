@@ -615,7 +615,7 @@ export default function MakePayment() {
             accessorKey: 'planned',
             header: 'Planned Date',
             cell: ({ row }) => (
-                <span className="text-sm font-medium text-blue-600">
+                <span className="text-sm font-medium text-green-600">
                     {formatDate(row.original.planned) || '-'}
                 </span>
             )
@@ -633,7 +633,7 @@ export default function MakePayment() {
             accessorKey: 'poNumber',
             header: 'PO Number',
             cell: ({ row }) => (
-                <div className="font-medium text-purple-700">
+                <div className="font-medium text-green-700">
                     <div>{row.original.poNumber || '-'}</div>
                 </div>
             )
@@ -672,7 +672,7 @@ export default function MakePayment() {
             accessorKey: 'totalPoAmount',
             header: 'Total PO Amount',
             cell: ({ row }) => (
-                <span className="font-bold text-purple-600">₹{row.original.totalPoAmount?.toLocaleString('en-IN')}</span>
+                <span className="font-bold text-green-600">₹{row.original.totalPoAmount?.toLocaleString('en-IN')}</span>
             )
         },
         {
@@ -744,7 +744,7 @@ export default function MakePayment() {
                                     variant="outline"
                                     size="sm"
                                     onClick={() => window.open(status, '_blank')}
-                                    className="text-blue-600 hover:text-blue-700 h-8 font-medium"
+                                    className="text-green-600 hover:text-green-700 h-8 font-medium"
                                 >
                                     <ExternalLink className="mr-2 h-3 w-3" />
                                     Store Bill
@@ -778,7 +778,7 @@ export default function MakePayment() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => window.open(url, '_blank')}
-                                className="text-purple-600 hover:text-purple-700 h-8 font-medium"
+                                className="text-emerald-600 hover:text-emerald-700 h-8 font-medium"
                             >
                                 <ExternalLink className="mr-2 h-3 w-3" />
                                 View PO
@@ -906,7 +906,7 @@ export default function MakePayment() {
                                     variant="outline"
                                     size="sm"
                                     onClick={() => window.open(status, '_blank')}
-                                    className="text-blue-600 hover:text-blue-700 h-8 font-medium"
+                                    className="text-green-600 hover:text-green-700 h-8 font-medium"
                                 >
                                     <ExternalLink className="mr-2 h-3 w-3" />
                                     Store Bill
@@ -940,7 +940,7 @@ export default function MakePayment() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => window.open(url, '_blank')}
-                                className="text-purple-600 hover:text-purple-700 h-8 font-medium"
+                                className="text-emerald-600 hover:text-emerald-700 h-8 font-medium"
                             >
                                 <ExternalLink className="mr-2 h-3 w-3" />
                                 View PO
@@ -978,9 +978,9 @@ export default function MakePayment() {
                 <div className="mx-auto max-w-7xl">
                     <div className="flex justify-end gap-3 mb-4">
                         {activeTab === 'pending' && selectedRows.size > 0 && (
-                            <div className="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg">
-                                <CheckSquare className="h-4 w-4 text-blue-600" />
-                                <span className="text-sm font-medium text-blue-700">
+                            <div className="flex items-center gap-2 bg-green-50 px-3 py-2 rounded-lg">
+                                <CheckSquare className="h-4 w-4 text-green-600" />
+                                <span className="text-sm font-medium text-green-700">
                                     {selectedRows.size} selected
                                 </span>
                             </div>
@@ -1006,9 +1006,9 @@ export default function MakePayment() {
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <p className="text-sm font-medium text-gray-600">Pending Payments</p>
-                                        <p className="text-2xl font-bold text-blue-600 mt-1">{stats.total}</p>
+                                        <p className="text-2xl font-bold text-green-600 mt-1">{stats.total}</p>
                                     </div>
-                                    <FileText className="h-10 w-10 text-blue-500" />
+                                    <FileText className="h-10 w-10 text-green-500" />
                                 </div>
                             </CardContent>
                         </Card>
@@ -1032,11 +1032,11 @@ export default function MakePayment() {
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <p className="text-sm font-medium text-gray-600">Payment History</p>
-                                        <p className="text-2xl font-bold text-purple-600 mt-1">
+                                        <p className="text-2xl font-bold text-emerald-600 mt-1">
                                             {stats.historyCount}
                                         </p>
                                     </div>
-                                    <History className="h-10 w-10 text-purple-500" />
+                                    <History className="h-10 w-10 text-emerald-500" />
                                 </div>
                             </CardContent>
                         </Card>
@@ -1120,7 +1120,7 @@ export default function MakePayment() {
                                     <History className="h-4 w-4" />
                                     Payment History
                                     {stats.historyCount > 0 && (
-                                        <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5 rounded-full">
+                                        <span className="bg-green-100 text-green-800 text-xs font-medium px-2 py-0.5 rounded-full">
                                             {stats.historyCount}
                                         </span>
                                     )}
@@ -1131,7 +1131,7 @@ export default function MakePayment() {
                             <TabsContent value="pending">
                                 {paymentsLoading ? (
                                     <div className="text-center py-12">
-                                        <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600 mb-4"></div>
+                                        <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-600 mb-4"></div>
                                         <h3 className="text-lg font-semibold text-gray-700 mb-2">Loading Payment Data...</h3>
                                         <p className="text-gray-500">Fetching data from Payments</p>
                                         <Button
@@ -1204,7 +1204,7 @@ export default function MakePayment() {
                             <TabsContent value="history">
                                 {paymentHistoryLoading ? (
                                     <div className="text-center py-12">
-                                        <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600 mb-4"></div>
+                                        <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-600 mb-4"></div>
                                         <h3 className="text-lg font-semibold text-gray-700 mb-2">Loading Payment History...</h3>
                                         <p className="text-gray-500">Fetching data from Payment History</p>
                                     </div>

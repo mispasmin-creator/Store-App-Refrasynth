@@ -127,13 +127,13 @@ export default () => {
             const filePath = `indent-attachments/${fileName}`;
 
             const { error: uploadError } = await supabase.storage
-                .from('indent_attachment')
+                .from('images')
                 .upload(filePath, file);
 
             if (uploadError) throw uploadError;
 
             const { data: { publicUrl } } = supabase.storage
-                .from('indent_attachment')
+                .from('images')
                 .getPublicUrl(filePath);
 
             return publicUrl;
@@ -174,6 +174,7 @@ export default () => {
                 // Map to database schema (snake_case)
                 const row = {
                     timestamp: new Date().toISOString(),
+                    planned1: new Date().toISOString(),
                     indent_number: nextIndentNumber,
                     indenter_name: data.indenterName,
                     department: product.department,

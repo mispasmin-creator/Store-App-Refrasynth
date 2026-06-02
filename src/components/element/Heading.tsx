@@ -18,10 +18,10 @@ const getIconTheme = (heading: string) => {
 
     if (normalized.includes('dashboard')) {
         return {
-            bg: "bg-blue-50/90",
-            border: "border-blue-200/60",
-            text: "text-blue-600",
-            borderL: "border-l-blue-500"
+            bg: "bg-green-50/90",
+            border: "border-green-200/60",
+            text: "text-green-600",
+            borderL: "border-l-green-500"
         };
     }
     if (normalized.includes('store issue')) {
@@ -58,10 +58,10 @@ const getIconTheme = (heading: string) => {
     }
     if (normalized.includes('indent approval') || normalized.includes('approve indent')) {
         return {
-            bg: "bg-purple-50/90",
-            border: "border-purple-200/60",
-            text: "text-purple-600",
-            borderL: "border-l-purple-500"
+            bg: "bg-green-50/90",
+            border: "border-green-200/60",
+            text: "text-green-700",
+            borderL: "border-l-green-600"
         };
     }
     if (normalized.includes('vendor rate update') || normalized.includes('vendor update')) {
@@ -106,10 +106,10 @@ const getIconTheme = (heading: string) => {
     }
     if (normalized.includes('po history') || normalized.includes('order')) {
         return {
-            bg: "bg-indigo-50/90",
-            border: "border-indigo-200/60",
-            text: "text-indigo-600",
-            borderL: "border-l-indigo-500"
+            bg: "bg-emerald-50/90",
+            border: "border-emerald-200/60",
+            text: "text-emerald-700",
+            borderL: "border-l-emerald-600"
         };
     }
     if (normalized.includes('lifting') || normalized.includes('get purchase') || normalized.includes('get lift')) {
@@ -130,10 +130,10 @@ const getIconTheme = (heading: string) => {
     }
     if (normalized.includes('hod check') || normalized.includes('hod store')) {
         return {
-            bg: "bg-blue-50/90",
-            border: "border-blue-200/60",
-            text: "text-blue-600",
-            borderL: "border-l-blue-500"
+            bg: "bg-emerald-50/90",
+            border: "border-emerald-200/60",
+            text: "text-emerald-600",
+            borderL: "border-l-emerald-500"
         };
     }
     if (normalized.includes('freight payment') || normalized.includes('full kiting')) {
@@ -235,11 +235,11 @@ const getIconTheme = (heading: string) => {
 
 export default ({ children, heading, subtext, tabs = false, pendingCount, historyCount, pendingTabName = "Pending", historyTabName = "History" }: HeaderProps) => {
     // The base orange color theme from Pending POs to be Created for all pages
-    const baseGradient = "from-orange-100/80 via-amber-50/50 to-yellow-100/40";
-    const baseBorder = "border-orange-200";
-    const baseText = "text-orange-950";
-    const baseSubtext = "text-orange-700/80";
-    const basePageBg = "rgba(255, 247, 237, 0.45)"; // Soft warm orange/amber tint for page background
+    const baseGradient = "from-green-100/80 via-emerald-50/50 to-green-50/40";
+    const baseBorder = "border-green-200";
+    const baseText = "text-green-950";
+    const baseSubtext = "text-green-700/80";
+    const basePageBg = "rgba(240, 253, 244, 0.45)"; // Soft light green tint for page background
 
     const iconTheme = getIconTheme(heading);
 

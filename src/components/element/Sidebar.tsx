@@ -50,7 +50,7 @@ export default ({ items }: SidebarProps) => {
                         <Logo />
                         <div className="group-data-[collapsible=icon]:hidden">
                             <h2 className="text-xl font-bold">Store App</h2>
-                            <p className="text-sm">Management System</p>
+                            <p className="text-sm">Refrasynth</p>
                         </div>
                     </div>
                     <Button variant="ghost" className="size-7 group-data-[collapsible=icon]:hidden" onClick={() => updateAll()} disabled={allLoading}>

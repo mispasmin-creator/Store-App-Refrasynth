@@ -498,9 +498,9 @@ export default function PIApprovals() {
                             setSelectedItem(item);
                             setOpenDialog(true);
                         }}
-                        className={`border-purple-200 text-purple-700 shadow-sm transition-all ${isProcessed
+                        className={`border-green-200 text-green-700 shadow-sm transition-all ${isProcessed
                             ? 'opacity-40 cursor-not-allowed grayscale'
-                            : 'hover:bg-purple-50 hover:text-purple-800'
+                            : 'hover:bg-green-50 hover:text-green-800'
                             }`}
                     >
                         {isProcessed ? (
@@ -522,7 +522,7 @@ export default function PIApprovals() {
             accessorKey: 'billNo',
             header: 'Bill No.',
             cell: ({ row }) => (
-                <span className="text-sm font-medium text-purple-800">{row.original.billNo || '-'}</span>
+                <span className="text-sm font-medium text-green-800">{row.original.billNo || '-'}</span>
             ),
         },
         {
@@ -568,7 +568,7 @@ export default function PIApprovals() {
             accessorKey: 'billAmount',
             header: () => <div className="text-right">Bill Amount</div>,
             cell: ({ row }) => (
-                <div className="text-right font-semibold text-purple-700">
+                <div className="text-right font-semibold text-green-700">
                     ₹{row.original.billAmount?.toLocaleString('en-IN') || '0'}
                 </div>
             ),
@@ -795,9 +795,9 @@ export default function PIApprovals() {
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <p className="text-sm font-medium text-gray-600">Pending Payments</p>
-                                        <p className="text-2xl font-bold text-purple-600 mt-1">{stats.total}</p>
+                                        <p className="text-2xl font-bold text-green-600 mt-1">{stats.total}</p>
                                     </div>
-                                    <FileText className="h-10 w-10 text-purple-500" />
+                                    <FileText className="h-10 w-10 text-green-500" />
                                 </div>
                             </CardContent>
                         </Card>
@@ -853,7 +853,7 @@ export default function PIApprovals() {
                                     All Paid
                                 </div>
                             ) : (
-                                <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 border border-purple-300">
+                                <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-300">
                                     <AlertCircle className="mr-1 h-3 w-3" />
                                     {stats.total} Pending
                                 </div>
@@ -906,13 +906,13 @@ export default function PIApprovals() {
                                 <form onSubmit={form.handleSubmit(onSubmit, onError)} className="space-y-6">
                                     <DialogHeader>
                                         <div className="flex items-center gap-3 mb-2">
-                                            <div className="p-2 bg-purple-100 rounded-lg">
-                                                <DollarSign className="h-6 w-6 text-purple-600" />
+                                            <div className="p-2 bg-green-100 rounded-lg">
+                                                <DollarSign className="h-6 w-6 text-green-600" />
                                             </div>
                                             <div>
                                                 <DialogTitle className="text-xl">Make Payment</DialogTitle>
                                                 <DialogDescription>
-                                                    Process payment for PO: <span className="font-semibold text-purple-600">{selectedItem.poNumber}</span>
+                                                    Process payment for PO: <span className="font-semibold text-green-600">{selectedItem.poNumber}</span>
                                                 </DialogDescription>
                                             </div>
                                         </div>
@@ -921,9 +921,9 @@ export default function PIApprovals() {
                                     <Separator />
 
                                     {/* PO Details Card */}
-                                    <Card className="bg-purple-50 border-purple-200">
+                                    <Card className="bg-green-50 border-green-200">
                                         <CardHeader className="pb-3">
-                                            <CardTitle className="text-base font-semibold text-purple-800 flex items-center gap-2">
+                                            <CardTitle className="text-base font-semibold text-green-800 flex items-center gap-2">
                                                 <Package2 className="h-4 w-4" />
                                                 PO Details
                                             </CardTitle>
@@ -979,9 +979,9 @@ export default function PIApprovals() {
 
 
                                         {/* Bill Amount Display (Read-only) */}
-                                        <div className="space-y-1.5 p-3 bg-purple-50 rounded-md border border-purple-100">
-                                            <p className="text-xs font-semibold text-purple-600 uppercase tracking-wider">Bill Amount</p>
-                                            <p className="text-lg font-bold text-purple-900 flex items-center gap-1.5">
+                                        <div className="space-y-1.5 p-3 bg-green-50 rounded-md border border-green-100">
+                                            <p className="text-xs font-semibold text-green-600 uppercase tracking-wider">Bill Amount</p>
+                                            <p className="text-lg font-bold text-green-900 flex items-center gap-1.5">
                                                 ₹{selectedItem.billAmount?.toLocaleString('en-IN') || '0'}
                                             </p>
                                         </div>
@@ -1002,7 +1002,7 @@ export default function PIApprovals() {
                                                         <Input
                                                             type="number"
                                                             placeholder="Enter amount to pay"
-                                                            className="border-gray-300 focus:border-purple-500 text-lg font-semibold"
+                                                            className="border-gray-300 focus:border-green-500 text-lg font-semibold"
                                                             min={1}
                                                             max={selectedItem.outstandingAmount || undefined}
                                                             {...field}
@@ -1023,7 +1023,7 @@ export default function PIApprovals() {
                                                         <Input
                                                             type="text"
                                                             placeholder="Enter payment remarks"
-                                                            className="border-gray-300 focus:border-purple-500"
+                                                            className="border-gray-300 focus:border-green-500"
                                                             {...field}
                                                         />
                                                     </FormControl>
@@ -1043,7 +1043,7 @@ export default function PIApprovals() {
                                                     </FormLabel>
                                                     <FormControl>
                                                         <div className="space-y-2">
-                                                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-purple-400 transition-colors">
+                                                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-green-400 transition-colors">
                                                                 <Input
                                                                     type="file"
                                                                     accept=".pdf,.jpg,.jpeg,.png"
@@ -1056,7 +1056,7 @@ export default function PIApprovals() {
                                                                 </p>
                                                             </div>
                                                             {uploadingFile && (
-                                                                <div className="flex items-center gap-2 text-sm text-blue-600">
+                                                                <div className="flex items-center gap-2 text-sm text-green-600">
                                                                     <Loader size={16} color="blue" />
                                                                     Uploading...
                                                                 </div>
@@ -1071,7 +1071,7 @@ export default function PIApprovals() {
                                                                         href={field.value}
                                                                         target="_blank"
                                                                         rel="noopener noreferrer"
-                                                                        className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+                                                                        className="text-sm text-green-600 hover:underline flex items-center gap-1"
                                                                     >
                                                                         View uploaded file →
                                                                     </a>
@@ -1100,7 +1100,7 @@ export default function PIApprovals() {
                                         </DialogClose>
                                         <Button
                                             type="submit"
-                                            className="bg-purple-600 hover:bg-purple-700 shadow-sm"
+                                            className="bg-green-600 hover:bg-green-700 shadow-sm"
                                             disabled={form.formState.isSubmitting || uploadingFile}
                                         >
                                             {form.formState.isSubmitting ? (

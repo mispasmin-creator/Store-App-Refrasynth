@@ -4,7 +4,7 @@ import { Package } from 'lucide-react';
 export default ({ className, size }: { className?: string; size?: number }) => (
     <div
         className={cn(
-            'flex p-2 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 shadow-md',
+            'flex p-2 items-center justify-center rounded-lg bg-gradient-to-br from-green-600 to-emerald-500 shadow-md',
             className
         )}
     >

@@ -32,6 +32,7 @@ import {
     fetchStoreInRecords,
     updateStoreInReceiving,
     uploadProductPhoto,
+    uploadBillCopy,
     createPaymentEntry,
     type StoreInRecord,
 } from '@/services/storeInService';
@@ -240,7 +241,7 @@ export default () => {
         // Group by Vendor + Bill No
         const groupedMap = new Map<string, any>();
 
-        const pendingItems = latestRecords.filter((i) => i.planned6 !== '' && i.actual6 === '' && (i.billStatus === 'Bill Received' || i.billStatus === 'Not Received'));
+        const pendingItems = latestRecords.filter((i) => i.planned6 !== '' && i.actual6 === '');
 
         pendingItems.forEach((i) => {
             const billNo = String(i.billNo || '');
@@ -433,7 +434,7 @@ export default () => {
             cell: ({ row }) => {
                 const photo = row.original.photoOfBill;
                 return photo ? (
-                    <a href={photo} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+                    <a href={photo} target="_blank" rel="noopener noreferrer" className="text-green-600 underline">
                         View
                     </a>
                 ) : null;
@@ -478,7 +479,7 @@ export default () => {
             cell: ({ row }) => {
                 const photo = row.original.photoOfBill;
                 return photo ? (
-                    <a href={photo} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+                    <a href={photo} target="_blank" rel="noopener noreferrer" className="text-green-600 underline">
                         View
                     </a>
                 ) : null;
@@ -495,7 +496,7 @@ export default () => {
             cell: ({ row }) => {
                 const photo = row.original.photoOfProduct;
                 return photo ? (
-                    <a href={photo} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">
+                    <a href={photo} target="_blank" rel="noopener noreferrer" className="text-green-600 underline">
                         View
                     </a>
                 ) : null;
@@ -541,6 +542,10 @@ export default () => {
 
     const schema = z.object({
         status: z.enum(['Received', 'Not Received']),
+        billNo: z.string().optional(),
+        billRemark: z.string().optional(),
+        billAmount: z.coerce.number().optional(),
+        billCopy: z.instanceof(File).optional(),
         photoOfProduct: z.instanceof(File, {
             message: "Photo of product is required"
         }),
@@ -564,6 +569,10 @@ export default () => {
         resolver: zodResolver(schema),
         defaultValues: {
             status: 'Received',
+            billNo: '',
+            billRemark: '',
+            billAmount: 0,
+            billCopy: undefined,
             photoOfProduct: undefined,
             damageOrder: undefined,
             quantityAsPerBill: undefined,
@@ -594,6 +603,10 @@ export default () => {
         if (selectedIndent?.originalItems) {
             form.reset({
                 status: 'Received',
+                billNo: '',
+                billRemark: '',
+                billAmount: 0,
+                billCopy: undefined,
                 photoOfProduct: undefined,
                 damageOrder: undefined,
                 quantityAsPerBill: undefined,
@@ -615,8 +628,9 @@ export default () => {
         if (!selectedIndent) return;
         try {
             let photoUrl = '';
+            let billCopyUrl = '';
 
-            // 1. Upload photo once for all items
+            // 1. Upload product photo once for all items
             if (values.photoOfProduct) {
                 photoUrl = await uploadProductPhoto(
                     values.photoOfProduct,
@@ -624,9 +638,17 @@ export default () => {
                 );
             }
 
+            // 2. Upload bill copy if provided
+            if (values.billCopy instanceof File) {
+                billCopyUrl = await uploadBillCopy(
+                    values.billCopy,
+                    selectedIndent.liftNumber || selectedIndent.indentNo || ''
+                );
+            }
+
             const currentDateTime = new Date().toISOString();
 
-            // 2. Update all items in parallel
+            // 3. Update all items in parallel
             const updatePromises = values.items.map(item =>
                 updateStoreInReceiving(item.liftNumber, {
                     actual6: currentDateTime,
@@ -638,6 +660,10 @@ export default () => {
                     priceAsPerPoCheck: values.priceAsPerPoCheck || '',
                     remark: values.remark || '',
                     location: values.location || '',
+                    billNo: values.billNo || '',
+                    billRemark: values.billRemark || '',
+                    billAmount: Number(values.billAmount) || 0,
+                    photoOfBill: billCopyUrl,
                 })
             );
 
@@ -667,7 +693,7 @@ export default () => {
             <Dialog open={openDialog} onOpenChange={setOpenDialog}>
                 <Tabs defaultValue="pending">
                     <Heading
-                        heading="Store Check for Receive Items"
+                        heading="Material Receipt / Store In"
                         subtext="Receive items from purchase orders"
                         tabs
                         pendingCount={tableData.length}
@@ -800,6 +826,63 @@ export default () => {
                                 )}
 
 
+                                {/* Bill Info */}
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    <FormField
+                                        control={form.control}
+                                        name="billNo"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Bill Number</FormLabel>
+                                                <FormControl>
+                                                    <Input {...field} placeholder="Enter bill number" />
+                                                </FormControl>
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="billAmount"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Bill Amount</FormLabel>
+                                                <FormControl>
+                                                    <Input type="number" {...field} placeholder="Enter bill amount" />
+                                                </FormControl>
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="billRemark"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Bill Remark</FormLabel>
+                                                <FormControl>
+                                                    <Input {...field} placeholder="Enter bill remark" />
+                                                </FormControl>
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="billCopy"
+                                        render={({ field: { onChange, value, ...field } }) => (
+                                            <FormItem>
+                                                <FormLabel>Bill Copy (Image/PDF)</FormLabel>
+                                                <FormControl>
+                                                    <Input
+                                                        type="file"
+                                                        accept="image/*,.pdf"
+                                                        onChange={(e) => onChange(e.target.files?.[0])}
+                                                        {...field}
+                                                    />
+                                                </FormControl>
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
+
                                 {/* Standard form fields */}
                                 <div className="grid md:grid-cols-2 gap-4">
                                     <FormField
@@ -919,7 +1002,7 @@ export default () => {
                                                         onValueChange={field.onChange}
                                                         value={field.value}
                                                     >
-                                                        <SelectTrigger className="w-full border-blue-200 focus:ring-blue-500">
+                                                        <SelectTrigger className="w-full border-green-200 focus:ring-green-500">
                                                             <SelectValue placeholder="Select" />
                                                         </SelectTrigger>
                                                         <SelectContent>

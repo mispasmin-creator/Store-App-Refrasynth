@@ -237,6 +237,10 @@ export async function updateStoreInReceiving(
         remark: string;
         location: string;
         priceAsPerPoCheck: string;
+        billNo: string;
+        billRemark: string;
+        billAmount: number;
+        photoOfBill: string;
     }
 ) {
     try {
@@ -251,7 +255,12 @@ export async function updateStoreInReceiving(
                 quantity_as_per_bill: updateData.quantityAsPerBill,
                 remark: updateData.remark,
                 location: updateData.location,
-                bill_received2: updateData.priceAsPerPoCheck, // ✅ Using existing spare column
+                bill_received2: updateData.priceAsPerPoCheck,
+                bill_status: 'Bill Received',
+                bill_no: updateData.billNo,
+                bill_remark: updateData.billRemark,
+                bill_amount: updateData.billAmount,
+                photo_of_bill: updateData.photoOfBill,
             })
             .eq('lift_number', liftNumber);
 
@@ -549,13 +558,13 @@ export async function uploadProductPhoto(file: File, indentNumber: string): Prom
         const filePath = `product-photos/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
-            .from('photo_of_product')
+            .from('images')
             .upload(filePath, file);
 
         if (uploadError) throw uploadError;
 
         const { data: { publicUrl } } = supabase.storage
-            .from('photo_of_product')
+            .from('images')
             .getPublicUrl(filePath);
 
         return publicUrl;
@@ -577,13 +586,13 @@ export async function uploadBillCopy(file: File, liftNumber: string): Promise<st
         const filePath = `bill-copies/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
-            .from('photo_of_bill')
+            .from('images')
             .upload(filePath, file);
 
         if (uploadError) throw uploadError;
 
         const { data: { publicUrl } } = supabase.storage
-            .from('photo_of_bill')
+            .from('images')
             .getPublicUrl(filePath);
 
         return publicUrl;
@@ -635,13 +644,13 @@ export async function uploadDebitNoteCopy(file: File, liftNumber: string): Promi
         const filePath = `debit-notes/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
-            .from('store_in_images')
+            .from('images')
             .upload(filePath, file);
 
         if (uploadError) throw uploadError;
 
         const { data: { publicUrl } } = supabase.storage
-            .from('store_in_images')
+            .from('images')
             .getPublicUrl(filePath);
 
         return publicUrl;

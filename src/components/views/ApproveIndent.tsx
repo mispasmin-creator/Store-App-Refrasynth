@@ -292,7 +292,7 @@ export default function ApproveIndent() {
             cell: ({ row }: { row: Row<IndentRecord> }) => {
                 const attachment = row.original.attachment;
                 return attachment ? (
-                    <a href={attachment} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    <a href={attachment} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline">
                         Attachment
                     </a>
                 ) : null;

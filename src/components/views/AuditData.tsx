@@ -74,7 +74,7 @@ const STAGES: Record<string, StageConfig> = {
     actualField: 'actual2',
     statusField: 'status2',
     remarksField: 'remarks2',
-    color: 'bg-blue-100 text-blue-800 border-blue-200',
+    color: 'bg-green-100 text-green-800 border-green-200',
     icon: AlertTriangle,
     description: 'Correct mistakes and add bilty',
     formTitle: 'Rectify The Mistake',
@@ -86,7 +86,7 @@ const STAGES: Record<string, StageConfig> = {
     actualField: 'actual3',
     statusField: 'status3',
     remarksField: 'remarks3',
-    color: 'bg-purple-100 text-purple-800 border-purple-200',
+    color: 'bg-emerald-100 text-emerald-800 border-emerald-200',
     icon: RotateCcw,
     description: 'Re-audit after corrections',
     formTitle: 'Reauditing Data',
@@ -558,7 +558,7 @@ export default function PcReportTable() {
       cell: ({ row }) => {
         const products = row.original.products || [];
         return (
-          <div className="max-w-[200px] truncate font-medium text-blue-700" title={products.join(', ')}>
+          <div className="max-w-[200px] truncate font-medium text-green-700" title={products.join(', ')}>
             {products.length > 1 ? `${products[0]} (+${products.length - 1})` : products[0]}
           </div>
         );
@@ -600,7 +600,7 @@ export default function PcReportTable() {
       cell: ({ row }) => {
         const image = row.original.billImage;
         return image ? (
-          <a href={image} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+          <a href={image} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline">
             View
           </a>
         ) : null;
@@ -616,7 +616,7 @@ export default function PcReportTable() {
       cell: ({ row }) => {
         const image = row.original.productImage;
         return image ? (
-          <a href={image} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+          <a href={image} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline">
             View
           </a>
         ) : null;
@@ -780,7 +780,7 @@ export default function PcReportTable() {
       cell: ({ row }) => {
         const products = row.original.products || [];
         return (
-          <div className="max-w-[200px] truncate font-medium text-blue-700" title={products.join(', ')}>
+          <div className="max-w-[200px] truncate font-medium text-green-700" title={products.join(', ')}>
             {products.length > 1 ? `${products[0]} (+${products.length - 1})` : products[0]}
           </div>
         );
@@ -1049,8 +1049,8 @@ export default function PcReportTable() {
   const statsData = [
     { title: 'Total Pending', value: stageCounts.ALL, color: 'text-gray-600' },
     { title: 'Audit', value: stageCounts.AUDIT, color: 'text-amber-600' },
-    { title: 'Rectify', value: stageCounts.RECTIFY, color: 'text-blue-600' },
-    { title: 'Reaudit', value: stageCounts.REAUDIT, color: 'text-purple-600' },
+    { title: 'Rectify', value: stageCounts.RECTIFY, color: 'text-green-600' },
+    { title: 'Reaudit', value: stageCounts.REAUDIT, color: 'text-emerald-600' },
     { title: 'Tally Entry', value: stageCounts.TALLY_ENTRY, color: 'text-cyan-600' },
     { title: 'Again Audit', value: stageCounts.AGAIN_AUDIT, color: 'text-rose-600' },
   ];
@@ -1257,13 +1257,13 @@ export default function PcReportTable() {
                                       Store Quality Verification
                                     </p>
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                      <div className={`flex flex-col p-3 rounded-xl border transition-all ${item.damageOrder === 'No' ? 'bg-red-50/50 border-red-100 shadow-sm' : 'bg-blue-50/30 border-blue-100/50'}`}>
+                                      <div className={`flex flex-col p-3 rounded-xl border transition-all ${item.damageOrder === 'No' ? 'bg-red-50/50 border-red-100 shadow-sm' : 'bg-green-50/30 border-green-100/50'}`}>
                                         <span className="text-[10px] font-bold text-gray-400 uppercase mb-1">Physical Condition</span>
                                         <div className="flex items-center justify-between">
-                                          <span className={`text-sm font-black ${item.damageOrder === 'No' ? 'text-red-700' : 'text-blue-700'}`}>
+                                          <span className={`text-sm font-black ${item.damageOrder === 'No' ? 'text-red-700' : 'text-green-700'}`}>
                                             {item.damageOrder === 'No' ? 'Damaged / Varied' : (item.damageOrder || 'Verified')}
                                           </span>
-                                          <div className={`w-2 h-2 rounded-full ${item.damageOrder === 'No' ? 'bg-red-500 animate-pulse' : 'bg-blue-500'}`} />
+                                          <div className={`w-2 h-2 rounded-full ${item.damageOrder === 'No' ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`} />
                                         </div>
                                       </div>
 

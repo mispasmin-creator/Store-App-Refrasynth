@@ -33,16 +33,14 @@ export async function uploadFile({
     void emailSubject;
     void emailBody;
 
-    // Build a unique storage path: <timestamp>-<sanitised-filename>
+    // All files go into the single 'images' bucket, organised by folder (folderId)
+    const BUCKET = 'images';
     const timestamp = Date.now();
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const storagePath = `${timestamp}-${safeName}`;
-
-    // folderId is the Supabase bucket name
-    const bucketName = folderId;
+    const storagePath = `${folderId}/${timestamp}-${safeName}`;
 
     const { error: uploadError } = await supabase.storage
-        .from(bucketName)
+        .from(BUCKET)
         .upload(storagePath, file, {
             cacheControl: '3600',
             upsert: false,
@@ -55,7 +53,7 @@ export async function uploadFile({
     }
 
     const { data: urlData } = supabase.storage
-        .from(bucketName)
+        .from(BUCKET)
         .getPublicUrl(storagePath);
 
     if (!urlData?.publicUrl) {

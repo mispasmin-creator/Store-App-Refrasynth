@@ -223,6 +223,7 @@ export const fetchVendorOptions = async (): Promise<string[]> => {
 export async function insertStoreInRecord(storeInData: StoreInInsertData) {
     try {
         // ✅ FIXED: Only map columns that actually exist in the store_in table schema
+        // Only include columns confirmed to exist in store_in table
         const mappedData = {
             timestamp: storeInData.timestamp,
             indent_no: storeInData.indentNo,
@@ -230,30 +231,30 @@ export async function insertStoreInRecord(storeInData: StoreInInsertData) {
             vendor_name: storeInData.vendorName,
             product_name: storeInData.productName,
             qty: storeInData.qty?.toString(),
-            lead_time_to_lift_material: storeInData.leadTimeToLiftMaterial?.toString(),
-            discount_amount: storeInData.discountAmount?.toString(),
-            type_of_bill: storeInData.typeOfBill,
-            bill_amount: storeInData.billAmount?.toString(),
-            payment_type: storeInData.paymentType,
-            advance_amount_if_any: storeInData.advanceAmountIfAny?.toString(),
-            photo_of_bill: storeInData.photoOfBill,
-            transportation_include: storeInData.transportationInclude,
-            transporter_name: storeInData.transporterName,
-            amount: storeInData.amount?.toString(),
-            bill_status: storeInData.billStatus,
-            received_quantity: '0', // Initially 0, will be updated in ReceiveItem
-            quantity_as_per_bill: storeInData.quantityAsPerBill?.toString(),
-            po_number: storeInData.poNumber,
-            vehicle_no: storeInData.vehicleNo,
-            driver_name: storeInData.driverName,
-            driver_mobile_no: storeInData.driverMobileNo,
-            bill_remark: storeInData.billRemark,
-            firm_name_match: storeInData.firmNameMatch,
+            lead_time_to_lift_material: storeInData.leadTimeToLiftMaterial?.toString() || '0',
+            discount_amount: storeInData.discountAmount?.toString() || '0',
+            type_of_bill: storeInData.typeOfBill || '',
+            bill_amount: storeInData.billAmount?.toString() || '0',
+            payment_type: storeInData.paymentType || '',
+            advance_amount_if_any: storeInData.advanceAmountIfAny?.toString() || '0',
+            photo_of_bill: storeInData.photoOfBill || '',
+            transportation_include: storeInData.transportationInclude || '',
+            transporter_name: storeInData.transporterName || '',
+            amount: storeInData.amount?.toString() || '0',
+            bill_status: storeInData.billStatus || '',
+            received_quantity: '0',
+            quantity_as_per_bill: storeInData.quantityAsPerBill?.toString() || '0',
+            po_number: storeInData.poNumber || '',
+            vehicle_no: storeInData.vehicleNo || '',
+            driver_name: storeInData.driverName || '',
+            driver_mobile_no: storeInData.driverMobileNo || '',
+            bill_remark: storeInData.billRemark || '',
+            firm_name_match: storeInData.firmNameMatch || '',
             rate: storeInData.rate || '',
-            // Default empty values for optional fields that exist in schema
-            planned6: null,
+            indent_qty: storeInData.quantity?.toString() || '0',
+            // Stage fields - set planned6 at insert time
+            planned6: storeInData.timestamp,
             actual6: null,
-            time_delay6: '',
             send_debit_note: '',
             receiving_status: '',
             photo_of_product: '',
@@ -261,30 +262,16 @@ export async function insertStoreInRecord(storeInData: StoreInInsertData) {
             remark: '',
             planned7: null,
             actual7: null,
-            time_delay7: '',
             status: '',
             reason: '',
             planned9: null,
             actual9: null,
-            time_delay9: '',
             debit_note_copy: '',
             debit_note_number: '',
             planned11: null,
             actual11: null,
             bill_status_new: '',
             bill_image_status: '',
-            // Additional fields from schema
-            indent_date: storeInData.indentNo ? new Date().toISOString() : null,
-            indent_qty: storeInData.quantity?.toString(),
-            purchase_date: new Date().toISOString(),
-            material_date: new Date().toISOString(),
-            party_name: storeInData.vendorName,
-            indented_for: storeInData.department || '',
-            area: storeInData.areaOfUse || '',
-            approved_party_name: storeInData.approvedVendorName || storeInData.vendorName || '',
-            total_rate: (Number(storeInData.rate) * Number(storeInData.qty)).toString(),
-            lifting_status: storeInData.liftingStatus || 'Active',
-            not_bill_received_no: storeInData.notBillReceivedNo || '',
         };
 
         console.log('📤 Inserting store-in record:', mappedData);
@@ -387,13 +374,13 @@ export async function uploadBillPhoto(file: File, indentNumber: string): Promise
         const filePath = `bill-photos/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
-            .from('photo_of_bill')
+            .from('images')
             .upload(filePath, file);
 
         if (uploadError) throw uploadError;
 
         const { data: { publicUrl } } = supabase.storage
-            .from('photo_of_bill')
+            .from('images')
             .getPublicUrl(filePath);
 
         return publicUrl;

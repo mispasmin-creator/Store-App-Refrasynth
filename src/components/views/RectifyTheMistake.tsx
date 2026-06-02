@@ -115,7 +115,7 @@ export default function RectifyTheMistake() {
             cell: ({ row }) => {
                 const image = row.original.billImage;
                 return image ? (
-                    <a href={image} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    <a href={image} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline">
                         View
                     </a>
                 ) : null;
@@ -130,7 +130,7 @@ export default function RectifyTheMistake() {
             cell: ({ row }) => {
                 const image = row.original.productImage;
                 return image ? (
-                    <a href={image} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    <a href={image} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline">
                         View
                     </a>
                 ) : null;
@@ -165,7 +165,7 @@ export default function RectifyTheMistake() {
             cell: ({ row }) => {
                 const image = row.original.billImage;
                 return image ? (
-                    <a href={image} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    <a href={image} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline">
                         View
                     </a>
                 ) : null;
@@ -180,7 +180,7 @@ export default function RectifyTheMistake() {
             cell: ({ row }) => {
                 const image = row.original.productImage;
                 return image ? (
-                    <a href={image} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    <a href={image} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline">
                         View
                     </a>
                 ) : null;
