@@ -298,7 +298,7 @@ export default function Dashboard() {
         return indents
             .filter(i => i.actual4 && !i.actual5)
             .map(i => ({
-                indentNo: i.indent_number, vendor: i.approved_vendor_name || '-',
+                indentNo: i.indent_number, vendor: i.vendor_name || '-',
                 product: i.product_name, qty: i.approved_quantity || i.quantity,
                 planned: i.planned5 || '-',
             }))
