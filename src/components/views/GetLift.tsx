@@ -821,7 +821,7 @@ export default function GetPurchase() {
 
     // ── Render ──────────────────────────────────────────────────────────
     return (
-        <div>
+        <div className="bg-gray-50/60 min-h-screen">
             <Dialog open={openDialog} onOpenChange={handleOpenChange}>
 
                 {/* ── Page Header ─────────────────────────────────── */}
@@ -836,64 +836,80 @@ export default function GetPurchase() {
 
                 {/* ── Alert Banners ───────────────────────────────── */}
                 {(kpis.overdue > 0 || kpis.todayCount > 0) && (
-                    <div className="space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {kpis.overdue > 0 && (
-                            <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">
-                                <AlertTriangle size={16} className="text-red-500 shrink-0" />
-                                <span className="text-sm font-semibold text-red-700">
-                                    🔴 {kpis.overdue} overdue lifting{kpis.overdue > 1 ? 's' : ''} — Immediate attention required!
-                                </span>
+                            <div className="flex items-center gap-3 bg-gradient-to-r from-red-500 to-red-600 rounded-xl px-4 py-3 shadow-sm">
+                                <div className="bg-white/20 rounded-lg p-1.5 shrink-0">
+                                    <AlertTriangle size={15} className="text-white" />
+                                </div>
+                                <div>
+                                    <p className="text-white font-bold text-sm">{kpis.overdue} Overdue Lifting{kpis.overdue > 1 ? 's' : ''}</p>
+                                    <p className="text-red-100 text-xs">Immediate attention required!</p>
+                                </div>
                             </div>
                         )}
                         {kpis.todayCount > 0 && (
-                            <div className="flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-xl px-4 py-2.5">
-                                <Clock size={16} className="text-orange-500 shrink-0" />
-                                <span className="text-sm font-semibold text-orange-700">
-                                    🟠 {kpis.todayCount} lifting{kpis.todayCount > 1 ? 's' : ''} due today
-                                </span>
+                            <div className="flex items-center gap-3 bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl px-4 py-3 shadow-sm">
+                                <div className="bg-white/20 rounded-lg p-1.5 shrink-0">
+                                    <Clock size={15} className="text-white" />
+                                </div>
+                                <div>
+                                    <p className="text-white font-bold text-sm">{kpis.todayCount} Due Today</p>
+                                    <p className="text-orange-100 text-xs">Schedule before day ends</p>
+                                </div>
                             </div>
                         )}
                     </div>
                 )}
 
                 {/* ── KPI Cards ──────────────────────────────────── */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                    <KpiCard title="Total POs" value={kpis.totalPOs} icon={Package} color="bg-green-600" />
-                    <KpiCard title="Completed" value={kpis.totalCompleted} icon={CheckCircle2} color="bg-green-500" />
-                    <KpiCard title="Pending" value={kpis.totalPending} icon={Clock} color="bg-gray-500" />
-                    <KpiCard title="Overdue" value={kpis.overdue} icon={AlertTriangle} color="bg-red-500" />
-                    <KpiCard title="Due Today" value={kpis.todayCount} icon={Calendar} color="bg-orange-500" />
-                    <KpiCard title="This Week" value={kpis.thisWeek} icon={Activity} color="bg-yellow-500" />
-                    <KpiCard title="This Month" value={kpis.thisMonth} icon={TrendingUp} color="bg-blue-500" />
-                    <KpiCard title="Total Planned" value={kpis.totalPlanned} icon={BarChart2} color="bg-purple-500" />
-                    <KpiCard title="Qty Ordered" value={kpis.totalQtyOrdered.toFixed(0)} icon={Package} color="bg-teal-600" />
-                    <KpiCard title="Qty Lifted" value={kpis.totalQtyLifted.toFixed(0)} icon={CheckCircle2} color="bg-emerald-500" />
-                    <KpiCard title="Remaining Qty" value={kpis.remainingQty.toFixed(0)} icon={AlertCircle} color="bg-rose-500" />
-                    <KpiCard title="Vendors" value={uniqueVendors.length} icon={Users} color="bg-indigo-500" />
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+                    <KpiCard title="Total POs" value={kpis.totalPOs} icon={Package} color="bg-slate-600" sub="All orders" />
+                    <KpiCard title="Completed" value={kpis.totalCompleted} icon={CheckCircle2} color="bg-green-600" sub="Fully lifted" />
+                    <KpiCard title="Pending" value={kpis.totalPending} icon={Clock} color="bg-blue-500" sub="Awaiting lift" />
+                    <KpiCard title="Overdue" value={kpis.overdue} icon={AlertTriangle} color="bg-red-500" sub="Past date" />
+                    <KpiCard title="Due Today" value={kpis.todayCount} icon={Calendar} color="bg-orange-500" sub="Act now" />
+                    <KpiCard title="This Week" value={kpis.thisWeek} icon={Activity} color="bg-yellow-500" sub="Next 7 days" />
+                    <KpiCard title="This Month" value={kpis.thisMonth} icon={TrendingUp} color="bg-purple-500" sub="Monthly pending" />
+                    <KpiCard title="Vendors" value={uniqueVendors.length} icon={Users} color="bg-indigo-500" sub="Active" />
+                    <KpiCard title="Qty Ordered" value={kpis.totalQtyOrdered.toFixed(0)} icon={Package} color="bg-teal-600" sub="Total ordered" />
+                    <KpiCard title="Qty Lifted" value={kpis.totalQtyLifted.toFixed(0)} icon={CheckCircle2} color="bg-emerald-500" sub="Lifted so far" />
+                    <KpiCard title="Remaining" value={kpis.remainingQty.toFixed(0)} icon={AlertCircle} color="bg-rose-500" sub="Yet to lift" />
+                    <KpiCard title="Total Planned" value={kpis.totalPlanned} icon={BarChart2} color="bg-cyan-600" sub="With plan date" />
                 </div>
 
                 {/* ── Main Tabs ───────────────────────────────────── */}
                 <Tabs defaultValue="dashboard">
-                    <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
-                        <TabsList className="bg-white border rounded-xl p-1 gap-1 h-auto">
-                            <TabsTrigger value="dashboard" className="rounded-lg">Dashboard</TabsTrigger>
-                            <TabsTrigger value="pending" className="rounded-lg">
-                                Pending {tableData.length > 0 && <span className="ml-1.5 bg-green-600 text-white rounded-full px-1.5 py-0.5 text-xs">{tableData.length}</span>}
-                            </TabsTrigger>
-                            <TabsTrigger value="history" className="rounded-lg">
-                                History {historyData.length > 0 && <span className="ml-1.5 bg-gray-500 text-white rounded-full px-1.5 py-0.5 text-xs">{historyData.length}</span>}
-                            </TabsTrigger>
-                            <TabsTrigger value="reports" className="rounded-lg">Reports</TabsTrigger>
-                            <TabsTrigger value="analytics" className="rounded-lg">Analytics</TabsTrigger>
+                    {/* Tab bar + action buttons */}
+                    <div className="bg-white rounded-xl border shadow-sm p-2 flex items-center justify-between flex-wrap gap-2 mb-3">
+                        <TabsList className="bg-gray-100 rounded-lg p-1 gap-0.5 h-auto">
+                            {[
+                                { value: 'dashboard', label: 'Dashboard', icon: <Activity size={13}/> },
+                                { value: 'pending',   label: 'Pending',   icon: <Clock size={13}/>,    count: tableData.length,   dot: 'bg-green-600' },
+                                { value: 'history',   label: 'History',   icon: <FileText size={13}/>, count: historyData.length, dot: 'bg-gray-500' },
+                                { value: 'reports',   label: 'Reports',   icon: <BarChart2 size={13}/> },
+                                { value: 'analytics', label: 'Analytics', icon: <TrendingUp size={13}/> },
+                            ].map(t => (
+                                <TabsTrigger key={t.value} value={t.value}
+                                    className="rounded-md px-3 py-1.5 text-sm font-medium gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-green-700 transition-all">
+                                    {t.icon}{t.label}
+                                    {t.count !== undefined && t.count > 0 && (
+                                        <span className={`${t.dot} text-white rounded-full px-1.5 py-0.5 text-[10px] leading-none font-bold`}>{t.count}</span>
+                                    )}
+                                </TabsTrigger>
+                            ))}
                         </TabsList>
-                        <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm" onClick={fetchAllData} disabled={loading} className="gap-1.5 h-8">
+                        <div className="flex items-center gap-1.5">
+                            <Button variant="outline" size="sm" onClick={fetchAllData} disabled={loading}
+                                className="gap-1.5 h-8 hover:border-green-400 hover:text-green-700">
                                 <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
                             </Button>
-                            <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={() => exportCSV(activeFilteredRecords, 'get-lift-report')}>
+                            <Button variant="outline" size="sm" className="gap-1.5 h-8 hover:border-green-400 hover:text-green-700"
+                                onClick={() => exportCSV(activeFilteredRecords, 'get-lift-report')}>
                                 <Download size={13} /> Export CSV
                             </Button>
-                            <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={() => window.print()}>
+                            <Button variant="outline" size="sm" className="gap-1.5 h-8 hover:border-green-400 hover:text-green-700"
+                                onClick={() => window.print()}>
                                 <FileText size={13} /> Print
                             </Button>
                         </div>
@@ -901,59 +917,78 @@ export default function GetPurchase() {
 
                     {/* ── Dashboard Tab ─────────────────────── */}
                     <TabsContent value="dashboard" className="space-y-3">
-                        {/* Filters */}
-                        <div className="bg-white rounded-xl border p-3 flex flex-wrap gap-3 items-end">
-                            <div className="flex-1 min-w-[160px]">
-                                <label className="text-xs font-medium text-gray-500 mb-1 block">Search</label>
-                                <Input placeholder="PO, Vendor, Product..." value={searchFilter} onChange={e => setSearchFilter(e.target.value)} className="h-9" />
+                        <div className="bg-white rounded-xl border shadow-sm p-4">
+                            <div className="flex flex-wrap gap-3 items-end">
+                                <div className="flex-1 min-w-[200px]">
+                                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Search</label>
+                                    <div className="relative">
+                                        <Input placeholder="PO, Vendor, Product, Indent..." value={searchFilter}
+                                            onChange={e => setSearchFilter(e.target.value)} className="h-9 pl-8" />
+                                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="min-w-[145px]">
+                                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Status</label>
+                                    <Select value={statusFilter} onValueChange={v => setStatusFilter(v as any)}>
+                                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Status</SelectItem>
+                                            <SelectItem value="overdue">🔴 Overdue</SelectItem>
+                                            <SelectItem value="today">🟠 Due Today</SelectItem>
+                                            <SelectItem value="this_week">🟡 This Week</SelectItem>
+                                            <SelectItem value="partial">🔵 Partial</SelectItem>
+                                            <SelectItem value="pending">⚪ Pending</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="min-w-[170px]">
+                                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Vendor</label>
+                                    <Select value={vendorFilter} onValueChange={setVendorFilter}>
+                                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Vendors</SelectItem>
+                                            {uniqueVendors.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="min-w-[140px]">
+                                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 block">Date Range</label>
+                                    <Select value={dateFilter} onValueChange={v => setDateFilter(v as any)}>
+                                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Dates</SelectItem>
+                                            <SelectItem value="today">Due Today</SelectItem>
+                                            <SelectItem value="week">This Week</SelectItem>
+                                            <SelectItem value="month">This Month</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="flex items-end gap-2">
+                                    <Button variant="ghost" size="sm" className="h-9 text-gray-500 hover:text-red-600 gap-1"
+                                        onClick={() => { setSearchFilter(''); setStatusFilter('all'); setVendorFilter('all'); setDateFilter('all'); }}>
+                                        <X size={13}/> Clear
+                                    </Button>
+                                    <span className="text-xs text-gray-400 pb-2 whitespace-nowrap">
+                                        <span className="font-semibold text-gray-700">{activeFilteredRecords.length}</span> records
+                                    </span>
+                                </div>
                             </div>
-                            <div className="min-w-[140px]">
-                                <label className="text-xs font-medium text-gray-500 mb-1 block">Status</label>
-                                <Select value={statusFilter} onValueChange={v => setStatusFilter(v as any)}>
-                                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Status</SelectItem>
-                                        <SelectItem value="overdue">🔴 Overdue</SelectItem>
-                                        <SelectItem value="today">🟠 Due Today</SelectItem>
-                                        <SelectItem value="this_week">🟡 This Week</SelectItem>
-                                        <SelectItem value="partial">🔵 Partial</SelectItem>
-                                        <SelectItem value="pending">⚪ Pending</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="min-w-[160px]">
-                                <label className="text-xs font-medium text-gray-500 mb-1 block">Vendor</label>
-                                <Select value={vendorFilter} onValueChange={setVendorFilter}>
-                                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Vendors</SelectItem>
-                                        {uniqueVendors.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="min-w-[140px]">
-                                <label className="text-xs font-medium text-gray-500 mb-1 block">Date Range</label>
-                                <Select value={dateFilter} onValueChange={v => setDateFilter(v as any)}>
-                                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Dates</SelectItem>
-                                        <SelectItem value="today">Due Today</SelectItem>
-                                        <SelectItem value="week">This Week</SelectItem>
-                                        <SelectItem value="month">This Month</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <Button variant="outline" size="sm" className="h-9" onClick={() => { setSearchFilter(''); setStatusFilter('all'); setVendorFilter('all'); setDateFilter('all'); }}>
-                                Clear
-                            </Button>
-                            <span className="text-xs text-gray-400 self-end pb-1">{activeFilteredRecords.length} records (completed in History tab)</span>
                         </div>
                         <HightlightedTable data={activeFilteredRecords} />
                     </TabsContent>
 
                     {/* ── Pending Tab ───────────────────────── */}
                     <TabsContent value="pending">
-                        <div className="bg-white rounded-xl border">
+                        <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+                            <div className="px-4 py-3 bg-gradient-to-r from-green-50 to-emerald-50 border-b flex items-center gap-3">
+                                <div className="bg-green-600 rounded-lg p-1.5"><Clock size={14} className="text-white"/></div>
+                                <div>
+                                    <h3 className="font-semibold text-gray-800 text-sm">Pending Liftings</h3>
+                                    <p className="text-xs text-gray-500">{tableData.length} PO{tableData.length !== 1 ? 's' : ''} awaiting lift</p>
+                                </div>
+                            </div>
                             <DataTable
                                 data={tableData}
                                 columns={pendingColumns}
@@ -963,9 +998,22 @@ export default function GetPurchase() {
                         </div>
                     </TabsContent>
 
-                    {/* ── History Tab (completed only, no edit) ── */}
+                    {/* ── History Tab ────────────────────────── */}
                     <TabsContent value="history">
-                        <div className="bg-white rounded-xl border">
+                        <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+                            <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-slate-50 border-b flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="bg-gray-600 rounded-lg p-1.5"><FileText size={14} className="text-white"/></div>
+                                    <div>
+                                        <h3 className="font-semibold text-gray-800 text-sm">Lifting History</h3>
+                                        <p className="text-xs text-gray-500">{historyData.length} completed store-in records</p>
+                                    </div>
+                                </div>
+                                <Button size="sm" variant="outline" className="gap-1.5 h-8"
+                                    onClick={() => exportCSV(processedRecords.filter(r => r.status === 'completed'), 'lifting-history')}>
+                                    <Download size={13}/> Export
+                                </Button>
+                            </div>
                             <DataTable
                                 data={historyData}
                                 columns={historyColumnsNoEdit}
@@ -978,281 +1026,378 @@ export default function GetPurchase() {
                     {/* ── Reports Tab ───────────────────────── */}
                     <TabsContent value="reports">
                         <Tabs defaultValue="pending_report">
-                            <TabsList className="mb-4 flex-wrap h-auto bg-white border rounded-xl p-1">
-                                <TabsTrigger value="pending_report" className="rounded-lg gap-1.5"><Clock size={13}/>Pending</TabsTrigger>
-                                <TabsTrigger value="overdue_report" className="rounded-lg gap-1.5"><AlertTriangle size={13}/>Overdue</TabsTrigger>
-                                <TabsTrigger value="upcoming_report" className="rounded-lg gap-1.5"><Calendar size={13}/>Upcoming</TabsTrigger>
-                                <TabsTrigger value="vendor_report" className="rounded-lg gap-1.5"><Users size={13}/>Vendor-wise</TabsTrigger>
-                                <TabsTrigger value="material_report" className="rounded-lg gap-1.5"><Package size={13}/>Material-wise</TabsTrigger>
-                            </TabsList>
+                            <div className="bg-white rounded-xl border shadow-sm p-2 mb-3">
+                                <TabsList className="bg-gray-100 rounded-lg p-1 gap-0.5 h-auto flex-wrap">
+                                    {[
+                                        { value: 'pending_report',  label: 'Pending',       icon: <Clock size={12}/>,          count: processedRecords.filter(r => r.status !== 'completed').length, iconCls: 'text-blue-500' },
+                                        { value: 'overdue_report',  label: 'Overdue',        icon: <AlertTriangle size={12}/>,   count: processedRecords.filter(r => r.status === 'overdue').length,    iconCls: 'text-red-500' },
+                                        { value: 'upcoming_report', label: 'Upcoming',       icon: <Calendar size={12}/>,        count: processedRecords.filter(r => ['today','this_week'].includes(r.status)).length, iconCls: 'text-orange-500' },
+                                        { value: 'vendor_report',   label: 'Vendor-wise',    icon: <Users size={12}/>,                                                                                   iconCls: 'text-green-600' },
+                                        { value: 'material_report', label: 'Material-wise',  icon: <Package size={12}/>,                                                                                 iconCls: 'text-purple-600' },
+                                    ].map(t => (
+                                        <TabsTrigger key={t.value} value={t.value}
+                                            className="rounded-md px-3 py-1.5 text-sm font-medium gap-1.5 data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all">
+                                            <span className={t.iconCls}>{t.icon}</span>
+                                            {t.label}
+                                            {t.count !== undefined && t.count > 0 && (
+                                                <span className="bg-gray-200 text-gray-700 rounded-full px-1.5 py-0.5 text-[10px] leading-none font-bold">{t.count}</span>
+                                            )}
+                                        </TabsTrigger>
+                                    ))}
+                                </TabsList>
+                            </div>
 
-                                {/* Pending Report */}
-                                <TabsContent value="pending_report">
-                                    <div className="bg-white rounded-xl border overflow-hidden">
-                                        <div className="px-4 py-3 bg-gray-50 border-b flex items-center justify-between">
-                                            <h3 className="font-semibold text-gray-700">Pending Lifting Report ({processedRecords.filter(r => r.status !== 'completed').length})</h3>
-                                            <Button size="sm" variant="outline" onClick={() => exportCSV(processedRecords.filter(r => r.status !== 'completed'), 'pending-liftings')}>
-                                                <Download size={13} className="mr-1" /> Export
-                                            </Button>
+                            {/* Pending Report */}
+                            <TabsContent value="pending_report">
+                                <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+                                    <div className="px-4 py-3 bg-blue-50 border-b flex items-center justify-between">
+                                        <div>
+                                            <h3 className="font-semibold text-blue-800 text-sm">Pending Lifting Report</h3>
+                                            <p className="text-xs text-blue-500">{processedRecords.filter(r => r.status !== 'completed').length} items awaiting lift</p>
                                         </div>
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-sm">
-                                                <thead className="bg-gray-50 border-b"><tr>
-                                                    {['Vendor', 'PO Number', 'Product', 'Remaining Qty', 'Planned Date', 'Days Pending', 'Status'].map(h => <th key={h} className="px-4 py-2 text-left font-semibold text-xs text-gray-600">{h}</th>)}
-                                                </tr></thead>
-                                                <tbody className="divide-y">
-                                                    {processedRecords.filter(r => r.status !== 'completed').map((r, i) => (
-                                                        <tr key={i} className={`${rowBg(r.status)} hover:opacity-90`}>
-                                                            <td className="px-4 py-2">{r.vendorName}</td>
-                                                            <td className="px-4 py-2 font-medium text-primary">{r.poNumber}</td>
-                                                            <td className="px-4 py-2 text-xs max-w-[150px] truncate">{r.productName}</td>
-                                                            <td className="px-4 py-2 text-center font-semibold text-orange-600">{r.remainingQty}</td>
-                                                            <td className="px-4 py-2 text-xs">{r.plannedDate ? formatDate(parseCustomDate(r.plannedDate)) : '-'}</td>
-                                                            <td className="px-4 py-2 text-center">
-                                                                <span className={r.daysRemaining < 0 ? 'text-red-600 font-bold' : 'text-gray-600'}>
-                                                                    {r.daysRemaining < 0 ? `${Math.abs(r.daysRemaining)}d overdue` : `${r.daysRemaining}d left`}
-                                                                </span>
-                                                            </td>
-                                                            <td className="px-4 py-2"><StatusBadge status={r.status} /></td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
+                                        <Button size="sm" variant="outline" className="gap-1.5 h-8 border-blue-200 text-blue-700 hover:bg-blue-50"
+                                            onClick={() => exportCSV(processedRecords.filter(r => r.status !== 'completed'), 'pending-liftings')}>
+                                            <Download size={13}/> Export
+                                        </Button>
                                     </div>
-                                </TabsContent>
-
-                                {/* Overdue Report */}
-                                <TabsContent value="overdue_report">
-                                    <div className="bg-white rounded-xl border overflow-hidden">
-                                        <div className="px-4 py-3 bg-red-50 border-b flex items-center justify-between">
-                                            <h3 className="font-semibold text-red-700">🔴 Overdue Liftings ({processedRecords.filter(r => r.status === 'overdue').length})</h3>
-                                            <Button size="sm" variant="outline" onClick={() => exportCSV(processedRecords.filter(r => r.status === 'overdue'), 'overdue-liftings')}>
-                                                <Download size={13} className="mr-1" /> Export
-                                            </Button>
-                                        </div>
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-sm">
-                                                <thead className="bg-red-50 border-b"><tr>
-                                                    {['Vendor', 'PO Number', 'Product', 'Delay (Days)', 'Pending Qty', 'Planned Date'].map(h => <th key={h} className="px-4 py-2 text-left font-semibold text-xs text-red-700">{h}</th>)}
-                                                </tr></thead>
-                                                <tbody className="divide-y">
-                                                    {processedRecords.filter(r => r.status === 'overdue').sort((a, b) => a.daysRemaining - b.daysRemaining).map((r, i) => (
-                                                        <tr key={i} className="bg-red-50/50 hover:bg-red-100/50">
-                                                            <td className="px-4 py-2 font-medium">{r.vendorName}</td>
-                                                            <td className="px-4 py-2 text-primary font-semibold">{r.poNumber}</td>
-                                                            <td className="px-4 py-2 text-xs">{r.productName}</td>
-                                                            <td className="px-4 py-2 text-center text-red-700 font-bold">{Math.abs(r.daysRemaining)}d</td>
-                                                            <td className="px-4 py-2 text-center text-orange-600 font-semibold">{r.remainingQty}</td>
-                                                            <td className="px-4 py-2 text-xs">{r.plannedDate ? formatDate(parseCustomDate(r.plannedDate)) : '-'}</td>
-                                                        </tr>
-                                                    ))}
-                                                    {processedRecords.filter(r => r.status === 'overdue').length === 0 && (
-                                                        <tr><td colSpan={6} className="py-10 text-center text-green-600 font-medium">✓ No overdue liftings</td></tr>
-                                                    )}
-                                                </tbody>
-                                            </table>
-                                        </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm">
+                                            <thead className="bg-gray-50 border-b">
+                                                <tr>{['#','Vendor','PO Number','Product','Remaining Qty','Planned Date','Days','Status'].map(h => (
+                                                    <th key={h} className="px-4 py-2.5 text-left font-semibold text-xs text-gray-600 whitespace-nowrap">{h}</th>
+                                                ))}</tr>
+                                            </thead>
+                                            <tbody className="divide-y">
+                                                {processedRecords.filter(r => r.status !== 'completed').length === 0 ? (
+                                                    <tr><td colSpan={8} className="py-14 text-center">
+                                                        <CheckCircle2 size={36} className="mx-auto mb-2 text-green-300"/>
+                                                        <p className="text-green-600 font-medium">All liftings completed!</p>
+                                                    </td></tr>
+                                                ) : processedRecords.filter(r => r.status !== 'completed').map((r, i) => (
+                                                    <tr key={i} className={`${rowBg(r.status)} hover:opacity-90 transition-opacity`}>
+                                                        <td className="px-4 py-2.5 text-xs text-gray-400 font-mono">{i+1}</td>
+                                                        <td className="px-4 py-2.5 font-medium text-gray-800">{r.vendorName || '—'}</td>
+                                                        <td className="px-4 py-2.5 font-bold text-primary">{r.poNumber}</td>
+                                                        <td className="px-4 py-2.5 text-xs text-gray-600 max-w-[150px] truncate">{r.productName}</td>
+                                                        <td className="px-4 py-2.5 text-center font-bold text-orange-600">{r.remainingQty}</td>
+                                                        <td className="px-4 py-2.5 text-xs text-gray-600 whitespace-nowrap">{r.plannedDate ? formatDate(parseCustomDate(r.plannedDate)) : '—'}</td>
+                                                        <td className="px-4 py-2.5 text-center">
+                                                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${r.daysRemaining < 0 ? 'bg-red-100 text-red-700' : r.daysRemaining === 0 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'}`}>
+                                                                {r.daysRemaining < 0 ? `${Math.abs(r.daysRemaining)}d over` : r.daysRemaining === 0 ? 'Today' : `${r.daysRemaining}d`}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-2.5"><StatusBadge status={r.status}/></td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
                                     </div>
-                                </TabsContent>
+                                </div>
+                            </TabsContent>
 
-                                {/* Upcoming Report */}
-                                <TabsContent value="upcoming_report">
-                                    <div className="space-y-4">
-                                        {[
-                                            { label: '🟠 Due Today', filter: (r: ProcessedRecord) => r.status === 'today', color: 'orange' },
-                                            { label: '🟡 Due This Week', filter: (r: ProcessedRecord) => r.status === 'this_week', color: 'yellow' },
-                                            { label: '⚪ Due This Month', filter: (r: ProcessedRecord) => { const d = safeParseDate(r.plannedDate); return !!d && isThisMonth(d) && r.status !== 'completed'; }, color: 'gray' },
-                                        ].map(({ label, filter, color }) => {
-                                            const rows = processedRecords.filter(filter);
-                                            return (
-                                                <div key={label} className="bg-white rounded-xl border overflow-hidden">
-                                                    <div className={`px-4 py-3 bg-${color}-50 border-b`}>
-                                                        <h3 className={`font-semibold text-${color}-700`}>{label} ({rows.length})</h3>
-                                                    </div>
-                                                    <div className="overflow-x-auto">
-                                                        <table className="w-full text-sm">
-                                                            <thead className="bg-gray-50 border-b"><tr>
-                                                                {['Vendor', 'PO', 'Product', 'Remaining Qty', 'Planned Date', 'Days'].map(h => <th key={h} className="px-4 py-2 text-left text-xs font-semibold text-gray-600">{h}</th>)}
-                                                            </tr></thead>
-                                                            <tbody className="divide-y">
-                                                                {rows.length === 0 ? (
-                                                                    <tr><td colSpan={6} className="py-6 text-center text-gray-400 text-sm">No records</td></tr>
-                                                                ) : rows.map((r, i) => (
-                                                                    <tr key={i} className="hover:bg-gray-50">
-                                                                        <td className="px-4 py-2">{r.vendorName}</td>
-                                                                        <td className="px-4 py-2 font-medium text-primary">{r.poNumber}</td>
-                                                                        <td className="px-4 py-2 text-xs">{r.productName}</td>
-                                                                        <td className="px-4 py-2 text-center text-orange-600 font-semibold">{r.remainingQty}</td>
-                                                                        <td className="px-4 py-2 text-xs">{r.plannedDate ? formatDate(parseCustomDate(r.plannedDate)) : '-'}</td>
-                                                                        <td className="px-4 py-2 text-center font-medium">{r.daysRemaining}d</td>
-                                                                    </tr>
-                                                                ))}
-                                                            </tbody>
-                                                        </table>
+                            {/* Overdue Report */}
+                            <TabsContent value="overdue_report">
+                                <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+                                    <div className="px-4 py-3 bg-red-50 border-b flex items-center justify-between">
+                                        <div>
+                                            <h3 className="font-semibold text-red-800 text-sm flex items-center gap-1.5"><AlertTriangle size={14}/> Overdue Liftings</h3>
+                                            <p className="text-xs text-red-500">{processedRecords.filter(r => r.status === 'overdue').length} past planned date</p>
+                                        </div>
+                                        <Button size="sm" variant="outline" className="gap-1.5 h-8 border-red-200 text-red-700 hover:bg-red-50"
+                                            onClick={() => exportCSV(processedRecords.filter(r => r.status === 'overdue'), 'overdue-liftings')}>
+                                            <Download size={13}/> Export
+                                        </Button>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm">
+                                            <thead className="bg-red-50 border-b">
+                                                <tr>{['#','Vendor','PO Number','Product','Delay','Pending Qty','Planned Date'].map(h => (
+                                                    <th key={h} className="px-4 py-2.5 text-left font-semibold text-xs text-red-700 whitespace-nowrap">{h}</th>
+                                                ))}</tr>
+                                            </thead>
+                                            <tbody className="divide-y">
+                                                {processedRecords.filter(r => r.status === 'overdue').sort((a,b) => a.daysRemaining - b.daysRemaining).length === 0 ? (
+                                                    <tr><td colSpan={7} className="py-14 text-center">
+                                                        <CheckCircle2 size={36} className="mx-auto mb-2 text-green-300"/>
+                                                        <p className="text-green-600 font-medium">No overdue liftings!</p>
+                                                    </td></tr>
+                                                ) : processedRecords.filter(r => r.status === 'overdue').sort((a,b) => a.daysRemaining - b.daysRemaining).map((r,i) => (
+                                                    <tr key={i} className="bg-red-50/30 hover:bg-red-50 transition-colors">
+                                                        <td className="px-4 py-2.5 text-xs text-gray-400 font-mono">{i+1}</td>
+                                                        <td className="px-4 py-2.5 font-medium text-gray-800">{r.vendorName}</td>
+                                                        <td className="px-4 py-2.5 font-bold text-primary">{r.poNumber}</td>
+                                                        <td className="px-4 py-2.5 text-xs text-gray-600">{r.productName}</td>
+                                                        <td className="px-4 py-2.5 text-center">
+                                                            <span className="bg-red-100 text-red-700 font-bold text-xs px-2 py-1 rounded-full">{Math.abs(r.daysRemaining)}d</span>
+                                                        </td>
+                                                        <td className="px-4 py-2.5 text-center font-bold text-orange-600">{r.remainingQty}</td>
+                                                        <td className="px-4 py-2.5 text-xs text-gray-600 whitespace-nowrap">{r.plannedDate ? formatDate(parseCustomDate(r.plannedDate)) : '—'}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </TabsContent>
+
+                            {/* Upcoming Report */}
+                            <TabsContent value="upcoming_report">
+                                <div className="space-y-4">
+                                    {([
+                                        { label: 'Due Today',      emoji: '🟠', bgHeader: 'bg-orange-50', textColor: 'text-orange-800', subColor: 'text-orange-500', filter: (r: ProcessedRecord) => r.status === 'today' },
+                                        { label: 'Due This Week',  emoji: '🟡', bgHeader: 'bg-yellow-50', textColor: 'text-yellow-800', subColor: 'text-yellow-600', filter: (r: ProcessedRecord) => r.status === 'this_week' },
+                                        { label: 'Due This Month', emoji: '📅', bgHeader: 'bg-gray-50',   textColor: 'text-gray-800',   subColor: 'text-gray-500',   filter: (r: ProcessedRecord) => { const d = safeParseDate(r.plannedDate); return !!d && isThisMonth(d) && r.status !== 'completed'; } },
+                                    ] as const).map(({ label, emoji, bgHeader, textColor, subColor, filter }) => {
+                                        const rows = processedRecords.filter(filter as any);
+                                        return (
+                                            <div key={label} className="bg-white rounded-xl border shadow-sm overflow-hidden">
+                                                <div className={`px-4 py-3 ${bgHeader} border-b flex items-center justify-between`}>
+                                                    <div>
+                                                        <h3 className={`font-semibold text-sm ${textColor}`}>{emoji} {label}</h3>
+                                                        <p className={`text-xs ${subColor}`}>{rows.length} item{rows.length !== 1 ? 's' : ''}</p>
                                                     </div>
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
-                                </TabsContent>
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full text-sm">
+                                                        <thead className="bg-gray-50 border-b">
+                                                            <tr>{['Vendor','PO Number','Product','Remaining Qty','Planned Date','Days'].map(h => (
+                                                                <th key={h} className="px-4 py-2 text-left text-xs font-semibold text-gray-600 whitespace-nowrap">{h}</th>
+                                                            ))}</tr>
+                                                        </thead>
+                                                        <tbody className="divide-y">
+                                                            {rows.length === 0 ? (
+                                                                <tr><td colSpan={6} className="py-8 text-center text-gray-400 text-sm">No records in this period</td></tr>
+                                                            ) : rows.map((r, i) => (
+                                                                <tr key={i} className="hover:bg-gray-50 transition-colors">
+                                                                    <td className="px-4 py-2 font-medium text-gray-800">{r.vendorName}</td>
+                                                                    <td className="px-4 py-2 font-bold text-primary">{r.poNumber}</td>
+                                                                    <td className="px-4 py-2 text-xs text-gray-600">{r.productName}</td>
+                                                                    <td className="px-4 py-2 text-center font-bold text-orange-600">{r.remainingQty}</td>
+                                                                    <td className="px-4 py-2 text-xs text-gray-600 whitespace-nowrap">{r.plannedDate ? formatDate(parseCustomDate(r.plannedDate)) : '—'}</td>
+                                                                    <td className="px-4 py-2 text-center">
+                                                                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${r.daysRemaining === 0 ? 'bg-orange-100 text-orange-700' : r.daysRemaining > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                                            {r.daysRemaining === 0 ? 'Today' : `${r.daysRemaining}d`}
+                                                                        </span>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </TabsContent>
 
-                                {/* Vendor Report */}
-                                <TabsContent value="vendor_report">
-                                    <div className="bg-white rounded-xl border overflow-hidden">
-                                        <div className="px-4 py-3 bg-gray-50 border-b flex items-center justify-between">
-                                            <h3 className="font-semibold text-gray-700">Vendor-wise Lifting Report</h3>
-                                            <Button size="sm" variant="outline" onClick={() => {
-                                                const csv = ['Vendor,Total POs,Ordered Qty,Lifted Qty,Remaining Qty,Completion %',
-                                                    ...vendorSummary.map(v => `"${v.vendor}",${v.totalPOs},${v.ordered},${v.lifted},${v.remaining},${v.completion}`)].join('\n');
-                                                const a = document.createElement('a');
-                                                a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-                                                a.download = 'vendor-report.csv'; a.click();
-                                            }}>
-                                                <Download size={13} className="mr-1" /> Export
-                                            </Button>
+                            {/* Vendor Report */}
+                            <TabsContent value="vendor_report">
+                                <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+                                    <div className="px-4 py-3 bg-green-50 border-b flex items-center justify-between">
+                                        <div>
+                                            <h3 className="font-semibold text-green-800 text-sm flex items-center gap-1.5"><Users size={14}/> Vendor-wise Report</h3>
+                                            <p className="text-xs text-green-600">{vendorSummary.length} vendors · performance overview</p>
                                         </div>
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-sm">
-                                                <thead className="bg-gray-50 border-b"><tr>
-                                                    {['Vendor', 'Total POs', 'Ordered Qty', 'Lifted Qty', 'Remaining Qty', 'Completion'].map(h => <th key={h} className="px-4 py-2 text-left font-semibold text-xs text-gray-600">{h}</th>)}
-                                                </tr></thead>
-                                                <tbody className="divide-y">
-                                                    {vendorSummary.sort((a, b) => b.completion - a.completion).map((v, i) => (
-                                                        <tr key={i} className="hover:bg-gray-50">
-                                                            <td className="px-4 py-2 font-medium">{v.vendor || '(Unknown)'}</td>
-                                                            <td className="px-4 py-2 text-center">{v.totalPOs}</td>
-                                                            <td className="px-4 py-2 text-center">{v.ordered}</td>
-                                                            <td className="px-4 py-2 text-center text-green-600 font-medium">{v.lifted}</td>
-                                                            <td className="px-4 py-2 text-center text-orange-600 font-medium">{v.remaining}</td>
-                                                            <td className="px-4 py-2 min-w-[140px]">
+                                        <Button size="sm" variant="outline" className="gap-1.5 h-8 border-green-200 text-green-700 hover:bg-green-50" onClick={() => {
+                                            const csv = ['Vendor,Total POs,Ordered Qty,Lifted Qty,Remaining Qty,Completion %',
+                                                ...vendorSummary.map(v => `"${v.vendor}",${v.totalPOs},${v.ordered},${v.lifted},${v.remaining},${v.completion}`)].join('\n');
+                                            const a = document.createElement('a');
+                                            a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+                                            a.download = 'vendor-report.csv'; a.click();
+                                        }}>
+                                            <Download size={13}/> Export
+                                        </Button>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm">
+                                            <thead className="bg-gray-50 border-b">
+                                                <tr>{['#','Vendor','Total POs','Ordered Qty','Lifted Qty','Remaining','Completion'].map(h => (
+                                                    <th key={h} className="px-4 py-2.5 text-left font-semibold text-xs text-gray-600 whitespace-nowrap">{h}</th>
+                                                ))}</tr>
+                                            </thead>
+                                            <tbody className="divide-y">
+                                                {vendorSummary.sort((a,b) => b.completion - a.completion).map((v, i) => (
+                                                    <tr key={i} className="hover:bg-gray-50 transition-colors">
+                                                        <td className="px-4 py-3 text-xs text-gray-400 font-mono">{i+1}</td>
+                                                        <td className="px-4 py-3 font-semibold text-gray-800">{v.vendor || '(Unknown)'}</td>
+                                                        <td className="px-4 py-3 text-center font-medium text-blue-600">{v.totalPOs}</td>
+                                                        <td className="px-4 py-3 text-center text-gray-600">{v.ordered}</td>
+                                                        <td className="px-4 py-3 text-center font-semibold text-green-600">{v.lifted}</td>
+                                                        <td className="px-4 py-3 text-center font-semibold text-orange-500">{v.remaining}</td>
+                                                        <td className="px-4 py-3 min-w-[160px]">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="flex-1 bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                                                                    <div className={`h-2.5 rounded-full transition-all ${v.completion >= 100 ? 'bg-green-500' : v.completion > 60 ? 'bg-blue-500' : v.completion > 30 ? 'bg-yellow-500' : 'bg-red-400'}`}
+                                                                        style={{ width: `${v.completion}%` }}/>
+                                                                </div>
+                                                                <span className={`text-xs font-bold w-9 text-right ${v.completion >= 100 ? 'text-green-600' : v.completion > 60 ? 'text-blue-600' : 'text-orange-600'}`}>{v.completion}%</span>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </TabsContent>
+
+                            {/* Material Report */}
+                            <TabsContent value="material_report">
+                                <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+                                    <div className="px-4 py-3 bg-purple-50 border-b flex items-center justify-between">
+                                        <div>
+                                            <h3 className="font-semibold text-purple-800 text-sm flex items-center gap-1.5"><Package size={14}/> Material-wise Report</h3>
+                                            <p className="text-xs text-purple-500">{materialSummary.length} materials tracked</p>
+                                        </div>
+                                        <Button size="sm" variant="outline" className="gap-1.5 h-8 border-purple-200 text-purple-700 hover:bg-purple-50" onClick={() => {
+                                            const csv = ['Material,Ordered Qty,Lifted Qty,Remaining Qty',
+                                                ...materialSummary.map(m => `"${m.material}",${m.ordered},${m.lifted},${m.remaining}`)].join('\n');
+                                            const a = document.createElement('a');
+                                            a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+                                            a.download = 'material-report.csv'; a.click();
+                                        }}>
+                                            <Download size={13}/> Export
+                                        </Button>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm">
+                                            <thead className="bg-gray-50 border-b">
+                                                <tr>{['#','Material','Ordered Qty','Lifted Qty','Remaining Qty','Completion'].map(h => (
+                                                    <th key={h} className="px-4 py-2.5 text-left font-semibold text-xs text-gray-600 whitespace-nowrap">{h}</th>
+                                                ))}</tr>
+                                            </thead>
+                                            <tbody className="divide-y">
+                                                {materialSummary.sort((a,b) => b.remaining - a.remaining).map((m, i) => {
+                                                    const pct = m.ordered > 0 ? Math.round((m.lifted / m.ordered) * 100) : 0;
+                                                    return (
+                                                        <tr key={i} className="hover:bg-gray-50 transition-colors">
+                                                            <td className="px-4 py-3 text-xs text-gray-400 font-mono">{i+1}</td>
+                                                            <td className="px-4 py-3 font-semibold text-gray-800">{m.material}</td>
+                                                            <td className="px-4 py-3 text-center text-gray-600">{m.ordered}</td>
+                                                            <td className="px-4 py-3 text-center font-semibold text-green-600">{m.lifted}</td>
+                                                            <td className="px-4 py-3 text-center font-semibold text-orange-500">{m.remaining}</td>
+                                                            <td className="px-4 py-3 min-w-[160px]">
                                                                 <div className="flex items-center gap-2">
-                                                                    <div className="flex-1 bg-gray-200 rounded-full h-2">
-                                                                        <div className="bg-green-500 h-2 rounded-full transition-all" style={{ width: `${v.completion}%` }} />
+                                                                    <div className="flex-1 bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                                                                        <div className={`h-2.5 rounded-full transition-all ${pct >= 100 ? 'bg-green-500' : pct > 60 ? 'bg-blue-500' : pct > 30 ? 'bg-yellow-500' : 'bg-red-400'}`}
+                                                                            style={{ width: `${pct}%` }}/>
                                                                     </div>
-                                                                    <span className="text-xs font-semibold w-8">{v.completion}%</span>
+                                                                    <span className={`text-xs font-bold w-9 text-right ${pct >= 100 ? 'text-green-600' : pct > 60 ? 'text-blue-600' : 'text-orange-600'}`}>{pct}%</span>
                                                                 </div>
                                                             </td>
                                                         </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
                                     </div>
-                                </TabsContent>
+                                </div>
+                            </TabsContent>
+                        </Tabs>
+                    </TabsContent>
 
-                                {/* Material Report */}
-                                <TabsContent value="material_report">
-                                    <div className="bg-white rounded-xl border overflow-hidden">
-                                        <div className="px-4 py-3 bg-gray-50 border-b flex items-center justify-between">
-                                            <h3 className="font-semibold text-gray-700">Material-wise Lifting Report</h3>
-                                            <Button size="sm" variant="outline" onClick={() => {
-                                                const csv = ['Material,Ordered Qty,Lifted Qty,Remaining Qty',
-                                                    ...materialSummary.map(m => `"${m.material}",${m.ordered},${m.lifted},${m.remaining}`)].join('\n');
-                                                const a = document.createElement('a');
-                                                a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-                                                a.download = 'material-report.csv'; a.click();
-                                            }}>
-                                                <Download size={13} className="mr-1" /> Export
-                                            </Button>
-                                        </div>
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-sm">
-                                                <thead className="bg-gray-50 border-b"><tr>
-                                                    {['Material', 'Ordered Qty', 'Lifted Qty', 'Remaining Qty', 'Completion'].map(h => <th key={h} className="px-4 py-2 text-left font-semibold text-xs text-gray-600">{h}</th>)}
-                                                </tr></thead>
-                                                <tbody className="divide-y">
-                                                    {materialSummary.sort((a, b) => b.remaining - a.remaining).map((m, i) => {
-                                                        const pct = m.ordered > 0 ? Math.round((m.lifted / m.ordered) * 100) : 0;
-                                                        return (
-                                                            <tr key={i} className="hover:bg-gray-50">
-                                                                <td className="px-4 py-2 font-medium">{m.material}</td>
-                                                                <td className="px-4 py-2 text-center">{m.ordered}</td>
-                                                                <td className="px-4 py-2 text-center text-green-600 font-medium">{m.lifted}</td>
-                                                                <td className="px-4 py-2 text-center text-orange-600 font-medium">{m.remaining}</td>
-                                                                <td className="px-4 py-2 min-w-[140px]">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <div className="flex-1 bg-gray-200 rounded-full h-2">
-                                                                            <div className="bg-green-500 h-2 rounded-full" style={{ width: `${pct}%` }} />
-                                                                        </div>
-                                                                        <span className="text-xs font-semibold w-8">{pct}%</span>
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </TabsContent>
-                            </Tabs>
-                        </TabsContent>
+                    {/* ── Analytics Tab ─────────────────────── */}
+                    <TabsContent value="analytics" className="space-y-4">
+                        {/* Summary strip */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            {[
+                                { label: 'Completion Rate', value: `${kpis.totalPlanned > 0 ? Math.round((kpis.totalCompleted / kpis.totalPlanned) * 100) : 0}%`, color: 'text-green-700', bg: 'bg-green-50 border-green-200' },
+                                { label: 'Qty Lift Rate',   value: `${kpis.totalQtyOrdered > 0 ? Math.round((kpis.totalQtyLifted / kpis.totalQtyOrdered) * 100) : 0}%`, color: 'text-blue-700', bg: 'bg-blue-50 border-blue-200' },
+                                { label: 'Overdue Rate',    value: `${kpis.totalPending > 0 ? Math.round((kpis.overdue / kpis.totalPending) * 100) : 0}%`, color: 'text-red-700', bg: 'bg-red-50 border-red-200' },
+                                { label: 'Active Vendors',  value: uniqueVendors.length, color: 'text-purple-700', bg: 'bg-purple-50 border-purple-200' },
+                            ].map(s => (
+                                <div key={s.label} className={`rounded-xl border p-4 ${s.bg}`}>
+                                    <p className="text-xs text-gray-500 font-medium">{s.label}</p>
+                                    <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+                                </div>
+                            ))}
+                        </div>
 
-                        {/* ── Analytics Tab ─────────────────────── */}
-                        <TabsContent value="analytics" className="space-y-6">
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                {/* Status Distribution */}
-                                <div className="bg-white rounded-xl border p-5 shadow-sm">
-                                    <h3 className="font-semibold text-gray-700 mb-4 flex items-center gap-2"><BarChart2 size={16} /> Status Distribution</h3>
-                                    <ResponsiveContainer width="100%" height={240}>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            {/* Status Distribution */}
+                            <div className="bg-white rounded-xl border p-5 shadow-sm">
+                                <h3 className="font-semibold text-gray-700 mb-4 flex items-center gap-2"><BarChart2 size={15}/> Status Distribution</h3>
+                                {statusDist.length === 0
+                                    ? <div className="h-[220px] flex items-center justify-center text-gray-400 text-sm">No data available</div>
+                                    : <ResponsiveContainer width="100%" height={220}>
                                         <PieChart>
-                                            <Pie data={statusDist} cx="50%" cy="50%" outerRadius={90} dataKey="value" label={({ name, value }) => `${name}: ${value}`} labelLine={false}>
-                                                {statusDist.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                                            <Pie data={statusDist} cx="50%" cy="50%" outerRadius={85} innerRadius={38} dataKey="value"
+                                                label={({ name, value }) => `${name}: ${value}`} labelLine={false}>
+                                                {statusDist.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]}/>)}
                                             </Pie>
-                                            <Tooltip />
+                                            <Tooltip/>
                                         </PieChart>
                                     </ResponsiveContainer>
-                                </div>
+                                }
+                            </div>
 
-                                {/* Vendor Performance */}
-                                <div className="bg-white rounded-xl border p-5 shadow-sm">
-                                    <h3 className="font-semibold text-gray-700 mb-4 flex items-center gap-2"><Users size={16} /> Vendor Performance</h3>
-                                    <ResponsiveContainer width="100%" height={240}>
-                                        <BarChart data={vendorSummary.slice(0, 8)} layout="vertical" margin={{ left: 80 }}>
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis type="number" domain={[0, 100]} tickFormatter={v => `${v}%`} />
-                                            <YAxis type="category" dataKey="vendor" width={80} tick={{ fontSize: 11 }} />
-                                            <Tooltip formatter={(v: any) => `${v}%`} />
-                                            <Bar dataKey="completion" fill="#16a34a" radius={[0, 4, 4, 0]} name="Completion %" />
+                            {/* Vendor Performance */}
+                            <div className="bg-white rounded-xl border p-5 shadow-sm">
+                                <h3 className="font-semibold text-gray-700 mb-4 flex items-center gap-2"><Users size={15}/> Vendor Performance (Top 8)</h3>
+                                {vendorSummary.length === 0
+                                    ? <div className="h-[220px] flex items-center justify-center text-gray-400 text-sm">No vendor data</div>
+                                    : <ResponsiveContainer width="100%" height={220}>
+                                        <BarChart data={vendorSummary.slice(0,8)} layout="vertical" margin={{ left: 90, right: 20 }}>
+                                            <CartesianGrid strokeDasharray="3 3" horizontal={false}/>
+                                            <XAxis type="number" domain={[0,100]} tickFormatter={v => `${v}%`} tick={{ fontSize: 11 }}/>
+                                            <YAxis type="category" dataKey="vendor" width={90} tick={{ fontSize: 10 }}/>
+                                            <Tooltip formatter={(v: any) => `${v}%`}/>
+                                            <Bar dataKey="completion" fill="#16a34a" radius={[0,4,4,0]} name="Completion %"/>
                                         </BarChart>
                                     </ResponsiveContainer>
-                                </div>
+                                }
+                            </div>
 
-                                {/* Ordered vs Lifted */}
-                                <div className="bg-white rounded-xl border p-5 shadow-sm">
-                                    <h3 className="font-semibold text-gray-700 mb-4 flex items-center gap-2"><Activity size={16} /> Ordered vs Lifted (Top Vendors)</h3>
-                                    <ResponsiveContainer width="100%" height={240}>
-                                        <BarChart data={vendorSummary.slice(0, 8)}>
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis dataKey="vendor" tick={{ fontSize: 10 }} />
-                                            <YAxis />
-                                            <Tooltip />
-                                            <Legend />
-                                            <Bar dataKey="ordered" fill="#6b7280" name="Ordered" radius={[4, 4, 0, 0]} />
-                                            <Bar dataKey="lifted" fill="#16a34a" name="Lifted" radius={[4, 4, 0, 0]} />
+                            {/* Ordered vs Lifted */}
+                            <div className="bg-white rounded-xl border p-5 shadow-sm">
+                                <h3 className="font-semibold text-gray-700 mb-4 flex items-center gap-2"><Activity size={15}/> Ordered vs Lifted (Top Vendors)</h3>
+                                {vendorSummary.length === 0
+                                    ? <div className="h-[220px] flex items-center justify-center text-gray-400 text-sm">No vendor data</div>
+                                    : <ResponsiveContainer width="100%" height={220}>
+                                        <BarChart data={vendorSummary.slice(0,8)} margin={{ bottom: 40 }}>
+                                            <CartesianGrid strokeDasharray="3 3"/>
+                                            <XAxis dataKey="vendor" tick={{ fontSize: 9 }} angle={-20} textAnchor="end" interval={0}/>
+                                            <YAxis tick={{ fontSize: 11 }}/>
+                                            <Tooltip/>
+                                            <Legend/>
+                                            <Bar dataKey="ordered" fill="#94a3b8" name="Ordered" radius={[3,3,0,0]}/>
+                                            <Bar dataKey="lifted"  fill="#16a34a" name="Lifted"  radius={[3,3,0,0]}/>
                                         </BarChart>
                                     </ResponsiveContainer>
-                                </div>
+                                }
+                            </div>
 
-                                {/* Monthly Trend */}
-                                <div className="bg-white rounded-xl border p-5 shadow-sm">
-                                    <h3 className="font-semibold text-gray-700 mb-4 flex items-center gap-2"><TrendingUp size={16} /> Monthly Lifting Trend</h3>
-                                    <ResponsiveContainer width="100%" height={240}>
+                            {/* Monthly Trend */}
+                            <div className="bg-white rounded-xl border p-5 shadow-sm">
+                                <h3 className="font-semibold text-gray-700 mb-4 flex items-center gap-2"><TrendingUp size={15}/> Monthly Lifting Trend</h3>
+                                {monthlyTrend.length === 0
+                                    ? <div className="h-[220px] flex items-center justify-center text-gray-400 text-sm">No trend data</div>
+                                    : <ResponsiveContainer width="100%" height={220}>
                                         <AreaChart data={monthlyTrend}>
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis dataKey="month" />
-                                            <YAxis />
-                                            <Tooltip />
-                                            <Legend />
-                                            <Area type="monotone" dataKey="ordered" stroke="#6b7280" fill="#f3f4f6" name="Ordered" />
-                                            <Area type="monotone" dataKey="lifted" stroke="#16a34a" fill="#dcfce7" name="Lifted" />
+                                            <defs>
+                                                <linearGradient id="liftGrad" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%"  stopColor="#16a34a" stopOpacity={0.3}/>
+                                                    <stop offset="95%" stopColor="#16a34a" stopOpacity={0.02}/>
+                                                </linearGradient>
+                                                <linearGradient id="ordGrad" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%"  stopColor="#64748b" stopOpacity={0.2}/>
+                                                    <stop offset="95%" stopColor="#64748b" stopOpacity={0.02}/>
+                                                </linearGradient>
+                                            </defs>
+                                            <CartesianGrid strokeDasharray="3 3"/>
+                                            <XAxis dataKey="month" tick={{ fontSize: 11 }}/>
+                                            <YAxis tick={{ fontSize: 11 }}/>
+                                            <Tooltip/>
+                                            <Legend/>
+                                            <Area type="monotone" dataKey="ordered" stroke="#64748b" fill="url(#ordGrad)" name="Ordered"/>
+                                            <Area type="monotone" dataKey="lifted"  stroke="#16a34a" fill="url(#liftGrad)" name="Lifted"/>
                                         </AreaChart>
                                     </ResponsiveContainer>
-                                </div>
+                                }
                             </div>
-                        </TabsContent>
-                    </Tabs>
+                        </div>
+                    </TabsContent>
+                </Tabs>
                 </div>
 
                 {/* ── Action Modal (existing form, kept intact) ────── */}

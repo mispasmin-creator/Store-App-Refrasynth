@@ -337,161 +337,178 @@ export default function Dashboard() {
     ] as const;
 
     if (isLoading) return (
-        <div className="flex items-center justify-center h-64 gap-3">
-            <RefreshCw size={20} className="animate-spin text-green-600" />
-            <p className="text-sm font-medium text-muted-foreground">Loading Business Intelligence Data...</p>
+        <div className="flex flex-col items-center justify-center h-72 gap-4">
+            <div className="relative">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg">
+                    <LayoutDashboard size={26} className="text-white" />
+                </div>
+                <div className="absolute -inset-1 rounded-2xl bg-green-400/30 animate-ping" />
+            </div>
+            <div className="text-center">
+                <p className="text-sm font-bold text-gray-700">Loading Business Intelligence</p>
+                <p className="text-xs text-gray-400 mt-0.5">Fetching live data...</p>
+            </div>
         </div>
     );
 
     return (
-        <div>
+        <div className="bg-gray-50/60 min-h-screen">
             <Heading heading="Dashboard" subtext="Business Intelligence & Financial Control Center">
                 <LayoutDashboard size={50} className="text-primary" />
             </Heading>
 
-            <div className="p-3 space-y-4">
-                {/* ── Alert Banner ────────────────────────────────────────── */}
-                {(kpis.overdueCount > 0 || kpis.delayedLifts > 0 || kpis.stockAlerts > 0) && (
-                    <div className="flex flex-wrap gap-2">
+            <div className="p-4 space-y-4">
+
+                {/* ── Alert Banners ──────────────────────────────────────── */}
+                {(kpis.overdueCount > 0 || kpis.delayedLifts > 0 || kpis.stockAlerts > 0 || kpis.totalPendingApprovals > 0) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
                         {kpis.overdueCount > 0 && (
-                            <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs font-semibold text-red-700">
-                                <AlertTriangle size={13}/> {kpis.overdueCount} Overdue Payments
+                            <div className="flex items-center gap-3 bg-gradient-to-r from-red-500 to-red-600 rounded-xl px-4 py-3 shadow-sm">
+                                <div className="bg-white/20 rounded-lg p-1.5 shrink-0"><AlertTriangle size={14} className="text-white"/></div>
+                                <div><p className="text-white font-bold text-xs">{kpis.overdueCount} Overdue Payments</p><p className="text-red-100 text-[10px]">Needs immediate action</p></div>
                             </div>
                         )}
                         {kpis.delayedLifts > 0 && (
-                            <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-xs font-semibold text-orange-700">
-                                <AlertCircle size={13}/> {kpis.delayedLifts} Delayed Liftings
+                            <div className="flex items-center gap-3 bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl px-4 py-3 shadow-sm">
+                                <div className="bg-white/20 rounded-lg p-1.5 shrink-0"><AlertCircle size={14} className="text-white"/></div>
+                                <div><p className="text-white font-bold text-xs">{kpis.delayedLifts} Delayed Liftings</p><p className="text-orange-100 text-[10px]">Past scheduled date</p></div>
                             </div>
                         )}
                         {kpis.stockAlerts > 0 && (
-                            <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs font-semibold text-amber-700">
-                                <Bell size={13}/> {kpis.stockAlerts} Stock Alerts
+                            <div className="flex items-center gap-3 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-xl px-4 py-3 shadow-sm">
+                                <div className="bg-white/20 rounded-lg p-1.5 shrink-0"><Bell size={14} className="text-white"/></div>
+                                <div><p className="text-white font-bold text-xs">{kpis.stockAlerts} Stock Alerts</p><p className="text-yellow-100 text-[10px]">{alerts.lowStock} low · {alerts.outOfStock} out</p></div>
                             </div>
                         )}
                         {kpis.totalPendingApprovals > 0 && (
-                            <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs font-semibold text-blue-700">
-                                <Clock size={13}/> {kpis.totalPendingApprovals} Pending Approvals
+                            <div className="flex items-center gap-3 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl px-4 py-3 shadow-sm">
+                                <div className="bg-white/20 rounded-lg p-1.5 shrink-0"><Clock size={14} className="text-white"/></div>
+                                <div><p className="text-white font-bold text-xs">{kpis.totalPendingApprovals} Pending Approvals</p><p className="text-blue-100 text-[10px]">Awaiting sign-off</p></div>
                             </div>
                         )}
                     </div>
                 )}
 
-                {/* ── Controls Bar ─────────────────────────────────────────── */}
-                <div className="flex flex-col md:flex-row gap-2 items-start md:items-center justify-between">
-                    {/* Section Nav */}
-                    <div className="flex gap-1 bg-muted/40 rounded-xl p-1 border flex-wrap">
+                {/* ── Controls Bar ───────────────────────────────────────── */}
+                <div className="bg-white rounded-xl border shadow-sm p-2 flex flex-col md:flex-row gap-2 items-start md:items-center justify-between">
+                    <div className="flex gap-0.5 bg-gray-100 rounded-lg p-1 flex-wrap">
                         {NAV.map(n => (
                             <button key={n.key} onClick={() => setActiveSection(n.key as any)}
-                                className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all',
-                                    activeSection === n.key ? 'bg-green-600 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-background')}>
+                                className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all',
+                                    activeSection === n.key
+                                        ? 'bg-green-600 text-white shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-800 hover:bg-white')}>
                                 {n.icon}{n.label}
                             </button>
                         ))}
                     </div>
-                    {/* Quick Filters + Export */}
-                    <div className="flex gap-1 flex-wrap">
-                        <div className="flex gap-1 bg-muted/40 rounded-xl p-1 border">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                        <div className="flex gap-0.5 bg-gray-100 rounded-lg p-1">
                             {QUICK_FILTERS.map(f => (
                                 <button key={f.key} onClick={() => setQuickFilter(f.key)}
-                                    className={cn('px-3 py-1.5 rounded-lg text-xs font-semibold transition-all',
-                                        quickFilter === f.key ? 'bg-green-600 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-background')}>
+                                    className={cn('px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all',
+                                        quickFilter === f.key ? 'bg-white text-green-700 shadow-sm font-bold' : 'text-gray-500 hover:text-gray-700')}>
                                     {f.label}
                                 </button>
                             ))}
                         </div>
-                        <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5"
+                        <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 hover:border-green-400 hover:text-green-700"
                             onClick={() => exportCSV(vendorPayments, 'vendor-payments')}>
                             <Download size={12}/> Export
                         </Button>
                     </div>
                 </div>
 
-                {/* ═══════════════════════════════════════════════════════════
-                    OVERVIEW SECTION
-                ═══════════════════════════════════════════════════════════ */}
+                {/* ═══════════════════════════════════════════════════════
+                    OVERVIEW
+                ═══════════════════════════════════════════════════════ */}
                 {activeSection === 'overview' && (
                     <div className="space-y-4">
                         {/* Financial KPIs */}
                         <div>
-                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1.5 pl-1">
                                 <IndianRupee size={10}/> Financial Summary
                             </p>
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-                                <KpiCard label="Total PO Value" value={fmt(kpis.totalPoValue)} icon={<CreditCard size={16}/>} color="text-emerald-700" sub="Monthly" subValue={fmt(kpis.monthlyPOValue)} />
-                                <KpiCard label="Total Paid" value={fmt(kpis.totalPaid)} icon={<CheckCircle2 size={16}/>} color="text-green-700" sub="This Period" subValue={fmt(kpis.monthlyPayValue)} />
-                                <KpiCard label="Outstanding" value={fmt(kpis.totalOutstanding)} icon={<TrendingUp size={16}/>} color="text-red-600" alert={kpis.totalOutstanding > 0} />
-                                <KpiCard label="Pending Payments" value={kpis.pendingPayCount} icon={<Clock size={16}/>} color="text-orange-600" sub="Overdue" subValue={kpis.overdueCount} alert={kpis.overdueCount > 0} />
-                                <KpiCard label="Total POs" value={kpis.uniquePOs} icon={<FileText size={16}/>} color="text-emerald-700" />
-                                <KpiCard label="Total Vendors" value={kpis.uniqueVendors} icon={<Building2 size={16}/>} color="text-teal-700" />
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                                <KpiCard label="Total PO Value"    value={fmt(kpis.totalPoValue)}    icon={<CreditCard size={16}/>}   color="text-emerald-700" sub="Monthly"      subValue={fmt(kpis.monthlyPOValue)} />
+                                <KpiCard label="Total Paid"        value={fmt(kpis.totalPaid)}        icon={<CheckCircle2 size={16}/>} color="text-green-700"  sub="This Period"  subValue={fmt(kpis.monthlyPayValue)} />
+                                <KpiCard label="Outstanding"       value={fmt(kpis.totalOutstanding)} icon={<TrendingUp size={16}/>}   color="text-red-600"    alert={kpis.totalOutstanding > 0} />
+                                <KpiCard label="Pending Payments"  value={kpis.pendingPayCount}       icon={<Clock size={16}/>}        color="text-orange-600" sub="Overdue"      subValue={kpis.overdueCount} alert={kpis.overdueCount > 0} />
+                                <KpiCard label="Total POs"         value={kpis.uniquePOs}             icon={<FileText size={16}/>}     color="text-emerald-700" />
+                                <KpiCard label="Total Vendors"     value={kpis.uniqueVendors}         icon={<Building2 size={16}/>}   color="text-teal-700" />
                             </div>
                         </div>
 
                         {/* Operational KPIs */}
                         <div>
-                            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1.5 pl-1">
                                 <Activity size={10}/> Operational Summary
                             </p>
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-                                <KpiCard label="Liftings Done" value={kpis.liftCompleted} icon={<Truck size={16}/>} color="text-green-700" sub="Today" subValue={kpis.liftToday} />
-                                <KpiCard label="Liftings Pending" value={kpis.liftPending} icon={<Package size={16}/>} color="text-amber-600" sub="Delayed" subValue={kpis.delayedLifts} alert={kpis.delayedLifts > 0} />
-                                <KpiCard label="Dept Approvals" value={kpis.pendingDeptApproval} icon={<ClipboardList size={16}/>} color="text-violet-600" />
-                                <KpiCard label="Vendor Assign" value={kpis.pendingVendorAssign} icon={<Users size={16}/>} color="text-indigo-600" />
-                                <KpiCard label="Tech Approvals" value={kpis.pendingTechApproval} icon={<Layers size={16}/>} color="text-cyan-700" />
-                                <KpiCard label="Stock Alerts" value={kpis.stockAlerts} icon={<Warehouse size={16}/>} color="text-red-600" sub="Low Stock" subValue={alerts.lowStock} alert={kpis.stockAlerts > 0} />
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                                <KpiCard label="Liftings Done"    value={kpis.liftCompleted}       icon={<Truck size={16}/>}         color="text-green-700"  sub="Today"     subValue={kpis.liftToday} />
+                                <KpiCard label="Liftings Pending" value={kpis.liftPending}         icon={<Package size={16}/>}       color="text-amber-600"  sub="Delayed"   subValue={kpis.delayedLifts} alert={kpis.delayedLifts > 0} />
+                                <KpiCard label="Dept Approvals"   value={kpis.pendingDeptApproval} icon={<ClipboardList size={16}/>} color="text-violet-600" />
+                                <KpiCard label="Vendor Assign"    value={kpis.pendingVendorAssign} icon={<Users size={16}/>}         color="text-indigo-600" />
+                                <KpiCard label="Tech Approvals"   value={kpis.pendingTechApproval} icon={<Layers size={16}/>}        color="text-cyan-700" />
+                                <KpiCard label="Stock Alerts"     value={kpis.stockAlerts}         icon={<Warehouse size={16}/>}     color="text-red-600"    sub="Low Stock" subValue={alerts.lowStock} alert={kpis.stockAlerts > 0} />
                             </div>
                         </div>
 
                         {/* Charts Row */}
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-                            <Card className="lg:col-span-2">
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-sm font-bold">Monthly Business Trend</CardTitle>
+                            <Card className="lg:col-span-2 shadow-sm">
+                                <CardHeader className="pb-2 border-b">
+                                    <CardTitle className="text-sm font-bold flex items-center gap-2">
+                                        <TrendingUp size={14} className="text-green-600"/> Monthly Business Trend
+                                    </CardTitle>
                                 </CardHeader>
-                                <CardContent className="h-[240px]">
+                                <CardContent className="h-[240px] pt-3">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <AreaChart data={trendData}>
                                             <defs>
                                                 <linearGradient id="gPO" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#16a34a" stopOpacity={0.15}/>
+                                                    <stop offset="5%" stopColor="#16a34a" stopOpacity={0.2}/>
                                                     <stop offset="95%" stopColor="#16a34a" stopOpacity={0}/>
                                                 </linearGradient>
                                                 <linearGradient id="gPay" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#059669" stopOpacity={0.15}/>
-                                                    <stop offset="95%" stopColor="#059669" stopOpacity={0}/>
+                                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15}/>
+                                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                                                 </linearGradient>
                                             </defs>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0fdf4"/>
-                                            <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize:10}}/>
-                                            <YAxis axisLine={false} tickLine={false} tick={{fontSize:10}} tickFormatter={v => v >= 100000 ? `${(v/100000).toFixed(0)}L` : `${v}`}/>
-                                            <Tooltip formatter={(v: any) => fmt(Number(v))}/>
-                                            <Area type="monotone" dataKey="poValue" stroke="#16a34a" fill="url(#gPO)" strokeWidth={2} name="PO Value"/>
-                                            <Area type="monotone" dataKey="payments" stroke="#059669" fill="url(#gPay)" strokeWidth={2} name="Payments"/>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9"/>
+                                            <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize:10,fill:'#94a3b8'}}/>
+                                            <YAxis axisLine={false} tickLine={false} tick={{fontSize:10,fill:'#94a3b8'}} tickFormatter={v => v >= 100000 ? `${(v/100000).toFixed(0)}L` : `${v}`}/>
+                                            <Tooltip formatter={(v: any) => fmt(Number(v))} contentStyle={{borderRadius:8,border:'none',boxShadow:'0 4px 12px rgba(0,0,0,0.1)'}}/>
+                                            <Area type="monotone" dataKey="poValue"   stroke="#16a34a" fill="url(#gPO)"  strokeWidth={2.5} name="PO Value"/>
+                                            <Area type="monotone" dataKey="payments"  stroke="#3b82f6" fill="url(#gPay)" strokeWidth={2.5} name="Payments"/>
                                         </AreaChart>
                                     </ResponsiveContainer>
                                 </CardContent>
                             </Card>
 
-                            <Card>
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-sm font-bold">Dept. Indenting</CardTitle>
+                            <Card className="shadow-sm">
+                                <CardHeader className="pb-2 border-b">
+                                    <CardTitle className="text-sm font-bold flex items-center gap-2">
+                                        <PieChartIcon size={14} className="text-green-600"/> Dept. Indenting
+                                    </CardTitle>
                                 </CardHeader>
-                                <CardContent>
-                                    <div className="h-[160px]">
+                                <CardContent className="pt-3">
+                                    <div className="h-[150px]">
                                         <ResponsiveContainer width="100%" height="100%">
                                             <PieChart>
-                                                <Pie data={deptData} cx="50%" cy="50%" innerRadius={50} outerRadius={70} paddingAngle={3} dataKey="value">
+                                                <Pie data={deptData} cx="50%" cy="50%" innerRadius={48} outerRadius={68} paddingAngle={3} dataKey="value">
                                                     {deptData.map((_, i) => <Cell key={i} fill={GREEN_PALETTE[i % GREEN_PALETTE.length]}/>)}
                                                 </Pie>
-                                                <Tooltip/>
+                                                <Tooltip contentStyle={{borderRadius:8,border:'none',boxShadow:'0 4px 12px rgba(0,0,0,0.1)'}}/>
                                             </PieChart>
                                         </ResponsiveContainer>
                                     </div>
-                                    <div className="space-y-1 mt-1">
+                                    <div className="space-y-1.5 mt-2">
                                         {deptData.slice(0,4).map((d,i) => (
-                                            <div key={i} className="flex items-center gap-2 text-[10px]">
-                                                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{background: GREEN_PALETTE[i % GREEN_PALETTE.length]}}/>
-                                                <span className="truncate flex-1 text-muted-foreground">{d.name}</span>
-                                                <span className="font-bold">{d.value}</span>
+                                            <div key={i} className="flex items-center gap-2">
+                                                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{background: GREEN_PALETTE[i % GREEN_PALETTE.length]}}/>
+                                                <span className="truncate flex-1 text-[11px] text-gray-500">{d.name}</span>
+                                                <span className="text-[11px] font-bold text-gray-700">{d.value}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -501,22 +518,24 @@ export default function Dashboard() {
 
                         {/* Recent Activities + PC Report */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                            <Card>
-                                <CardHeader className="pb-2">
+                            <Card className="shadow-sm">
+                                <CardHeader className="pb-2 border-b">
                                     <CardTitle className="text-sm font-bold flex items-center gap-2">
                                         <Activity size={14} className="text-green-600"/> Recent Activities
                                     </CardTitle>
                                 </CardHeader>
-                                <CardContent className="space-y-2 max-h-[260px] overflow-y-auto">
-                                    {recentActivities.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">No recent activities</p>}
+                                <CardContent className="space-y-1.5 max-h-[260px] overflow-y-auto pt-3">
+                                    {recentActivities.length === 0 && (
+                                        <p className="text-xs text-gray-400 text-center py-6">No recent activities</p>
+                                    )}
                                     {recentActivities.map((a, i) => (
-                                        <div key={i} className="flex items-start gap-3 p-2 rounded-lg bg-muted/20 hover:bg-muted/40 transition-colors">
-                                            <div className={cn('text-[9px] font-black px-1.5 py-0.5 rounded-md mt-0.5 flex-shrink-0 bg-muted', a.color)}>
+                                        <div key={i} className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors group">
+                                            <div className={cn('text-[9px] font-black px-1.5 py-0.5 rounded-md mt-0.5 flex-shrink-0 bg-gray-100 whitespace-nowrap', a.color)}>
                                                 {a.type}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-xs font-medium truncate">{a.text}</p>
-                                                <p className="text-[10px] text-muted-foreground mt-0.5">
+                                                <p className="text-xs font-medium text-gray-700 truncate">{a.text}</p>
+                                                <p className="text-[10px] text-gray-400 mt-0.5">
                                                     {(() => { try { return format(new Date(a.time), 'dd MMM, HH:mm'); } catch { return '-'; } })()}
                                                 </p>
                                             </div>
@@ -525,77 +544,79 @@ export default function Dashboard() {
                                 </CardContent>
                             </Card>
 
-                            <Card>
-                                <CardHeader className="pb-2">
+                            <Card className="shadow-sm">
+                                <CardHeader className="pb-2 border-b">
                                     <CardTitle className="text-sm font-bold flex items-center gap-2">
                                         <Layers size={14} className="text-green-600"/> PC Report Summary
                                     </CardTitle>
                                 </CardHeader>
-                                <CardContent className="grid grid-cols-2 gap-2 max-h-[260px] overflow-y-auto">
-                                    {pcReportSheet.map((pc, i) => (
-                                        <div key={i} className="p-2.5 bg-muted/20 rounded-lg border border-border/50">
-                                            <p className="text-[9px] uppercase font-black text-muted-foreground truncate" title={pc.stage}>{pc.stage}</p>
-                                            <div className="flex justify-between items-end mt-1">
-                                                <div>
-                                                    <p className="text-lg font-black text-foreground">{pc.totalPending}</p>
-                                                    <p className="text-[8px] text-red-500 font-bold uppercase">Pending</p>
+                                <CardContent className="grid grid-cols-2 gap-2 max-h-[260px] overflow-y-auto pt-3">
+                                    {pcReportSheet.map((pc, i) => {
+                                        const total = (Number(pc.totalPending) || 0) + (Number(pc.totalComplete) || 0);
+                                        const pct = total > 0 ? Math.round((Number(pc.totalComplete) / total) * 100) : 0;
+                                        return (
+                                            <div key={i} className="p-2.5 bg-gray-50 rounded-xl border border-gray-100 hover:border-green-200 transition-colors">
+                                                <p className="text-[9px] uppercase font-black text-gray-400 truncate mb-1.5" title={pc.stage}>{pc.stage}</p>
+                                                <div className="flex justify-between items-end">
+                                                    <div>
+                                                        <p className="text-lg font-black text-gray-800 leading-none">{pc.totalPending}</p>
+                                                        <p className="text-[8px] text-red-500 font-bold uppercase mt-0.5">Pending</p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="text-sm font-black text-green-600 leading-none">{pc.totalComplete}</p>
+                                                        <p className="text-[8px] text-green-500 font-bold uppercase mt-0.5">Done</p>
+                                                    </div>
                                                 </div>
-                                                <div className="text-right">
-                                                    <p className="text-sm font-black text-green-600">{pc.totalComplete}</p>
-                                                    <p className="text-[8px] text-green-500 font-bold uppercase">Done</p>
+                                                <div className="mt-2 bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                                                    <div className="h-1.5 bg-green-500 rounded-full transition-all" style={{width: `${pct}%`}}/>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </CardContent>
                             </Card>
                         </div>
                     </div>
                 )}
 
-                {/* ═══════════════════════════════════════════════════════════
-                    FINANCIAL SECTION
-                ═══════════════════════════════════════════════════════════ */}
+                {/* ═══════════════════════════════════════════════════════
+                    FINANCIAL
+                ═══════════════════════════════════════════════════════ */}
                 {activeSection === 'financial' && (
                     <div className="space-y-4">
-                        {/* Financial KPI Row */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                            <div className="bg-gradient-to-br from-green-600 to-emerald-500 rounded-xl p-4 text-white">
-                                <p className="text-[10px] font-black uppercase tracking-wider opacity-80">Total PO Value</p>
-                                <p className="text-2xl font-black mt-1">{fmt(kpis.totalPoValue)}</p>
-                                <p className="text-[10px] opacity-70 mt-1">{kpis.uniquePOs} Purchase Orders</p>
-                            </div>
-                            <div className="bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl p-4 text-white">
-                                <p className="text-[10px] font-black uppercase tracking-wider opacity-80">Total Paid</p>
-                                <p className="text-2xl font-black mt-1">{fmt(kpis.totalPaid)}</p>
-                                <p className="text-[10px] opacity-70 mt-1">This Period: {fmt(kpis.monthlyPayValue)}</p>
-                            </div>
-                            <div className="bg-gradient-to-br from-red-500 to-rose-500 rounded-xl p-4 text-white">
-                                <p className="text-[10px] font-black uppercase tracking-wider opacity-80">Outstanding</p>
-                                <p className="text-2xl font-black mt-1">{fmt(kpis.totalOutstanding)}</p>
-                                <p className="text-[10px] opacity-70 mt-1">{kpis.pendingPayCount} vendors pending</p>
-                            </div>
-                            <div className="bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl p-4 text-white">
-                                <p className="text-[10px] font-black uppercase tracking-wider opacity-80">Overdue</p>
-                                <p className="text-2xl font-black mt-1">{kpis.overdueCount}</p>
-                                <p className="text-[10px] opacity-70 mt-1">Payments overdue</p>
-                            </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            {[
+                                { label: 'Total PO Value', value: fmt(kpis.totalPoValue),     sub: `${kpis.uniquePOs} Purchase Orders`,       grad: 'from-green-600 to-emerald-500',  icon: <CreditCard size={18}/> },
+                                { label: 'Total Paid',     value: fmt(kpis.totalPaid),         sub: `Period: ${fmt(kpis.monthlyPayValue)}`,      grad: 'from-teal-500 to-cyan-500',       icon: <CheckCircle2 size={18}/> },
+                                { label: 'Outstanding',    value: fmt(kpis.totalOutstanding),  sub: `${kpis.pendingPayCount} vendors pending`,   grad: 'from-red-500 to-rose-500',        icon: <TrendingDown size={18}/> },
+                                { label: 'Overdue',        value: kpis.overdueCount,           sub: 'Payments past due',                         grad: 'from-orange-500 to-amber-500',   icon: <AlertTriangle size={18}/> },
+                            ].map((s, i) => (
+                                <div key={i} className={`bg-gradient-to-br ${s.grad} rounded-xl p-4 text-white shadow-sm`}>
+                                    <div className="flex items-start justify-between">
+                                        <div>
+                                            <p className="text-[10px] font-black uppercase tracking-wider text-white/70">{s.label}</p>
+                                            <p className="text-2xl font-black mt-1">{s.value}</p>
+                                            <p className="text-[10px] text-white/60 mt-1">{s.sub}</p>
+                                        </div>
+                                        <div className="bg-white/15 rounded-lg p-2">{s.icon}</div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
 
-                        {/* Outstanding Aging */}
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-                            <Card>
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-sm font-bold">Outstanding Aging Analysis</CardTitle>
+                            <Card className="shadow-sm">
+                                <CardHeader className="pb-2 border-b">
+                                    <CardTitle className="text-sm font-bold">Outstanding Aging</CardTitle>
                                 </CardHeader>
-                                <CardContent className="h-[200px]">
+                                <CardContent className="h-[210px] pt-3">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <BarChart data={agingData}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false}/>
-                                            <XAxis dataKey="range" tick={{fontSize:10}} axisLine={false} tickLine={false}/>
-                                            <YAxis tick={{fontSize:10}} axisLine={false} tickLine={false} tickFormatter={v => fmt(Number(v)).replace('₹','')}/>
-                                            <Tooltip formatter={(v:any) => fmt(Number(v))}/>
-                                            <Bar dataKey="amount" radius={[4,4,0,0]} name="Outstanding">
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9"/>
+                                            <XAxis dataKey="range" tick={{fontSize:10,fill:'#94a3b8'}} axisLine={false} tickLine={false}/>
+                                            <YAxis tick={{fontSize:10,fill:'#94a3b8'}} axisLine={false} tickLine={false} tickFormatter={v => fmt(Number(v)).replace('₹','')}/>
+                                            <Tooltip formatter={(v:any) => fmt(Number(v))} contentStyle={{borderRadius:8,border:'none',boxShadow:'0 4px 12px rgba(0,0,0,0.1)'}}/>
+                                            <Bar dataKey="amount" radius={[5,5,0,0]} name="Outstanding">
                                                 {agingData.map((_, i) => <Cell key={i} fill={['#16a34a','#ca8a04','#ea580c','#dc2626'][i]}/>)}
                                             </Bar>
                                         </BarChart>
@@ -603,32 +624,31 @@ export default function Dashboard() {
                                 </CardContent>
                             </Card>
 
-                            <Card className="lg:col-span-2">
-                                <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                                    <CardTitle className="text-sm font-bold">Vendor Payment Distribution</CardTitle>
-                                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
+                            <Card className="lg:col-span-2 shadow-sm">
+                                <CardHeader className="pb-2 border-b flex flex-row items-center justify-between">
+                                    <CardTitle className="text-sm font-bold">Top Vendors by PO Value</CardTitle>
+                                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1 hover:border-green-400 hover:text-green-700"
                                         onClick={() => exportCSV(vendorPayments, 'vendor-payments')}>
                                         <Download size={11}/> CSV
                                     </Button>
                                 </CardHeader>
-                                <CardContent className="h-[200px]">
+                                <CardContent className="h-[210px] pt-3">
                                     <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={topVendors} layout="vertical">
+                                        <BarChart data={topVendors} layout="vertical" margin={{right:16}}>
                                             <XAxis type="number" hide/>
-                                            <YAxis dataKey="name" type="category" width={90} tick={{fontSize:9}} axisLine={false} tickLine={false}/>
-                                            <Tooltip formatter={(v:any) => fmt(Number(v))}/>
-                                            <Bar dataKey="value" fill="#16a34a" radius={[0,4,4,0]} name="PO Value"/>
+                                            <YAxis dataKey="name" type="category" width={100} tick={{fontSize:9,fill:'#64748b'}} axisLine={false} tickLine={false}/>
+                                            <Tooltip formatter={(v:any) => fmt(Number(v))} contentStyle={{borderRadius:8,border:'none',boxShadow:'0 4px 12px rgba(0,0,0,0.1)'}}/>
+                                            <Bar dataKey="value" fill="#16a34a" radius={[0,5,5,0]} name="PO Value"/>
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </CardContent>
                             </Card>
                         </div>
 
-                        {/* Vendor Payment Table */}
-                        <Card>
-                            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                        <Card className="shadow-sm">
+                            <CardHeader className="pb-2 border-b flex flex-row items-center justify-between">
                                 <CardTitle className="text-sm font-bold">Vendor-wise Payment Analysis</CardTitle>
-                                <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
+                                <Button size="sm" variant="outline" className="h-7 text-xs gap-1 hover:border-green-400 hover:text-green-700"
                                     onClick={() => exportCSV(vendorPayments, 'vendor-payments')}>
                                     <Download size={11}/> Export CSV
                                 </Button>
@@ -638,24 +658,23 @@ export default function Dashboard() {
                                     <table className="w-full text-xs">
                                         <thead>
                                             <tr className="border-b bg-green-50">
-                                                <th className="text-left p-3 font-black text-green-800 uppercase tracking-wide">Vendor</th>
-                                                <th className="text-right p-3 font-black text-green-800 uppercase tracking-wide">Total Bill</th>
-                                                <th className="text-right p-3 font-black text-green-800 uppercase tracking-wide">Paid</th>
-                                                <th className="text-right p-3 font-black text-green-800 uppercase tracking-wide">Balance</th>
-                                                <th className="text-center p-3 font-black text-green-800 uppercase tracking-wide">Status</th>
+                                                {['#','Vendor','Total Bill','Paid','Balance','Status'].map(h => (
+                                                    <th key={h} className="text-left p-3 font-black text-green-800 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                                                ))}
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {vendorPayments.length === 0 && (
-                                                <tr><td colSpan={5} className="text-center p-8 text-muted-foreground">No payment data available</td></tr>
+                                                <tr><td colSpan={6} className="text-center p-10 text-gray-400">No payment data available</td></tr>
                                             )}
                                             {vendorPayments.slice(0,15).map((v,i) => (
-                                                <tr key={i} className={cn('border-b hover:bg-muted/20 transition-colors', i % 2 === 0 ? '' : 'bg-muted/5')}>
-                                                    <td className="p-3 font-semibold max-w-[200px] truncate">{v.name}</td>
-                                                    <td className="p-3 text-right font-medium">{fmt(v.totalBill)}</td>
-                                                    <td className="p-3 text-right font-medium text-green-600">{fmt(v.paid)}</td>
+                                                <tr key={i} className={cn('border-b hover:bg-gray-50 transition-colors', i % 2 === 0 ? '' : 'bg-gray-50/50')}>
+                                                    <td className="p-3 text-gray-400 font-mono text-[10px]">{i+1}</td>
+                                                    <td className="p-3 font-semibold max-w-[200px] truncate text-gray-800">{v.name}</td>
+                                                    <td className="p-3 text-right font-medium text-gray-600">{fmt(v.totalBill)}</td>
+                                                    <td className="p-3 text-right font-semibold text-green-600">{fmt(v.paid)}</td>
                                                     <td className={cn('p-3 text-right font-black', v.outstanding > 0 ? 'text-red-600' : 'text-green-600')}>{fmt(v.outstanding)}</td>
-                                                    <td className="p-3 text-center">
+                                                    <td className="p-3">
                                                         <span className={cn('px-2 py-0.5 rounded-full text-[9px] font-black uppercase', v.status === 'Paid' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700')}>
                                                             {v.status}
                                                         </span>
@@ -665,11 +684,11 @@ export default function Dashboard() {
                                         </tbody>
                                         {vendorPayments.length > 0 && (
                                             <tfoot>
-                                                <tr className="bg-green-50 font-black border-t-2 border-green-200">
-                                                    <td className="p-3 text-green-800">TOTAL</td>
-                                                    <td className="p-3 text-right text-green-800">{fmt(vendorPayments.reduce((s,v)=>s+v.totalBill,0))}</td>
-                                                    <td className="p-3 text-right text-green-800">{fmt(vendorPayments.reduce((s,v)=>s+v.paid,0))}</td>
-                                                    <td className="p-3 text-right text-red-700">{fmt(vendorPayments.reduce((s,v)=>s+v.outstanding,0))}</td>
+                                                <tr className="bg-green-50 border-t-2 border-green-200">
+                                                    <td colSpan={2} className="p-3 font-black text-green-800 text-xs uppercase tracking-wide">Total</td>
+                                                    <td className="p-3 text-right font-black text-green-800">{fmt(vendorPayments.reduce((s,v)=>s+v.totalBill,0))}</td>
+                                                    <td className="p-3 text-right font-black text-green-700">{fmt(vendorPayments.reduce((s,v)=>s+v.paid,0))}</td>
+                                                    <td className="p-3 text-right font-black text-red-700">{fmt(vendorPayments.reduce((s,v)=>s+v.outstanding,0))}</td>
                                                     <td/>
                                                 </tr>
                                             </tfoot>
@@ -681,29 +700,37 @@ export default function Dashboard() {
                     </div>
                 )}
 
-                {/* ═══════════════════════════════════════════════════════════
-                    LIFTING SECTION
-                ═══════════════════════════════════════════════════════════ */}
+                {/* ═══════════════════════════════════════════════════════
+                    LIFTING
+                ═══════════════════════════════════════════════════════ */}
                 {activeSection === 'lifting' && (
                     <div className="space-y-4">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                             {[
-                                { label: 'Total Liftings', value: storeIns.length, color: 'from-green-600 to-emerald-500' },
-                                { label: 'Completed', value: kpis.liftCompleted, color: 'from-emerald-500 to-teal-500' },
-                                { label: 'Pending', value: kpis.liftPending, color: 'from-amber-500 to-orange-500' },
-                                { label: 'Delayed', value: kpis.delayedLifts, color: 'from-red-500 to-rose-500' },
+                                { label: 'Total Liftings', value: storeIns.length,     sub: 'All time',          grad: 'from-green-600 to-emerald-500',  icon: <Truck size={18}/> },
+                                { label: 'Completed',      value: kpis.liftCompleted,  sub: `Today: ${kpis.liftToday}`, grad: 'from-teal-500 to-cyan-500', icon: <CheckCircle2 size={18}/> },
+                                { label: 'Pending',        value: kpis.liftPending,    sub: 'Awaiting action',   grad: 'from-amber-500 to-orange-500',   icon: <Clock size={18}/> },
+                                { label: 'Delayed',        value: kpis.delayedLifts,   sub: 'Past schedule',     grad: 'from-red-500 to-rose-500',       icon: <AlertTriangle size={18}/> },
                             ].map((s, i) => (
-                                <div key={i} className={`bg-gradient-to-br ${s.color} rounded-xl p-4 text-white`}>
-                                    <p className="text-[10px] font-black uppercase tracking-wider opacity-80">{s.label}</p>
-                                    <p className="text-3xl font-black mt-1">{s.value}</p>
+                                <div key={i} className={`bg-gradient-to-br ${s.grad} rounded-xl p-4 text-white shadow-sm`}>
+                                    <div className="flex items-start justify-between">
+                                        <div>
+                                            <p className="text-[10px] font-black uppercase tracking-wider text-white/70">{s.label}</p>
+                                            <p className="text-3xl font-black mt-1">{s.value}</p>
+                                            <p className="text-[10px] text-white/60 mt-1">{s.sub}</p>
+                                        </div>
+                                        <div className="bg-white/15 rounded-lg p-2">{s.icon}</div>
+                                    </div>
                                 </div>
                             ))}
                         </div>
 
-                        <Card>
-                            <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                                <CardTitle className="text-sm font-bold">Pending Liftings — PO Wise</CardTitle>
-                                <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
+                        <Card className="shadow-sm">
+                            <CardHeader className="pb-2 border-b flex flex-row items-center justify-between">
+                                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                                    <Package size={14} className="text-amber-500"/> Pending Liftings — PO Wise
+                                </CardTitle>
+                                <Button size="sm" variant="outline" className="h-7 text-xs gap-1 hover:border-green-400 hover:text-green-700"
                                     onClick={() => exportCSV(pendingLiftingsList, 'pending-liftings')}>
                                     <Download size={11}/> CSV
                                 </Button>
@@ -713,22 +740,26 @@ export default function Dashboard() {
                                     <table className="w-full text-xs">
                                         <thead>
                                             <tr className="border-b bg-amber-50">
-                                                {['Indent No.','Vendor','Product','Qty','Planned Date'].map(h => (
-                                                    <th key={h} className="text-left p-3 font-black text-amber-800 uppercase tracking-wide">{h}</th>
+                                                {['#','Indent No.','Vendor','Product','Qty','Planned Date'].map(h => (
+                                                    <th key={h} className="text-left p-3 font-black text-amber-800 uppercase tracking-wide whitespace-nowrap">{h}</th>
                                                 ))}
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {pendingLiftingsList.length === 0 && (
-                                                <tr><td colSpan={5} className="text-center p-8 text-muted-foreground">No pending liftings</td></tr>
+                                                <tr><td colSpan={6} className="text-center p-10 text-gray-400">
+                                                    <CheckCircle2 size={28} className="mx-auto mb-2 text-green-300"/>
+                                                    No pending liftings
+                                                </td></tr>
                                             )}
                                             {pendingLiftingsList.map((l,i) => (
-                                                <tr key={i} className={cn('border-b hover:bg-muted/20', i % 2 === 0 ? '' : 'bg-muted/5')}>
+                                                <tr key={i} className={cn('border-b hover:bg-gray-50 transition-colors', i % 2 === 0 ? '' : 'bg-gray-50/50')}>
+                                                    <td className="p-3 text-gray-400 font-mono text-[10px]">{i+1}</td>
                                                     <td className="p-3 font-bold text-green-700">{l.indentNo}</td>
-                                                    <td className="p-3 max-w-[160px] truncate">{l.vendor}</td>
-                                                    <td className="p-3 max-w-[160px] truncate">{l.product}</td>
-                                                    <td className="p-3 font-semibold">{l.qty}</td>
-                                                    <td className="p-3">{(() => { try { return l.planned && l.planned !== '-' ? format(new Date(l.planned), 'dd MMM yy') : '-'; } catch { return l.planned; } })()}</td>
+                                                    <td className="p-3 max-w-[160px] truncate text-gray-700">{l.vendor}</td>
+                                                    <td className="p-3 max-w-[160px] truncate text-gray-600">{l.product}</td>
+                                                    <td className="p-3 font-semibold text-gray-800">{l.qty}</td>
+                                                    <td className="p-3 text-gray-600">{(() => { try { return l.planned && l.planned !== '-' ? format(new Date(l.planned), 'dd MMM yy') : '-'; } catch { return l.planned; } })()}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -737,18 +768,20 @@ export default function Dashboard() {
                             </CardContent>
                         </Card>
 
-                        <Card>
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-bold">Monthly Lifting Performance</CardTitle>
+                        <Card className="shadow-sm">
+                            <CardHeader className="pb-2 border-b">
+                                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                                    <BarChart3 size={14} className="text-green-600"/> Monthly Lifting Performance
+                                </CardTitle>
                             </CardHeader>
-                            <CardContent className="h-[220px]">
+                            <CardContent className="h-[220px] pt-3">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={trendData}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false}/>
-                                        <XAxis dataKey="month" tick={{fontSize:10}} axisLine={false} tickLine={false}/>
-                                        <YAxis tick={{fontSize:10}} axisLine={false} tickLine={false}/>
-                                        <Tooltip/>
-                                        <Bar dataKey="liftings" fill="#16a34a" radius={[4,4,0,0]} name="Liftings Completed"/>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9"/>
+                                        <XAxis dataKey="month" tick={{fontSize:10,fill:'#94a3b8'}} axisLine={false} tickLine={false}/>
+                                        <YAxis tick={{fontSize:10,fill:'#94a3b8'}} axisLine={false} tickLine={false}/>
+                                        <Tooltip contentStyle={{borderRadius:8,border:'none',boxShadow:'0 4px 12px rgba(0,0,0,0.1)'}}/>
+                                        <Bar dataKey="liftings" fill="#16a34a" radius={[5,5,0,0]} name="Liftings Completed"/>
                                     </BarChart>
                                 </ResponsiveContainer>
                             </CardContent>
@@ -756,33 +789,36 @@ export default function Dashboard() {
                     </div>
                 )}
 
-                {/* ═══════════════════════════════════════════════════════════
-                    PENDING WORK SECTION
-                ═══════════════════════════════════════════════════════════ */}
+                {/* ═══════════════════════════════════════════════════════
+                    PENDING WORK
+                ═══════════════════════════════════════════════════════ */}
                 {activeSection === 'pending' && (
                     <div className="space-y-4">
-                        {/* Summary Pills */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                             {[
-                                { label: 'Pending Payments', value: kpis.pendingPayCount, color: 'bg-red-50 border-red-200 text-red-700' },
-                                { label: 'Pending Liftings', value: kpis.liftPending, color: 'bg-amber-50 border-amber-200 text-amber-700' },
-                                { label: 'Dept Approvals', value: kpis.pendingDeptApproval, color: 'bg-violet-50 border-violet-200 text-violet-700' },
-                                { label: 'PO Creations', value: kpis.pendingPOCreation, color: 'bg-blue-50 border-blue-200 text-blue-700' },
+                                { label: 'Pending Payments', value: kpis.pendingPayCount,       bg: 'bg-red-50    border-red-200',    text: 'text-red-700',    icon: <IndianRupee size={18}/> },
+                                { label: 'Pending Liftings', value: kpis.liftPending,           bg: 'bg-amber-50  border-amber-200',  text: 'text-amber-700',  icon: <Truck size={18}/> },
+                                { label: 'Dept Approvals',   value: kpis.pendingDeptApproval,   bg: 'bg-violet-50 border-violet-200', text: 'text-violet-700', icon: <ClipboardList size={18}/> },
+                                { label: 'PO Creations',     value: kpis.pendingPOCreation,     bg: 'bg-blue-50   border-blue-200',   text: 'text-blue-700',   icon: <FileText size={18}/> },
                             ].map((s,i) => (
-                                <div key={i} className={cn('rounded-xl p-4 border', s.color)}>
-                                    <p className="text-[10px] font-black uppercase tracking-wider opacity-80">{s.label}</p>
-                                    <p className="text-3xl font-black mt-1">{s.value}</p>
+                                <div key={i} className={cn('rounded-xl p-4 border shadow-sm', s.bg)}>
+                                    <div className="flex items-start justify-between">
+                                        <div>
+                                            <p className={cn('text-[10px] font-black uppercase tracking-wider opacity-70', s.text)}>{s.label}</p>
+                                            <p className={cn('text-3xl font-black mt-1', s.text)}>{s.value}</p>
+                                        </div>
+                                        <div className={cn('opacity-30', s.text)}>{s.icon}</div>
+                                    </div>
                                 </div>
                             ))}
                         </div>
 
-                        {/* Pending Payments Table */}
-                        <Card>
-                            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                        <Card className="shadow-sm">
+                            <CardHeader className="pb-2 border-b flex flex-row items-center justify-between">
                                 <CardTitle className="text-sm font-bold text-red-700 flex items-center gap-2">
                                     <IndianRupee size={14}/> Pending Payments
                                 </CardTitle>
-                                <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
+                                <Button size="sm" variant="outline" className="h-7 text-xs gap-1 hover:border-green-400 hover:text-green-700"
                                     onClick={() => exportCSV(pendingPaymentsList, 'pending-payments')}>
                                     <Download size={11}/> CSV
                                 </Button>
@@ -792,29 +828,28 @@ export default function Dashboard() {
                                     <table className="w-full text-xs">
                                         <thead>
                                             <tr className="border-b bg-red-50">
-                                                {['Vendor','PO No.','Outstanding','Due Date','Days Pending','Status'].map(h => (
-                                                    <th key={h} className="text-left p-3 font-black text-red-800 uppercase tracking-wide">{h}</th>
+                                                {['#','Vendor','PO No.','Outstanding','Due Date','Status'].map(h => (
+                                                    <th key={h} className="text-left p-3 font-black text-red-800 uppercase tracking-wide whitespace-nowrap">{h}</th>
                                                 ))}
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {pendingPaymentsList.length === 0 && (
-                                                <tr><td colSpan={6} className="text-center p-8 text-muted-foreground">No pending payments — all clear! ✓</td></tr>
+                                                <tr><td colSpan={6} className="text-center p-10">
+                                                    <CheckCircle2 size={28} className="mx-auto mb-2 text-green-300"/>
+                                                    <span className="text-gray-400">No pending payments — all clear!</span>
+                                                </td></tr>
                                             )}
                                             {pendingPaymentsList.map((p,i) => (
-                                                <tr key={i} className={cn('border-b hover:bg-muted/20', i % 2 === 0 ? '' : 'bg-muted/5')}>
-                                                    <td className="p-3 font-semibold max-w-[160px] truncate">{p.vendor}</td>
-                                                    <td className="p-3 text-muted-foreground">{p.poNo}</td>
+                                                <tr key={i} className={cn('border-b hover:bg-gray-50 transition-colors', i % 2 === 0 ? '' : 'bg-gray-50/50')}>
+                                                    <td className="p-3 text-gray-400 font-mono text-[10px]">{i+1}</td>
+                                                    <td className="p-3 font-semibold max-w-[160px] truncate text-gray-800">{p.vendor}</td>
+                                                    <td className="p-3 text-gray-500 font-mono">{p.poNo}</td>
                                                     <td className="p-3 font-black text-red-600">{fmt(p.amount)}</td>
-                                                    <td className="p-3">{(() => { try { return p.due !== '-' ? format(new Date(p.due), 'dd MMM yy') : '-'; } catch { return p.due; } })()}</td>
-                                                    <td className="p-3">
-                                                        <span className={cn('font-black', p.days > 30 ? 'text-red-600' : p.days > 0 ? 'text-orange-500' : 'text-green-600')}>
-                                                            {p.days > 0 ? `${p.days}d overdue` : p.days < 0 ? `${Math.abs(p.days)}d left` : 'Due today'}
-                                                        </span>
-                                                    </td>
+                                                    <td className="p-3 text-gray-600">{(() => { try { return p.due !== '-' ? format(new Date(p.due), 'dd MMM yy') : '-'; } catch { return p.due; } })()}</td>
                                                     <td className="p-3">
                                                         <span className={cn('px-2 py-0.5 rounded-full text-[9px] font-black uppercase', p.days > 0 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700')}>
-                                                            {p.days > 0 ? 'Overdue' : 'Pending'}
+                                                            {p.days > 0 ? `${p.days}d overdue` : p.days < 0 ? `${Math.abs(p.days)}d left` : 'Due today'}
                                                         </span>
                                                     </td>
                                                 </tr>
@@ -825,25 +860,24 @@ export default function Dashboard() {
                             </CardContent>
                         </Card>
 
-                        {/* Approval Stages */}
-                        <Card>
-                            <CardHeader className="pb-2">
+                        <Card className="shadow-sm">
+                            <CardHeader className="pb-2 border-b">
                                 <CardTitle className="text-sm font-bold flex items-center gap-2">
-                                    <Clock size={14}/> Pending Approval Stages
+                                    <Clock size={14} className="text-blue-500"/> Pending Approval Stages
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="pt-3">
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                     {[
-                                        { stage: 'Dept. Approval', desc: 'Awaiting department head', count: kpis.pendingDeptApproval, color: 'border-violet-200 bg-violet-50 text-violet-700' },
-                                        { stage: 'Vendor Assignment', desc: 'Rate comparison pending', count: kpis.pendingVendorAssign, color: 'border-indigo-200 bg-indigo-50 text-indigo-700' },
-                                        { stage: 'Tech. Approval', desc: 'Technical review needed', count: kpis.pendingTechApproval, color: 'border-cyan-200 bg-cyan-50 text-cyan-700' },
-                                        { stage: 'PO Creation', desc: 'Approved, PO not created', count: kpis.pendingPOCreation, color: 'border-green-200 bg-green-50 text-green-700' },
+                                        { stage: 'Dept. Approval',     desc: 'Awaiting dept head',      count: kpis.pendingDeptApproval,  color: 'border-violet-200 bg-violet-50 text-violet-700' },
+                                        { stage: 'Vendor Assignment',  desc: 'Rate comparison pending', count: kpis.pendingVendorAssign,  color: 'border-indigo-200 bg-indigo-50 text-indigo-700' },
+                                        { stage: 'Tech. Approval',     desc: 'Technical review needed', count: kpis.pendingTechApproval,  color: 'border-cyan-200 bg-cyan-50 text-cyan-700' },
+                                        { stage: 'PO Creation',        desc: 'Approved, PO pending',    count: kpis.pendingPOCreation,    color: 'border-green-200 bg-green-50 text-green-700' },
                                     ].map((s,i) => (
-                                        <div key={i} className={cn('rounded-xl p-4 border', s.color)}>
+                                        <div key={i} className={cn('rounded-xl p-4 border shadow-sm', s.color)}>
                                             <p className="text-2xl font-black">{s.count}</p>
-                                            <p className="text-xs font-black mt-1">{s.stage}</p>
-                                            <p className="text-[10px] opacity-70 mt-0.5">{s.desc}</p>
+                                            <p className="text-xs font-black mt-1.5">{s.stage}</p>
+                                            <p className="text-[10px] opacity-60 mt-0.5">{s.desc}</p>
                                         </div>
                                     ))}
                                 </div>
@@ -852,71 +886,69 @@ export default function Dashboard() {
                     </div>
                 )}
 
-                {/* ═══════════════════════════════════════════════════════════
-                    ANALYTICS SECTION
-                ═══════════════════════════════════════════════════════════ */}
+                {/* ═══════════════════════════════════════════════════════
+                    ANALYTICS
+                ═══════════════════════════════════════════════════════ */}
                 {activeSection === 'analytics' && (
                     <div className="space-y-4">
-                        {/* Top Vendors */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                            <Card>
-                                <CardHeader className="pb-2">
+                            <Card className="shadow-sm">
+                                <CardHeader className="pb-2 border-b">
                                     <CardTitle className="text-sm font-bold">Top Vendors by PO Value</CardTitle>
                                 </CardHeader>
-                                <CardContent className="space-y-3">
+                                <CardContent className="space-y-3 pt-3">
+                                    {topVendors.length === 0 && <p className="text-xs text-center text-gray-400 py-6">No vendor data</p>}
                                     {topVendors.map((v,i) => (
                                         <div key={i} className="flex items-center gap-3">
-                                            <div className="w-6 h-6 rounded-full bg-green-100 text-green-700 text-[10px] font-black flex items-center justify-center flex-shrink-0">{i+1}</div>
+                                            <div className="w-6 h-6 rounded-full bg-green-100 text-green-700 text-[10px] font-black flex items-center justify-center flex-shrink-0 shadow-sm">{i+1}</div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex justify-between items-baseline mb-1">
-                                                    <p className="text-xs font-semibold truncate">{v.name}</p>
+                                                    <p className="text-xs font-semibold truncate text-gray-700">{v.name}</p>
                                                     <p className="text-xs font-black text-emerald-700 ml-2 flex-shrink-0">{fmt(v.value)}</p>
                                                 </div>
-                                                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                                                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                                                     <div className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all"
                                                         style={{width: `${topVendors[0].value > 0 ? (v.value / topVendors[0].value) * 100 : 0}%`}}/>
                                                 </div>
-                                                <p className="text-[10px] text-muted-foreground mt-0.5">{v.orders} orders</p>
+                                                <p className="text-[10px] text-gray-400 mt-0.5">{v.orders} orders</p>
                                             </div>
                                         </div>
                                     ))}
-                                    {topVendors.length === 0 && <p className="text-xs text-center text-muted-foreground py-6">No vendor data</p>}
                                 </CardContent>
                             </Card>
 
-                            <Card>
-                                <CardHeader className="pb-2">
+                            <Card className="shadow-sm">
+                                <CardHeader className="pb-2 border-b">
                                     <CardTitle className="text-sm font-bold">Monthly Trend — PO vs Payments</CardTitle>
                                 </CardHeader>
-                                <CardContent className="h-[240px]">
+                                <CardContent className="h-[250px] pt-3">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <BarChart data={trendData}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false}/>
-                                            <XAxis dataKey="month" tick={{fontSize:9}} axisLine={false} tickLine={false}/>
-                                            <YAxis tick={{fontSize:9}} axisLine={false} tickLine={false} tickFormatter={v => v >= 100000 ? `${(v/100000).toFixed(0)}L` : `${v}`}/>
-                                            <Tooltip formatter={(v:any) => fmt(Number(v))}/>
-                                            <Bar dataKey="poValue" fill="#16a34a" radius={[4,4,0,0]} name="PO Value"/>
-                                            <Bar dataKey="payments" fill="#059669" radius={[4,4,0,0]} name="Payments"/>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9"/>
+                                            <XAxis dataKey="month" tick={{fontSize:9,fill:'#94a3b8'}} axisLine={false} tickLine={false}/>
+                                            <YAxis tick={{fontSize:9,fill:'#94a3b8'}} axisLine={false} tickLine={false} tickFormatter={v => v >= 100000 ? `${(v/100000).toFixed(0)}L` : `${v}`}/>
+                                            <Tooltip formatter={(v:any) => fmt(Number(v))} contentStyle={{borderRadius:8,border:'none',boxShadow:'0 4px 12px rgba(0,0,0,0.1)'}}/>
+                                            <Bar dataKey="poValue"  fill="#16a34a" radius={[4,4,0,0]} name="PO Value"/>
+                                            <Bar dataKey="payments" fill="#3b82f6" radius={[4,4,0,0]} name="Payments"/>
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </CardContent>
                             </Card>
                         </div>
 
-                        {/* Dept + Payment Status Pie */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                            <Card>
-                                <CardHeader className="pb-2">
+                            <Card className="shadow-sm">
+                                <CardHeader className="pb-2 border-b">
                                     <CardTitle className="text-sm font-bold">Department Distribution</CardTitle>
                                 </CardHeader>
-                                <CardContent className="h-[220px]">
+                                <CardContent className="h-[220px] pt-3">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <BarChart data={deptData}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false}/>
-                                            <XAxis dataKey="name" tick={{fontSize:9}} axisLine={false} tickLine={false}/>
-                                            <YAxis tick={{fontSize:9}} axisLine={false} tickLine={false}/>
-                                            <Tooltip/>
-                                            <Bar dataKey="value" radius={[4,4,0,0]} name="Indents">
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9"/>
+                                            <XAxis dataKey="name" tick={{fontSize:9,fill:'#94a3b8'}} axisLine={false} tickLine={false}/>
+                                            <YAxis tick={{fontSize:9,fill:'#94a3b8'}} axisLine={false} tickLine={false}/>
+                                            <Tooltip contentStyle={{borderRadius:8,border:'none',boxShadow:'0 4px 12px rgba(0,0,0,0.1)'}}/>
+                                            <Bar dataKey="value" radius={[5,5,0,0]} name="Indents">
                                                 {deptData.map((_,i) => <Cell key={i} fill={GREEN_PALETTE[i % GREEN_PALETTE.length]}/>)}
                                             </Bar>
                                         </BarChart>
@@ -924,26 +956,32 @@ export default function Dashboard() {
                                 </CardContent>
                             </Card>
 
-                            <Card>
-                                <CardHeader className="pb-2">
+                            <Card className="shadow-sm">
+                                <CardHeader className="pb-2 border-b">
                                     <CardTitle className="text-sm font-bold">Payment Status Overview</CardTitle>
                                 </CardHeader>
-                                <CardContent className="flex flex-col items-center h-[220px]">
+                                <CardContent className="flex flex-col items-center pt-3 h-[220px]">
                                     <ResponsiveContainer width="100%" height="75%">
                                         <PieChart>
                                             <Pie data={[
-                                                { name: 'Paid', value: vendorPayments.filter(v=>v.status==='Paid').length },
+                                                { name: 'Paid',    value: vendorPayments.filter(v=>v.status==='Paid').length },
                                                 { name: 'Pending', value: vendorPayments.filter(v=>v.status!=='Paid').length },
-                                            ]} cx="50%" cy="50%" innerRadius={55} outerRadius={75} paddingAngle={4} dataKey="value">
+                                            ]} cx="50%" cy="50%" innerRadius={52} outerRadius={74} paddingAngle={4} dataKey="value">
                                                 <Cell fill="#16a34a"/>
                                                 <Cell fill="#ef4444"/>
                                             </Pie>
-                                            <Tooltip/>
+                                            <Tooltip contentStyle={{borderRadius:8,border:'none',boxShadow:'0 4px 12px rgba(0,0,0,0.1)'}}/>
                                         </PieChart>
                                     </ResponsiveContainer>
-                                    <div className="flex gap-6 text-xs mt-2">
-                                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-green-600"/><span className="font-bold">Paid: {vendorPayments.filter(v=>v.status==='Paid').length}</span></div>
-                                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-red-500"/><span className="font-bold">Pending: {vendorPayments.filter(v=>v.status!=='Paid').length}</span></div>
+                                    <div className="flex gap-8 mt-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-3 h-3 rounded-full bg-green-600 shadow-sm"/>
+                                            <span className="text-xs font-bold text-gray-700">Paid: {vendorPayments.filter(v=>v.status==='Paid').length}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-3 h-3 rounded-full bg-red-500 shadow-sm"/>
+                                            <span className="text-xs font-bold text-gray-700">Pending: {vendorPayments.filter(v=>v.status!=='Paid').length}</span>
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>

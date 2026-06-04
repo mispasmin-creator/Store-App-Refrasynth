@@ -810,17 +810,17 @@ const routes: RouteAttributes[] = [
         },
     },
 
-    {
-        path: 'DBforPc',
-        gateKey: 'dbForPc',
-        name: 'DB For PC',
-        icon: <PackageCheck size={20} />,
-        element: <DBforPc />,
-        notifications: (pcReportSheet: any[]) => {
-            const data = Array.isArray(pcReportSheet[0]) ? pcReportSheet[0] : pcReportSheet;
-            return data.reduce((sum: number, stage: any) => sum + (Number(stage.totalPending) || 0), 0);
-        },
-    },
+    // {
+    //     path: 'DBforPc',
+    //     gateKey: 'dbForPc',
+    //     name: 'DB For PC',
+    //     icon: <PackageCheck size={20} />,
+    //     element: <DBforPc />,
+    //     notifications: (pcReportSheet: any[]) => {
+    //         const data = Array.isArray(pcReportSheet[0]) ? pcReportSheet[0] : pcReportSheet;
+    //         return data.reduce((sum: number, stage: any) => sum + (Number(stage.totalPending) || 0), 0);
+    //     },
+    // },
     {
         path: 'administration',
         gateKey: 'administrate',
@@ -829,21 +829,20 @@ const routes: RouteAttributes[] = [
         element: <Administration />,
         notifications: () => 0,
     },
-    {
-        path: 'training-video',
-        name: 'Training Video',
-        icon: <VideoIcon size={20} />,
-        element: <TrainnigVideo />,
-        notifications: () => 0,
-    },
-    {
-        path: 'license',
-        name: 'License',
-        icon: <KeyRound size={20} />,
-        element: <Liecense />,
-        notifications: () => 0,
-
-    },
+    // {
+    //     path: 'training-video',
+    //     name: 'Training Video',
+    //     icon: <VideoIcon size={20} />,
+    //     element: <TrainnigVideo />,
+    //     notifications: () => 0,
+    // },
+    // {
+    //     path: 'license',
+    //     name: 'License',
+    //     icon: <KeyRound size={20} />,
+    //     element: <Liecense />,
+    //     notifications: () => 0,
+    // },
 
 ];
 
