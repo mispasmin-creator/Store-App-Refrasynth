@@ -313,7 +313,7 @@ const routes: RouteAttributes[] = [
     {
         path: 'get-lift',
         gateKey: 'ordersView',
-        name: 'Lifting',
+        name: 'Material Receipt / Store In',
         icon: <ArrowUpCircle size={20} />,
         element: <GetLift />,
         notifications: (sheetsData: any[], user: any) => {
@@ -344,7 +344,7 @@ const routes: RouteAttributes[] = [
     {
         path: 'store-in',
         gateKey: 'storeIn',
-        name: 'Material Receipt / Store In',
+        name: 'Ahitesh',
         icon: <CheckCircle2 size={20} />,
         element: <StoreIn />,
         notifications: (sheetsData: any[], user: any) => {

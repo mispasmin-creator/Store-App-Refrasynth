@@ -2,27 +2,27 @@ import type { ColumnDef, Row } from '@tanstack/react-table';
 import { useEffect, useState } from 'react';
 import DataTable from '../element/DataTable';
 import { z } from 'zod';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@/lib/supabase';
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
     DialogTrigger,
-    DialogClose,
 } from '../ui/dialog';
-import { Truck, Building, FileText, IndianRupee } from 'lucide-react';
+import {
+    Truck, Building, FileText, IndianRupee,
+    Package, CheckCircle2, X, AlertTriangle, TrendingUp,
+} from 'lucide-react';
 import { Button } from '../ui/button';
-import { Form, FormControl, FormField, FormItem, FormLabel } from '../ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
 import { PuffLoader as Loader } from 'react-spinners';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Input } from '../ui/input';
-import { Textarea } from '../ui/textarea';
 import { Tabs, TabsContent } from '../ui/tabs';
 import { useAuth } from '@/context/AuthContext';
 import Heading from '../element/Heading';
@@ -30,10 +30,6 @@ import { formatDate, formatDateTime, parseCustomDate } from '@/lib/utils';
 import { Pill } from '../ui/pill';
 import {
     fetchStoreInRecords,
-    updateStoreInReceiving,
-    uploadProductPhoto,
-    uploadBillCopy,
-    createPaymentEntry,
     type StoreInRecord,
 } from '@/services/storeInService';
 
@@ -117,67 +113,12 @@ interface StoreInHistoryData {
 type RecieveItemsData = StoreInPendingData;
 type HistoryData = StoreInHistoryData;
 
-interface StoreInSheetItem {
-    liftNumber?: string;
-    indentNo?: string;
-    billNo?: string;
-    vendorName?: string;
-    productName?: string;
-    qty?: number;
-    typeOfBill?: string;
-    billAmount?: number;
-    paymentType?: string;
-    advanceAmountIfAny?: number | string;
-    photoOfBill?: string;
-    transportationInclude?: string;
-    transporterName?: string;
-    amount?: number;
-    planned6?: string;
-    actual6?: string;
-    status?: string;
-    billCopyAttached?: string;
-    debitNote?: string;
-    reason?: string;
-    damageOrder?: string;
-    quantityAsPerBill?: string;
-    priceAsPerPoCheck?: string;
-    priceAsPerPo?: number;
-    remark?: string;
-    firmNameMatch?: string;
-    rowIndex?: number;
-    poDate?: string;
-    poNumber?: string;
-    vendor?: string;
-    indentNumber?: string;
-    product?: string;
-    uom?: string;
-    poCopy?: string;
-    billStatus?: string;
-    leadTimeToLiftMaterial?: number;
-    discountAmount?: number;
-    receivedQuantity?: number;
-    photoOfProduct?: string;
-    unitOfMeasurement?: string;
-    timestamp?: string;
-    billNumber?: string;
-    anyTransport?: string;
-    transportingAmount?: number;
-    receivingStatus?: string;
-}
-
-// Safe date formatter for Planned Date
 const formatPlannedDate = (dateString: string) => {
     if (!dateString || dateString.trim() === '') return '';
     try {
-        // If it's already in dd/mm/yyyy format, return as is
-        if (dateString.includes('/')) {
-            return dateString;
-        }
-
-        // If it's a date string that can be parsed
+        if (dateString.includes('/')) return dateString;
         const dateObj = new Date(dateString);
         if (isNaN(dateObj.getTime())) return dateString;
-
         const day = String(dateObj.getDate()).padStart(2, '0');
         const month = String(dateObj.getMonth() + 1).padStart(2, '0');
         const year = String(dateObj.getFullYear()).slice(-2);
@@ -197,8 +138,6 @@ export default () => {
     const [indentLoading, setIndentLoading] = useState(false);
     const [receivedLoading, setReceivedLoading] = useState(false);
     const [storeInRecords, setStoreInRecords] = useState<StoreInRecord[]>([]);
-    const [activeItemIndex, setActiveItemIndex] = useState(0);
-    const [completedItems, setCompletedItems] = useState<Set<number>>(new Set());
 
     const fetchAllData = async () => {
         setIndentLoading(true);
@@ -215,38 +154,26 @@ export default () => {
         }
     };
 
-    // Fetch all data from Supabase
-    useEffect(() => {
-        fetchAllData();
-    }, []);
+    useEffect(() => { fetchAllData(); }, []);
 
-    // Process pending table data
     useEffect(() => {
         const filteredByFirm = storeInRecords.filter((item) =>
             user.firmNameMatch.toLowerCase() === "all" || item.firmNameMatch === user.firmNameMatch
         );
 
-        // Filter to keep only the latest record per Indent and Product
         const latestRecords: any[] = [];
         const seen = new Set<string>();
-
         for (const item of filteredByFirm) {
             const key = `${item.indentNo}-${item.productName}`;
-            if (!seen.has(key)) {
-                seen.add(key);
-                latestRecords.push(item);
-            }
+            if (!seen.has(key)) { seen.add(key); latestRecords.push(item); }
         }
 
-        // Group by Vendor + Bill No
         const groupedMap = new Map<string, any>();
-
         const pendingItems = latestRecords.filter((i) => i.planned6 !== '' && i.actual6 === '');
 
         pendingItems.forEach((i) => {
             const billNo = String(i.billNo || '');
             const key = `${i.vendorName}-${billNo}`;
-
             if (!groupedMap.has(key)) {
                 groupedMap.set(key, {
                     liftNumber: i.liftNumber || '',
@@ -280,10 +207,9 @@ export default () => {
                     remark: i.remark || '',
                     products: [],
                     indentNumbers: [],
-                    originalItems: []
+                    originalItems: [],
                 });
             }
-
             const group = groupedMap.get(key);
             group.qty += Number(i.qty) || 0;
             group.products.push(i.productName);
@@ -294,22 +220,16 @@ export default () => {
         setTableData(Array.from(groupedMap.values()));
     }, [storeInRecords, user.firmNameMatch]);
 
-    // Process history data
     useEffect(() => {
         const filteredByFirm = storeInRecords.filter((item) =>
             user.firmNameMatch.toLowerCase() === "all" || item.firmNameMatch === user.firmNameMatch
         );
 
-        // Filter to keep only the latest record per Indent and Product
         const latestRecords: any[] = [];
         const seen = new Set<string>();
-
         for (const item of filteredByFirm) {
             const key = `${item.indentNo}-${item.productName}`;
-            if (!seen.has(key)) {
-                seen.add(key);
-                latestRecords.push(item);
-            }
+            if (!seen.has(key)) { seen.add(key); latestRecords.push(item); }
         }
 
         setHistoryData(
@@ -367,26 +287,16 @@ export default () => {
 
     const columns: ColumnDef<RecieveItemsData>[] = [
         ...(user.receiveItemView
-            ? [
-                {
-                    header: 'Action',
-                    cell: ({ row }: { row: Row<RecieveItemsData> }) => {
-                        const indent = row.original;
-                        return (
-                            <DialogTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    onClick={() => {
-                                        setSelectedIndent(indent);
-                                    }}
-                                >
-                                    Store In
-                                </Button>
-                            </DialogTrigger>
-                        );
-                    },
-                },
-            ]
+            ? [{
+                header: 'Action',
+                cell: ({ row }: { row: Row<RecieveItemsData> }) => (
+                    <DialogTrigger asChild>
+                        <Button variant="outline" onClick={() => setSelectedIndent(row.original)}>
+                            Store In
+                        </Button>
+                    </DialogTrigger>
+                ),
+            }]
             : []),
         {
             accessorKey: 'timestamp',
@@ -414,11 +324,7 @@ export default () => {
             header: 'Bill Status',
             cell: ({ getValue }) => {
                 const status = getValue() as string;
-                return (
-                    <Pill variant={status === 'Bill Received' ? 'default' : 'secondary'}>
-                        {status || 'Unknown'}
-                    </Pill>
-                );
+                return <Pill variant={status === 'Bill Received' ? 'default' : 'secondary'}>{status || 'Unknown'}</Pill>;
             }
         },
         { accessorKey: 'billAmount', header: 'Bill Amount' },
@@ -433,11 +339,7 @@ export default () => {
             header: 'Photo Of Bill',
             cell: ({ row }) => {
                 const photo = row.original.photoOfBill;
-                return photo ? (
-                    <a href={photo} target="_blank" rel="noopener noreferrer" className="text-green-600 underline">
-                        View
-                    </a>
-                ) : null;
+                return photo ? <a href={photo} target="_blank" rel="noopener noreferrer" className="text-green-600 underline">View</a> : null;
             },
         },
         { accessorKey: 'transportationInclude', header: 'Trans. Include', cell: textWrapCell },
@@ -458,11 +360,7 @@ export default () => {
             header: 'Bill Status',
             cell: ({ getValue }) => {
                 const status = getValue() as string;
-                return (
-                    <Pill variant={status === 'Bill Received' ? 'default' : 'secondary'}>
-                        {status || 'Unknown'}
-                    </Pill>
-                );
+                return <Pill variant={status === 'Bill Received' ? 'default' : 'secondary'}>{status || 'Unknown'}</Pill>;
             }
         },
         { accessorKey: 'billNo', header: 'Bill No.', cell: textWrapCell },
@@ -478,11 +376,7 @@ export default () => {
             header: 'Photo Of Bill',
             cell: ({ row }) => {
                 const photo = row.original.photoOfBill;
-                return photo ? (
-                    <a href={photo} target="_blank" rel="noopener noreferrer" className="text-green-600 underline">
-                        View
-                    </a>
-                ) : null;
+                return photo ? <a href={photo} target="_blank" rel="noopener noreferrer" className="text-green-600 underline">View</a> : null;
             },
         },
         { accessorKey: 'transportationInclude', header: 'Trans. Include', cell: textWrapCell },
@@ -495,11 +389,7 @@ export default () => {
             header: 'Product Photo',
             cell: ({ row }) => {
                 const photo = row.original.photoOfProduct;
-                return photo ? (
-                    <a href={photo} target="_blank" rel="noopener noreferrer" className="text-green-600 underline">
-                        View
-                    </a>
-                ) : null;
+                return photo ? <a href={photo} target="_blank" rel="noopener noreferrer" className="text-green-600 underline">View</a> : null;
             },
         },
         {
@@ -507,11 +397,7 @@ export default () => {
             header: 'Physical Check',
             cell: ({ row }) => {
                 const isDamaged = row.original.damageOrder === 'No';
-                return (
-                    <Pill variant={isDamaged ? 'reject' : 'default'}>
-                        {isDamaged ? 'Not Good' : 'Good'}
-                    </Pill>
-                );
+                return <Pill variant={isDamaged ? 'reject' : 'default'}>{isDamaged ? 'Not Good' : 'Good'}</Pill>;
             }
         },
         {
@@ -540,162 +426,56 @@ export default () => {
         },
     ];
 
+    // ── Schema ──────────────────────────────────────────────
     const schema = z.object({
-        status: z.enum(['Received', 'Not Received']),
-        billNo: z.string().optional(),
-        billRemark: z.string().optional(),
-        billAmount: z.coerce.number().optional(),
-        billCopy: z.instanceof(File).optional(),
-        photoOfProduct: z.instanceof(File, {
-            message: "Photo of product is required"
-        }),
-        damageOrder: z.enum(['Yes', 'No']),
-        quantityAsPerBill: z.enum(['Yes', 'No']),
-        priceAsPerPoCheck: z.enum(['Yes', 'No']),
+        status: z.enum(['Received', 'Not Received'], { required_error: 'Status is required' }),
         remark: z.string().optional(),
-        location: z.string().optional(),
-        items: z.array(z.object({
-            liftNumber: z.string(),
-            indentNo: z.string(),
-            productName: z.string(),
-            qty: z.number(),
-            receivedQty: z.coerce.number().min(1, 'Received quantity is required'),
-        })),
     });
-
     type FormValues = z.infer<typeof schema>;
 
     const form = useForm<FormValues>({
         resolver: zodResolver(schema),
-        defaultValues: {
-            status: 'Received',
-            billNo: '',
-            billRemark: '',
-            billAmount: 0,
-            billCopy: undefined,
-            photoOfProduct: undefined,
-            damageOrder: undefined,
-            quantityAsPerBill: undefined,
-            priceAsPerPoCheck: undefined,
-            remark: '',
-            location: '',
-            items: [],
-        },
+        defaultValues: { status: undefined, remark: '' },
     });
 
-    const { fields: itemFields, append, remove } = useFieldArray({
-        control: form.control,
-        name: "items"
-    });
-
-    const statusSelector = form.watch('status');
-    const itemsWatcher = form.watch('items');
-
-    // Reset form when dialog closes
     useEffect(() => {
-        if (!openDialog) {
-            form.reset();
-            fetchAllData(); // Refresh data on close
-        }
-    }, [openDialog, form]);
+        if (!openDialog) { form.reset({ status: undefined, remark: '' }); fetchAllData(); }
+    }, [openDialog]);
 
     useEffect(() => {
-        if (selectedIndent?.originalItems) {
-            form.reset({
-                status: 'Received',
-                billNo: '',
-                billRemark: '',
-                billAmount: 0,
-                billCopy: undefined,
-                photoOfProduct: undefined,
-                damageOrder: undefined,
-                quantityAsPerBill: undefined,
-                priceAsPerPoCheck: undefined,
-                remark: '',
-                location: '',
-                items: selectedIndent.originalItems.map(item => ({
-                    liftNumber: item.liftNumber || '',
-                    indentNo: item.indentNo || '',
-                    productName: item.productName || '',
-                    qty: Number(item.qty) || 0,
-                    receivedQty: Number(item.qty) || 0,
-                })),
-            });
-        }
-    }, [selectedIndent, form]);
+        if (selectedIndent) { form.reset({ status: undefined, remark: '' }); }
+    }, [selectedIndent]);
 
     async function onSubmit(values: FormValues) {
         if (!selectedIndent) return;
         try {
-            let photoUrl = '';
-            let billCopyUrl = '';
-
-            // 1. Upload product photo once for all items
-            if (values.photoOfProduct) {
-                photoUrl = await uploadProductPhoto(
-                    values.photoOfProduct,
-                    selectedIndent.indentNo || ''
-                );
-            }
-
-            // 2. Upload bill copy if provided
-            if (values.billCopy instanceof File) {
-                billCopyUrl = await uploadBillCopy(
-                    values.billCopy,
-                    selectedIndent.liftNumber || selectedIndent.indentNo || ''
-                );
-            }
-
             const currentDateTime = new Date().toISOString();
-
-            // 3. Update all items in parallel
-            const updatePromises = values.items.map(item =>
-                updateStoreInReceiving(item.liftNumber, {
+            for (const item of (selectedIndent.originalItems || [])) {
+                const { error } = await supabase.from('store_in').update({
                     actual6: currentDateTime,
-                    receivingStatus: values.status,
-                    receivedQuantity: item.receivedQty,
-                    photoOfProduct: photoUrl,
-                    damageOrder: values.damageOrder || '',
-                    quantityAsPerBill: values.quantityAsPerBill || '',
-                    priceAsPerPoCheck: values.priceAsPerPoCheck || '',
+                    receiving_status: values.status,
                     remark: values.remark || '',
-                    location: values.location || '',
-                    billNo: values.billNo || '',
-                    billRemark: values.billRemark || '',
-                    billAmount: Number(values.billAmount) || 0,
-                    photoOfBill: billCopyUrl,
-                })
-            );
-
-            await Promise.all(updatePromises);
-
-
-            toast.success(`All ${values.items.length} items stored in successfully!`);
+                    hod_planned: currentDateTime,
+                    hod_status: 'Pending',
+                }).eq('lift_number', item.liftNumber);
+                if (error) throw error;
+            }
+            toast.success(`Store In completed for ${(selectedIndent.originalItems || []).length} item(s)!`);
             setOpenDialog(false);
-            await fetchAllData();
-        } catch (error) {
-            console.error('Error in onSubmit:', error);
-            toast.error('Failed to store in');
+            setSelectedIndent(null);
+        } catch (error: any) {
+            toast.error('Failed to store in: ' + (error?.message || ''));
         }
-    }
-
-    function onError(e: any) {
-        console.log(e);
-        if (e.qty) {
-            toast.error(e.qty.message || 'Received quantity cannot exceed lifting quantity');
-            return;
-        }
-        toast.error('Please fill all required fields');
     }
 
     return (
         <div>
-            <Dialog open={openDialog} onOpenChange={setOpenDialog}>
+            <Dialog open={openDialog} onOpenChange={(open) => { setOpenDialog(open); if (!open) setSelectedIndent(null); }}>
                 <Tabs defaultValue="pending">
                     <Heading
-                        heading="Material Receipt / Store In"
-                        subtext="Receive items from purchase orders"
-                        tabs
+                        heading={"Material Receipt / Store In"}
+                        subtext={"Receive items from purchase orders"}
+                        tabs={true}
                         pendingCount={tableData.length}
                         historyCount={historyData.length}
                     >
@@ -721,337 +501,180 @@ export default () => {
                 </Tabs>
 
                 {selectedIndent && (
-                    <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+                    <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                         <Form {...form}>
-                            <form
-                                onSubmit={form.handleSubmit(onSubmit, onError)}
-                                className="space-y-5"
-                            >
-                                <DialogHeader className="space-y-4 pb-4 border-b">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className="p-3 bg-primary/10 rounded-xl">
-                                                <Truck className="h-6 w-6 text-primary" />
-                                            </div>
-                                            <div>
-                                                <DialogTitle className="text-2xl font-bold tracking-tight">Store In Processing</DialogTitle>
-                                                <DialogDescription className="text-muted-foreground">
-                                                    Process reception and verify quality of delivered items
-                                                </DialogDescription>
-                                            </div>
+                            <form onSubmit={form.handleSubmit(onSubmit, () => toast.error('Please select a status'))} className="space-y-4">
+                                <DialogHeader className="border-b pb-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-primary/10 rounded-lg">
+                                            <Truck className="w-6 h-6 text-primary" />
                                         </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                        <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border/50">
-                                            <div className="p-2 bg-background rounded-md shadow-sm">
-                                                <Building className="h-4 w-4 text-primary" />
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Vendor</span>
-                                                <span className="text-sm font-semibold truncate max-w-[150px]" title={selectedIndent.vendorName}>
-                                                    {selectedIndent.vendorName}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border/50">
-                                            <div className="p-2 bg-background rounded-md shadow-sm">
-                                                <FileText className="h-4 w-4 text-primary" />
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Bill Number</span>
-                                                <span className="text-sm font-semibold">{selectedIndent.billNo || 'N/A'}</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
-                                            <div className="p-2 bg-primary/10 rounded-md shadow-sm">
-                                                <IndianRupee className="h-4 w-4 text-primary" />
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] uppercase font-bold text-primary/70 tracking-wider">Bill Amount</span>
-                                                <span className="text-sm font-bold text-primary">₹{selectedIndent.billAmount?.toLocaleString('en-IN') || '0'}</span>
-                                            </div>
+                                        <div>
+                                            <DialogTitle className="text-xl font-black">Store In Processing</DialogTitle>
+                                            <p className="text-xs font-medium text-muted-foreground">Verify and confirm receipt of material for Lift #{selectedIndent.liftNumber}</p>
                                         </div>
                                     </div>
                                 </DialogHeader>
 
-                                {/* Product list - always show details table even for single products */}
-                                {(selectedIndent.originalItems?.length || 0) > 0 && (
-                                    <div className="border rounded-md overflow-hidden">
-                                        <div className="bg-muted px-3 py-2 text-sm font-semibold">Products in this shipment ({selectedIndent.originalItems?.length})</div>
-                                        <table className="w-full text-sm">
-                                            <thead className="bg-muted/40 border-b">
-                                                <tr>
-                                                    <th className="px-3 py-2 text-left">S.No.</th>
-                                                    <th className="px-3 py-2 text-left">Lift No.</th>
-                                                    <th className="px-3 py-2 text-left">Product</th>
-                                                    <th className="px-3 py-2 text-left">Indent No.</th>
-                                                    <th className="px-3 py-2 text-right">Lift Qty</th>
-                                                    <th className="px-3 py-2 text-right w-32">Received Qty</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y">
-                                                {itemFields.map((field, idx) => (
-                                                    <tr key={field.id} className="hover:bg-muted/30 transition-colors">
-                                                        <td className="px-3 py-2">{idx + 1}</td>
-                                                        <td className="px-3 py-2 text-muted-foreground">{field.liftNumber}</td>
-                                                        <td className="px-3 py-2 font-medium">{field.productName}</td>
-                                                        <td className="px-3 py-2 text-muted-foreground">{field.indentNo}</td>
-                                                        <td className="px-3 py-2 text-right">{field.qty}</td>
-                                                        <td className="px-3 py-2">
-                                                            <FormField
-                                                                control={form.control}
-                                                                name={`items.${idx}.receivedQty`}
-                                                                render={({ field: inputField }) => (
-                                                                    <FormItem>
-                                                                        <FormControl>
-                                                                            <Input
-                                                                                type="number"
-                                                                                {...inputField}
-                                                                                max={field.qty}
-                                                                                className="h-8 text-right"
-                                                                            />
-                                                                        </FormControl>
-                                                                    </FormItem>
-                                                                )}
-                                                            />
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
+                                <div className="space-y-5 py-2">
+                                    {/* Record Info */}
+                                    <div className="bg-slate-50/50 rounded-xl border border-slate-100 p-4 shadow-sm">
+                                        <div className="flex items-center gap-2 mb-3 border-b border-slate-200/50 pb-2">
+                                            <Package className="w-4 h-4 text-slate-400" />
+                                            <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Record Information</h4>
+                                        </div>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                            <div className="space-y-1">
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Vendor</p>
+                                                <p className="text-xs font-bold text-slate-900 line-clamp-1" title={selectedIndent.vendorName}>{selectedIndent.vendorName}</p>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">PO Number</p>
+                                                <p className="text-xs font-black text-primary">{selectedIndent.poNumber || '—'}</p>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Bill Number</p>
+                                                <p className="text-xs font-bold text-slate-900">{selectedIndent.billNo || 'N/A'}</p>
+                                            </div>
+                                            <div className="space-y-1 text-right">
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Bill Amount</p>
+                                                <p className="text-sm font-black text-emerald-600">₹{selectedIndent.billAmount?.toLocaleString('en-IN') || '0'}</p>
+                                            </div>
+                                        </div>
                                     </div>
-                                )}
 
-
-                                {/* Bill Info */}
-                                <div className="grid md:grid-cols-2 gap-4">
-                                    <FormField
-                                        control={form.control}
-                                        name="billNo"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Bill Number</FormLabel>
-                                                <FormControl>
-                                                    <Input {...field} placeholder="Enter bill number" />
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="billAmount"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Bill Amount</FormLabel>
-                                                <FormControl>
-                                                    <Input type="number" {...field} placeholder="Enter bill amount" />
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="billRemark"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Bill Remark</FormLabel>
-                                                <FormControl>
-                                                    <Input {...field} placeholder="Enter bill remark" />
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="billCopy"
-                                        render={({ field: { onChange, value, ...field } }) => (
-                                            <FormItem>
-                                                <FormLabel>Bill Copy (Image/PDF)</FormLabel>
-                                                <FormControl>
-                                                    <Input
-                                                        type="file"
-                                                        accept="image/*,.pdf"
-                                                        onChange={(e) => onChange(e.target.files?.[0])}
-                                                        {...field}
-                                                    />
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-                                </div>
-
-                                {/* Standard form fields */}
-                                <div className="grid md:grid-cols-2 gap-4">
-                                    <FormField
-                                        control={form.control}
-                                        name="status"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Receiving Status</FormLabel>
-                                                <FormControl>
-                                                    <Select
-                                                        onValueChange={field.onChange}
-                                                        value={field.value}
-                                                    >
-                                                        <SelectTrigger className="w-full">
-                                                            <SelectValue placeholder="Select status" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="Received">Received</SelectItem>
-                                                            <SelectItem value="Not Received">Not Received</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-
-                                    <FormField
-                                        control={form.control}
-                                        name="location"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Location (optional)</FormLabel>
-                                                <FormControl>
-                                                    <Input {...field} placeholder="Enter storage location" />
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-                                </div>
-
-                                <FormField
-                                    control={form.control}
-                                    name="photoOfProduct"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Photo of Product</FormLabel>
-                                            <span className="text-destructive">*</span>
-                                            <FormControl>
-                                                <Input
-                                                    type="file"
-                                                    onChange={(e) =>
-                                                        field.onChange(e.target.files?.[0])
-                                                    }
-                                                />
-                                            </FormControl>
-                                        </FormItem>
+                                    {/* Products (read-only) */}
+                                    {(selectedIndent.originalItems?.length || 0) > 0 && (
+                                        <div className="border rounded-xl overflow-hidden">
+                                            <div className="bg-muted/50 px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-500 border-b">
+                                                Products in this shipment ({selectedIndent.originalItems!.length})
+                                            </div>
+                                            <table className="w-full text-sm">
+                                                <thead className="bg-muted/30 border-b">
+                                                    <tr>
+                                                        <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500">#</th>
+                                                        <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500">Lift No.</th>
+                                                        <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500">Product</th>
+                                                        <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500">Indent No.</th>
+                                                        <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500">Qty</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y">
+                                                    {selectedIndent.originalItems!.map((item: any, idx: number) => (
+                                                        <tr key={idx} className="hover:bg-muted/20">
+                                                            <td className="px-3 py-2 text-xs text-slate-400">{idx + 1}</td>
+                                                            <td className="px-3 py-2 text-xs text-muted-foreground">{item.liftNumber}</td>
+                                                            <td className="px-3 py-2 text-xs font-medium">{item.productName}</td>
+                                                            <td className="px-3 py-2 text-xs text-muted-foreground">{item.indentNo}</td>
+                                                            <td className="px-3 py-2 text-xs text-right font-semibold">{item.qty}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     )}
-                                />
 
-                                <div className="grid md:grid-cols-2 gap-4">
-                                    <FormField
-                                        control={form.control}
-                                        name="damageOrder"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Physical Check</FormLabel>
-                                                <FormControl>
-                                                    <Select
-                                                        onValueChange={field.onChange}
-                                                        value={field.value}
-                                                    >
-                                                        <SelectTrigger className="w-full">
-                                                            <SelectValue placeholder="Select" />
-                                                        </SelectTrigger>
+                                    {/* Store Verification Results */}
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-2 px-1">
+                                            <CheckCircle2 className="w-4 h-4 text-amber-500" />
+                                            <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Store Verification Results (from Lift)</h4>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                            {(() => {
+                                                const first = selectedIndent.originalItems?.[0] as any;
+                                                const damage = first?.damageOrder;
+                                                const qtyMatch = first?.quantityAsPerBill;
+                                                const priceMatch = first?.priceAsPerPoCheck;
+                                                return (<>
+                                                    <div className={`p-3 rounded-xl border flex flex-col gap-1 ${damage === 'No' ? 'bg-red-50 border-red-100' : 'bg-slate-50 border-slate-100'}`}>
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Physical Check</span>
+                                                        <div className="flex items-center justify-between">
+                                                            <span className={`text-xs font-black ${damage === 'No' ? 'text-red-700' : 'text-slate-700'}`}>
+                                                                {damage === 'No' ? 'Damaged' : damage === 'Yes' ? 'Good' : '—'}
+                                                            </span>
+                                                            {damage === 'No' ? <X className="w-3 h-3 text-red-500" /> : damage === 'Yes' ? <CheckCircle2 className="w-3 h-3 text-emerald-500" /> : null}
+                                                        </div>
+                                                    </div>
+                                                    <div className={`p-3 rounded-xl border flex flex-col gap-1 ${qtyMatch === 'No' ? 'bg-red-50 border-red-100' : 'bg-slate-50 border-slate-100'}`}>
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Qty Matching</span>
+                                                        <div className="flex items-center justify-between">
+                                                            <span className={`text-xs font-black ${qtyMatch === 'No' ? 'text-red-700' : 'text-slate-700'}`}>
+                                                                {qtyMatch === 'No' ? 'Mismatch' : qtyMatch === 'Yes' ? 'Matches' : '—'}
+                                                            </span>
+                                                            {qtyMatch === 'No' ? <X className="w-3 h-3 text-red-500" /> : qtyMatch === 'Yes' ? <CheckCircle2 className="w-3 h-3 text-emerald-500" /> : null}
+                                                        </div>
+                                                    </div>
+                                                    <div className={`p-3 rounded-xl border flex flex-col gap-1 ${priceMatch === 'No' ? 'bg-red-50 border-red-100' : 'bg-slate-50 border-slate-100'}`}>
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Price Matching</span>
+                                                        <div className="flex items-center justify-between">
+                                                            <span className={`text-xs font-black ${priceMatch === 'No' ? 'text-red-700' : 'text-slate-700'}`}>
+                                                                {priceMatch === 'No' ? 'Mismatch' : priceMatch === 'Yes' ? 'Matches' : '—'}
+                                                            </span>
+                                                            {priceMatch === 'No' ? <X className="w-3 h-3 text-red-500" /> : priceMatch === 'Yes' ? <CheckCircle2 className="w-3 h-3 text-emerald-500" /> : null}
+                                                        </div>
+                                                    </div>
+                                                </>);
+                                            })()}
+                                        </div>
+                                        {(selectedIndent.originalItems?.[0] as any)?.remark && (
+                                            <div className="bg-amber-50/50 rounded-xl border border-amber-100/50 p-3">
+                                                <div className="flex items-start gap-3">
+                                                    <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                                                    <div className="space-y-1">
+                                                        <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Inspector Remarks</p>
+                                                        <p className="text-xs text-amber-900 font-medium italic">"{(selectedIndent.originalItems![0] as any).remark}"</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Decision */}
+                                    <div className="bg-white rounded-xl border p-4 space-y-4">
+                                        <div className="flex items-center gap-2">
+                                            <TrendingUp className="w-4 h-4 text-primary" />
+                                            <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Store In Decision</h4>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <FormField control={form.control} name="status" render={({ field }) => (
+                                                <FormItem className="space-y-1">
+                                                    <FormLabel className="text-[10px] font-bold uppercase text-slate-400 pl-1">Receiving Status <span className="text-destructive">*</span></FormLabel>
+                                                    <Select onValueChange={field.onChange} value={field.value}>
+                                                        <FormControl>
+                                                            <SelectTrigger className="h-10 border-slate-200">
+                                                                <SelectValue placeholder="Select status" />
+                                                            </SelectTrigger>
+                                                        </FormControl>
                                                         <SelectContent>
-                                                            <SelectItem value="Yes">OK</SelectItem>
-                                                            <SelectItem value="No">Not OK</SelectItem>
+                                                            <SelectItem value="Received" className="text-emerald-600 font-bold">Received</SelectItem>
+                                                            <SelectItem value="Not Received" className="text-red-600 font-bold">Not Received</SelectItem>
                                                         </SelectContent>
                                                     </Select>
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-
-                                    <FormField
-                                        control={form.control}
-                                        name="quantityAsPerBill"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Quantity As Per Bill</FormLabel>
-                                                <FormControl>
-                                                    <Select
-                                                        onValueChange={field.onChange}
-                                                        value={field.value}
-                                                    >
-                                                        <SelectTrigger className="w-full">
-                                                            <SelectValue placeholder="Select" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="Yes">Yes</SelectItem>
-                                                            <SelectItem value="No">No</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-
-                                    <FormField
-                                        control={form.control}
-                                        name="priceAsPerPoCheck"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className="font-semibold">Price as per PO?</FormLabel>
-                                                <FormControl>
-                                                    <Select
-                                                        onValueChange={field.onChange}
-                                                        value={field.value}
-                                                    >
-                                                        <SelectTrigger className="w-full border-green-200 focus:ring-green-500">
-                                                            <SelectValue placeholder="Select" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="Yes">Yes</SelectItem>
-                                                            <SelectItem value="No">No</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
-
-
-                                    <FormField
-                                        control={form.control}
-                                        name="remark"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Remark</FormLabel>
-                                                <FormControl>
-                                                    <Textarea
-                                                        className="w-full"
-                                                        rows={3}
-                                                        placeholder="Enter remark"
-                                                        {...field}
-                                                    />
-                                                </FormControl>
-                                            </FormItem>
-                                        )}
-                                    />
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )} />
+                                            <FormField control={form.control} name="remark" render={({ field }) => (
+                                                <FormItem className="space-y-1">
+                                                    <FormLabel className="text-[10px] font-bold uppercase text-slate-400 pl-1">Remarks</FormLabel>
+                                                    <FormControl>
+                                                        <Input placeholder="Add remarks..." {...field} className="h-10 border-slate-200" />
+                                                    </FormControl>
+                                                </FormItem>
+                                            )} />
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <DialogFooter>
-                                    <DialogClose asChild>
-                                        <Button variant="outline">Close</Button>
-                                    </DialogClose>
-
-                                    <Button type="submit" disabled={form.formState.isSubmitting || form.watch('status') === 'Not Received'}>
-                                        {form.formState.isSubmitting && (
-                                            <Loader
-                                                size={20}
-                                                color="white"
-                                                aria-label="Loading Spinner"
-                                            />
-                                        )}
-                                        {(selectedIndent.originalItems?.length || 0) > 1
-                                            ? `Store In`
-                                            : 'Store In'
-                                        }
+                                <DialogFooter className="border-t pt-4">
+                                    <Button type="button" variant="ghost" className="h-10 text-slate-500 font-semibold"
+                                        onClick={() => { setOpenDialog(false); setSelectedIndent(null); }}>
+                                        Cancel
+                                    </Button>
+                                    <Button type="submit" disabled={form.formState.isSubmitting}
+                                        className={`h-10 px-8 font-black transition-all shadow-md ${form.watch('status') === 'Not Received' ? 'bg-red-600 hover:bg-red-700' : 'bg-primary hover:bg-primary/90'}`}>
+                                        {form.formState.isSubmitting ? <Loader size={16} color="white" className="mr-2" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
+                                        Confirm Store In
                                     </Button>
                                 </DialogFooter>
                             </form>

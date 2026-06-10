@@ -80,7 +80,7 @@ export interface StoreInInsertData {
     transporterName: string;
     amount: number;
     billStatus: string;
-    quantityAsPerBill: number;
+    quantityAsPerBill: number | string;
     poDate: string;
     poNumber: string;
     vendor: string;
@@ -98,6 +98,12 @@ export interface StoreInInsertData {
     approvedVendorName?: string;
     liftingStatus?: string;
     notBillReceivedNo?: string;
+    receivingStatus?: string;
+    location?: string;
+    photoOfProduct?: string;
+    damageOrder?: string;
+    priceAsPerPoCheck?: string;
+    remark?: string;
 }
 
 // ==================== FETCH FUNCTIONS ====================
@@ -256,10 +262,12 @@ export async function insertStoreInRecord(storeInData: StoreInInsertData) {
             planned6: storeInData.timestamp,
             actual6: null,
             send_debit_note: '',
-            receiving_status: '',
-            photo_of_product: '',
-            damage_order: '',
-            remark: '',
+            receiving_status: storeInData.receivingStatus || '',
+            photo_of_product: storeInData.photoOfProduct || '',
+            damage_order: storeInData.damageOrder || '',
+            bill_received2: storeInData.priceAsPerPoCheck || '',
+            location: storeInData.location || '',
+            remark: storeInData.remark || '',
             planned7: null,
             actual7: null,
             status: '',

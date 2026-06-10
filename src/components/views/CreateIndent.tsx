@@ -30,7 +30,6 @@ export default () => {
     const { masterSheet: options } = useSheets();
     const { user } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
-    const [companyName, setCompanyName] = useState(localStorage.getItem('company_name') || '');
     const [searchTermGroupHead, setSearchTermGroupHead] = useState('');
     const [searchTermProductName, setSearchTermProductName] = useState('');
     const [searchTermUOM, setSearchTermUOM] = useState('');
@@ -316,17 +315,6 @@ export default () => {
                 </Heading>
 
                 <TabsContent value="pending">
-                    <div className="px-5 pt-5 space-y-2">
-                        <Label>Company Name (Overrides default in PO)</Label>
-                        <Input
-                            placeholder="Enter Company Name"
-                            value={companyName}
-                            onChange={(e) => {
-                                setCompanyName(e.target.value);
-                                localStorage.setItem('company_name', e.target.value);
-                            }}
-                        />
-                    </div>
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit, onError)} className="space-y-6 p-5">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
@@ -549,7 +537,7 @@ export default () => {
                                                         render={({ field }) => (
                                                             <FormItem>
                                                                 <FormLabel>
-                                                                    Department
+                                                                    Category
                                                                     <span className="text-destructive">
                                                                         *
                                                                     </span>
@@ -811,9 +799,7 @@ export default () => {
                                                                             <input
                                                                                 placeholder="Search UOM..."
                                                                                 value={searchTermUOM}
-                                                                                onChange={(e) =>
-                                                                                    setSearchTermUOM(e.target.value)
-                                                                                }
+                                                                                onChange={(e) => setSearchTermUOM(e.target.value)}
                                                                                 onKeyDown={(e) => e.stopPropagation()}
                                                                                 className="flex h-10 w-full rounded-md border-0 bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground"
                                                                             />

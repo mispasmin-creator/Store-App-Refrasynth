@@ -815,6 +815,76 @@ export default () => {
                                         </div>
                                     </div>
 
+                                    {/* ── Vendor Detail Table ── */}
+                                    <div className="rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+                                        <div className="bg-gray-50 border-b border-gray-200 px-4 py-2.5 flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                                            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Vendor Rate Details</span>
+                                        </div>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-left text-xs">
+                                                <thead className="bg-muted/60">
+                                                    <tr>
+                                                        <th className="px-3 py-2.5 font-bold text-gray-600 uppercase tracking-wide text-[10px]">Vendor</th>
+                                                        <th className="px-3 py-2.5 font-bold text-gray-600 uppercase tracking-wide text-[10px]">Make</th>
+                                                        <th className="px-3 py-2.5 font-bold text-gray-600 uppercase tracking-wide text-[10px] text-center">Qty</th>
+                                                        <th className="px-3 py-2.5 font-bold text-gray-600 uppercase tracking-wide text-[10px] text-right">Rate</th>
+                                                        <th className="px-3 py-2.5 font-bold text-gray-600 uppercase tracking-wide text-[10px] text-right">Eff. Rate</th>
+                                                        <th className="px-3 py-2.5 font-bold text-gray-600 uppercase tracking-wide text-[10px]">Payment</th>
+                                                        <th className="px-3 py-2.5 font-bold text-gray-600 uppercase tracking-wide text-[10px]">Delivery</th>
+                                                        <th className="px-3 py-2.5 font-bold text-gray-600 uppercase tracking-wide text-[10px]">Quotation</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-gray-100">
+                                                    {(() => {
+                                                        const processed = selectedIndent.vendors.map((v, i) => {
+                                                            const rate = parseFloat(v[1]) || 0;
+                                                            const tax = parseFloat(v[5]) || 0;
+                                                            const effRate = v[3] === 'Basic Rate' ? rate * (1 + tax / 100) : rate;
+                                                            return { v, i, rate, effRate };
+                                                        });
+                                                        const validEffRates = processed.map(p => p.effRate).filter(r => r > 0);
+                                                        const minRate = validEffRates.length ? Math.min(...validEffRates) : -1;
+                                                        const maxRate = validEffRates.length ? Math.max(...validEffRates) : -1;
+
+                                                        return processed.map(({ v, i, rate, effRate }) => {
+                                                            const isMin = effRate === minRate && minRate !== -1;
+                                                            const isMax = effRate === maxRate && maxRate !== -1 && maxRate !== minRate;
+                                                            return (
+                                                                <tr key={i} className={`transition-colors ${isMin ? 'bg-green-50' : isMax ? 'bg-red-50' : 'bg-white hover:bg-gray-50'}`}>
+                                                                    <td className="px-3 py-2.5">
+                                                                        <div className="font-bold text-gray-800">{v[0]}</div>
+                                                                        <div className="text-[9px] text-gray-400 mt-0.5">Vendor {i + 1}</div>
+                                                                    </td>
+                                                                    <td className="px-3 py-2.5 text-gray-600">{v[10] || '-'}</td>
+                                                                    <td className="px-3 py-2.5 text-center text-gray-700 font-semibold">
+                                                                        {selectedIndent.quantity}
+                                                                        <div className="text-[9px] text-gray-400 font-normal">{selectedIndent.uom}</div>
+                                                                    </td>
+                                                                    <td className="px-3 py-2.5 text-right font-semibold text-gray-700">
+                                                                        ₹{rate.toLocaleString('en-IN')}
+                                                                        <div className="text-[8px] text-gray-400 font-normal">{v[3]}{v[3] === 'Basic Rate' ? ` +${v[5]}%` : ''}</div>
+                                                                    </td>
+                                                                    <td className={`px-3 py-2.5 text-right font-black ${isMin ? 'text-green-600' : isMax ? 'text-red-500' : 'text-gray-700'}`}>
+                                                                        ₹{effRate.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                        {isMin && <div className="text-[8px] font-black text-green-600 text-right">Lowest</div>}
+                                                                        {isMax && <div className="text-[8px] font-black text-red-500 text-right">Highest</div>}
+                                                                    </td>
+                                                                    <td className="px-3 py-2.5 text-gray-600">{v[2] || '-'}</td>
+                                                                    <td className="px-3 py-2.5 text-gray-600">{v[9] ? `${v[9]} days` : '-'}</td>
+                                                                    <td className="px-3 py-2.5 text-gray-600">
+                                                                        {v[6] ? <div>{v[6]}</div> : '-'}
+                                                                        {v[7] && <div className="text-[9px] text-gray-400">{v[7]}</div>}
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        });
+                                                    })()}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
                                     {/* Info hint */}
                                     <div className="flex items-center gap-3 px-4 py-3 bg-green-50 border border-green-100 rounded-xl">
                                         <div className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></div>

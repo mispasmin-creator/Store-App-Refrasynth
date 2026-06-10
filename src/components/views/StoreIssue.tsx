@@ -198,7 +198,7 @@ export default () => {
                                                 render={({ field }) => (
                                                     <FormItem>
                                                         <FormLabel>
-                                                            Department
+                                                            Category
                                                             <span className="text-destructive">*</span>
                                                         </FormLabel>
                                                         <Select

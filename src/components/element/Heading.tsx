@@ -11,6 +11,8 @@ interface HeaderProps {
     historyCount?: number;
     pendingTabName?: string;
     historyTabName?: string;
+    thirdTabName?: string;
+    thirdTabCount?: number;
 }
 
 const getIconTheme = (heading: string) => {
@@ -233,7 +235,7 @@ const getIconTheme = (heading: string) => {
     };
 };
 
-export default ({ children, heading, subtext, tabs = false, pendingCount, historyCount, pendingTabName = "Pending", historyTabName = "History" }: HeaderProps) => {
+export default ({ children, heading, subtext, tabs = false, pendingCount, historyCount, pendingTabName = "Pending", historyTabName = "History", thirdTabName, thirdTabCount }: HeaderProps) => {
     // The base orange color theme from Pending POs to be Created for all pages
     const baseGradient = "from-green-100/80 via-emerald-50/50 to-green-50/40";
     const baseBorder = "border-green-200";
@@ -288,6 +290,11 @@ export default ({ children, heading, subtext, tabs = false, pendingCount, histor
                     <TabsTrigger value="history" className="flex gap-2">
                         {historyTabName} {historyCount !== undefined && <span>({historyCount})</span>}
                     </TabsTrigger>
+                    {thirdTabName && (
+                        <TabsTrigger value="complete" className="flex gap-2">
+                            {thirdTabName} {thirdTabCount !== undefined && <span>({thirdTabCount})</span>}
+                        </TabsTrigger>
+                    )}
                 </TabsList>
             )}
         </div>
