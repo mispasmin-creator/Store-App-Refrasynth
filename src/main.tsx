@@ -51,6 +51,7 @@ import {
     Send,
     BarChart,
     FileWarning,
+    Activity,
 } from 'lucide-react';
 import type { UserPermissions } from './types/sheets';
 import Administration from './components/views/Administration';
@@ -79,6 +80,7 @@ import FullKiting from './components/views/FullKiting';
 import PendingPo from './components/views/PendingPo';
 import PaymentStatus from './components/views/PaymentStatus';
 import HodStoreApproval from './components/views/HodStoreApproval';
+import IndentTrackerDashboard from './components/views/IndentTrackerDashboard';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
     const { loggedIn, loading } = useAuth();
@@ -111,6 +113,13 @@ const routes: RouteAttributes[] = [
         name: 'Dashboard',
         icon: <LayoutDashboard size={20} />,
         element: <Dashboard />,
+        notifications: () => 0,
+    },
+    {
+        path: 'procurement-tracker',
+        name: 'Procurement Tracker',
+        icon: <Activity size={20} />,
+        element: <IndentTrackerDashboard />,
         notifications: () => 0,
     },
     {
@@ -344,7 +353,7 @@ const routes: RouteAttributes[] = [
     {
         path: 'store-in',
         gateKey: 'storeIn',
-        name: 'Ahitesh',
+        name: 'HOD Check ',
         icon: <CheckCircle2 size={20} />,
         element: <StoreIn />,
         notifications: (sheetsData: any[], user: any) => {
@@ -384,7 +393,7 @@ const routes: RouteAttributes[] = [
     {
         path: 'hod-store-check',
         gateKey: 'hodStoreApproval',
-        name: 'HOD Check',
+        name: 'Transporting Update',
         icon: <UserCheck size={20} />,
         element: <HodStoreApproval />,
         notifications: (storeInSheet: any[], user: any) => {
@@ -794,6 +803,7 @@ const routes: RouteAttributes[] = [
         path: 'Bill-Not-Received',
         gateKey: 'billNotReceived',
         name: 'Bill Not Received',
+        hidden: true,
         icon: <FileWarning size={20} />,
         element: <BillNotReceived />,
         notifications: (sheets: any[], user: any) => {

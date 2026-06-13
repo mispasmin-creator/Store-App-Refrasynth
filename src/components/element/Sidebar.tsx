@@ -77,6 +77,7 @@ export default ({ items }: SidebarProps) => {
                     <SidebarMenu>
                         {allItems
                             .filter((item) => {
+                                if (item.hidden) return false;
                                 // Show item only if user has explicit permission for this gateKey
                                 if (item.gateKey) {
                                     return user[item.gateKey] === true || (user as any)[item.gateKey] === "true";

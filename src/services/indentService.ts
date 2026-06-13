@@ -63,6 +63,9 @@ export interface IndentRecord {
     vendor1_rank?: string;
     vendor2_rank?: string;
     vendor3_rank?: string;
+    expected_req_date: string;
+    group_head: string;
+    firm_name: string;
 }
 
 // ==================== FETCH FUNCTIONS ====================
@@ -130,6 +133,9 @@ export async function fetchIndentRecords(): Promise<IndentRecord[]> {
             vendor1_rank: r.vendor1_rank || '',
             vendor2_rank: r.vendor2_rank || '',
             vendor3_rank: r.vendor3_rank || '',
+            expected_req_date: r.expected_req_date || '',
+            group_head: r.group_head || '',
+            firm_name: r.firm_name || r.firm_name_match || '',
         }));
     } catch (error) {
         console.error('Error fetching indent records:', error);

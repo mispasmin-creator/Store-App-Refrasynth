@@ -550,15 +550,15 @@ export default function GetPurchase() {
 
     // ── Form schema (existing) ──────────────────────────────────────────
     const formSchema = z.object({
-        billStatus: z.string().min(1, 'Bill status is required'),
+        billStatus: z.string().optional(),
         billNo: z.string().min(1, 'Bill number is required'),
         qty: z.coerce.number().optional(),
-        typeOfBill: z.string().min(1, 'Type of bill is required'),
+        typeOfBill: z.string().optional(),
         billAmount: z.coerce.number().min(0.01, 'Bill amount is required'),
         billRemark: z.string().optional(),
         vendorName: z.string().optional(),
         billCopy: z.instanceof(File).optional(),
-        receivingStatus: z.string().min(1, 'Receiving status is required'),
+        receivingStatus: z.string().optional(),
         location: z.string().min(1, 'Storage location is required'),
         photoOfProduct: z.instanceof(File, { message: 'Photo of product is required' }),
         damageOrder: z.string().min(1, 'Physical check is required'),
@@ -585,7 +585,7 @@ export default function GetPurchase() {
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema) as any,
         defaultValues: {
-            billStatus: '', billNo: '', qty: 0, typeOfBill: 'independent', billAmount: 0,
+            billStatus: 'Bill Received', billNo: '', qty: 0, typeOfBill: 'independent', billAmount: 0,
             billRemark: '', vendorName: '', billCopy: undefined, receivingStatus: 'Received',
             location: '', photoOfProduct: undefined, damageOrder: undefined,
             quantityAsPerBill: undefined, priceAsPerPoCheck: undefined, remark: '',
@@ -619,7 +619,7 @@ export default function GetPurchase() {
             const allVendorGroups = tableData.filter(g => g.vendorName === selectedIndent.vendorName);
             const allItems = allVendorGroups.flatMap(g => g.originalItems || []);
             form.reset({
-                billStatus: '', billNo: '', qty: selectedIndent.pendingLiftQty || 0,
+                billStatus: 'Bill Received', billNo: '', qty: selectedIndent.pendingLiftQty || 0,
                 typeOfBill: 'independent', billAmount: 0, billRemark: '', vendorName: selectedIndent.vendorName || '',
                 billCopy: undefined, receivingStatus: 'Received', location: '',
                 photoOfProduct: undefined, damageOrder: undefined,
@@ -1165,7 +1165,7 @@ export default function GetPurchase() {
                                         {selectedHistory ? 'Edit History Purchase Details' : 'Update Purchase Details'}
                                     </DialogTitle>
                                 </DialogHeader>
-
+x
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 bg-muted/50 p-4 rounded-xl border">
                                     {[['Indent Number', selectedIndent?.indentNo || selectedHistory?.indentNo],
                                         ['PO Number', selectedIndent?.poNumber || selectedHistory?.poNumber],
@@ -1284,34 +1284,6 @@ export default function GetPurchase() {
                                                 <FormMessage />
                                             </FormItem>
                                         )} />
-                                        <FormField control={form.control} name="typeOfBill" render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Type of Bill <span className="text-destructive">*</span></FormLabel>
-                                                <Select onValueChange={field.onChange} value={field.value}>
-                                                    <FormControl><SelectTrigger className="h-10"><SelectValue placeholder="Select type" /></SelectTrigger></FormControl>
-                                                    <SelectContent>
-                                                        <SelectItem value="independent">Independent</SelectItem>
-                                                        <SelectItem value="consolidated">Consolidated</SelectItem>
-                                                        <SelectItem value="proforma">Proforma</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )} />
-                                        <FormField control={form.control} name="billStatus" render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Bill Status <span className="text-destructive">*</span></FormLabel>
-                                                <Select onValueChange={field.onChange} value={field.value}>
-                                                    <FormControl><SelectTrigger className="h-10"><SelectValue placeholder="Select status" /></SelectTrigger></FormControl>
-                                                    <SelectContent>
-                                                        <SelectItem value="Bill Received">Bill Received</SelectItem>
-                                                        <SelectItem value="Bill Not Received">Bill Not Received</SelectItem>
-                                                        <SelectItem value="Partial">Partial</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )} />
                                         <FormField control={form.control} name="billAmount" render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>Bill Amount (₹) <span className="text-destructive">*</span></FormLabel>
@@ -1343,19 +1315,6 @@ export default function GetPurchase() {
                                         <span>Receiving & Quality Check</span>
                                     </div>
                                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        <FormField control={form.control} name="receivingStatus" render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Receiving Status <span className="text-destructive">*</span></FormLabel>
-                                                <Select onValueChange={field.onChange} value={field.value}>
-                                                    <FormControl><SelectTrigger className="h-10"><SelectValue placeholder="Select" /></SelectTrigger></FormControl>
-                                                    <SelectContent>
-                                                        <SelectItem value="Received">Received</SelectItem>
-                                                        {/* <SelectItem value="Not Received">Not Received</SelectItem> */}
-                                                    </SelectContent>
-                                                </Select>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )} />
                                         <FormField control={form.control} name="location" render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>Storage Location <span className="text-destructive">*</span></FormLabel>

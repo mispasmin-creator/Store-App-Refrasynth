@@ -129,6 +129,53 @@ export async function updateFullkittingRecord(
 }
 
 /**
+ * Insert a new fullkitting record (triggered after HOD/Transporting Update approval)
+ */
+export async function insertFullkittingRecord(data: {
+    indentNumber: string;
+    vendorName: string;
+    productName: string;
+    qty: number;
+    billNo: string;
+    transportingInclude: string;
+    transporterName: string;
+    amount: number;
+    vehicalNo: string;
+    driverName: string;
+    driverMobileNo: string;
+    planned: string;
+    firmNameMatch: string;
+    timestamp: string;
+}): Promise<void> {
+    try {
+        const { error } = await supabase
+            .from('fullkitting')
+            .insert([{
+                indent_number: data.indentNumber,
+                vendor_name: data.vendorName,
+                product_name: data.productName,
+                qty: String(data.qty),
+                bill_no: data.billNo,
+                transporting_include: data.transportingInclude,
+                transporter_name: data.transporterName,
+                amount: String(data.amount),
+                vehical_no: data.vehicalNo,
+                driver_name: data.driverName,
+                driver_mobile_no: data.driverMobileNo,
+                planned: data.planned,
+                actual: null,
+                firm_name_match: data.firmNameMatch,
+                timestamp: data.timestamp,
+            }]);
+
+        if (error) throw error;
+    } catch (error) {
+        console.error('Error inserting fullkitting record:', error);
+        throw error;
+    }
+}
+
+/**
  * Upload bilty image to Supabase Storage
  */
 export async function uploadBiltyImage(file: File, indentNumber: string): Promise<string> {

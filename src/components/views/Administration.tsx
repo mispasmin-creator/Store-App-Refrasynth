@@ -51,12 +51,50 @@ function camelToTitleCase(str: string): string {
         .replace(/^./, (char) => char.toUpperCase()); // capitalize first letter
 }
 
-const PERMISSION_GROUPS = {
-    'Core Access': ['administrate'],
-    'Procurement & PO': ['createIndent', 'indentApprovalView', 'indentApprovalAction', 'pendingIndentsView', 'createPo', 'updateVendorView', 'updateVendorAction', 'threePartyApprovalView', 'threePartyApprovalAction', 'poHistory', 'pendingPo', 'ordersView'],
-    'Store & Inventory': ['receiveItemView', 'receiveItemAction', 'storeIn', 'storeOutApprovalView', 'storeOutApprovalAction', 'hodStoreApproval', 'storeIssue', 'issueData', 'inventory', 'fullKiting'],
-    'Audit & Finance': ['againAuditing', 'takeEntryByTelly', 'reauditData', 'rectifyTheMistake', 'auditData', 'sendDebitNote', 'returnMaterialToParty', 'exchangeMaterials', 'insteadOfQualityCheckInReceivedItem', 'dbForPc', 'billNotReceived', 'makePayment']
-};
+const STEP_PERMISSIONS: { step: string; group: string; view?: string; action: string }[] = [
+    // Core
+    { step: 'Administration',            group: 'Core Access',      action: 'administrate' },
+
+    // Procurement
+    { step: 'Create Indent',             group: 'Procurement & PO', action: 'createIndent' },
+    { step: 'Indent Approval',           group: 'Procurement & PO', view: 'indentApprovalView',      action: 'indentApprovalAction' },
+    { step: 'Pending Indents',           group: 'Procurement & PO', action: 'pendingIndentsView' },
+    { step: 'Update Vendor / Rate',      group: 'Procurement & PO', view: 'updateVendorView',         action: 'updateVendorAction' },
+    { step: 'Three Party Approval',      group: 'Procurement & PO', view: 'threePartyApprovalView',   action: 'threePartyApprovalAction' },
+    { step: 'Create PO',                 group: 'Procurement & PO', action: 'createPo' },
+    { step: 'Pending PO',                group: 'Procurement & PO', action: 'pendingPo' },
+    { step: 'PO History',                group: 'Procurement & PO', action: 'poHistory' },
+
+    // Store
+    { step: 'Lifting',                   group: 'Store & Inventory', action: 'ordersView' },
+    { step: 'Receive Item',              group: 'Store & Inventory', view: 'receiveItemView',          action: 'receiveItemAction' },
+    { step: 'Store Check',               group: 'Store & Inventory', action: 'storeIn' },
+    { step: 'Transporting Update',       group: 'Store & Inventory', action: 'hodStoreApproval' },
+    { step: 'Full Kitting',              group: 'Store & Inventory', action: 'fullKiting' },
+    { step: 'Store Out Approval',        group: 'Store & Inventory', view: 'storeOutApprovalView',     action: 'storeOutApprovalAction' },
+    { step: 'Store Issue',               group: 'Store & Inventory', action: 'storeIssue' },
+    { step: 'Issue Data',                group: 'Store & Inventory', action: 'issueData' },
+    { step: 'Inventory',                 group: 'Store & Inventory', action: 'inventory' },
+
+    // Audit & Finance
+    { step: 'Make Payment',              group: 'Audit & Finance',  action: 'makePayment' },
+    { step: 'Again Auditing',            group: 'Audit & Finance',  action: 'againAuditing' },
+    { step: 'Take Entry By Telly',       group: 'Audit & Finance',  action: 'takeEntryByTelly' },
+    { step: 'Re-audit Data',             group: 'Audit & Finance',  action: 'reauditData' },
+    { step: 'Rectify Mistake',           group: 'Audit & Finance',  action: 'rectifyTheMistake' },
+    { step: 'Audit Data',                group: 'Audit & Finance',  action: 'auditData' },
+    { step: 'Send Debit Note',           group: 'Audit & Finance',  action: 'sendDebitNote' },
+    { step: 'Return Material to Party',  group: 'Audit & Finance',  action: 'returnMaterialToParty' },
+    { step: 'Exchange Materials',        group: 'Audit & Finance',  action: 'exchangeMaterials' },
+    { step: 'Quality Check Override',    group: 'Audit & Finance',  action: 'insteadOfQualityCheckInReceivedItem' },
+    { step: 'DB for PC',                 group: 'Audit & Finance',  action: 'dbForPc' },
+];
+
+const STEP_GROUPS = STEP_PERMISSIONS.reduce((acc, item) => {
+    if (!acc[item.group]) acc[item.group] = [];
+    acc[item.group].push(item);
+    return acc;
+}, {} as Record<string, typeof STEP_PERMISSIONS>);
 
 export default () => {
     const { user: currentUser } = useAuth();
@@ -341,7 +379,7 @@ export default () => {
                     />
                 </div>
 
-                <DialogContent className="sm:max-w-3xl">
+                <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit, onError)} className="space-y-7">
                             <DialogHeader className="space-y-1">
@@ -445,40 +483,60 @@ export default () => {
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel className="text-md font-bold">User Permissions & Access Control</FormLabel>
-                                        <div className="space-y-6 mt-4">
-                                            {Object.entries(PERMISSION_GROUPS).map(([groupName, perms]) => (
-                                                <div key={groupName} className="space-y-3">
-                                                    <h3 className="text-sm font-semibold text-muted-foreground border-b pb-1">
-                                                        {groupName}
-                                                    </h3>
-                                                    <div className="grid md:grid-cols-3 gap-4 p-2">
-                                                        {perms.map((perm) => (
-                                                            <FormField
-                                                                key={perm}
-                                                                control={form.control}
-                                                                name="permissions"
-                                                                render={() => (
-                                                                    <FormItem className="flex gap-2 items-center space-y-0">
-                                                                        <FormControl>
-                                                                            <Checkbox
-                                                                                id={perm}
-                                                                                checked={field.value?.includes(perm)}
-                                                                                onCheckedChange={(checked) => {
-                                                                                    const values = field.value || [];
-                                                                                    checked
-                                                                                        ? field.onChange([...values, perm])
-                                                                                        : field.onChange(values.filter((p) => p !== perm));
-                                                                                }}
-                                                                            />
-                                                                        </FormControl>
-                                                                        <FormLabel className="font-medium text-sm cursor-pointer" htmlFor={perm}>
-                                                                            {camelToTitleCase(perm)}
-                                                                        </FormLabel>
-                                                                    </FormItem>
-                                                                )}
-                                                            />
-                                                        ))}
+                                        <div className="space-y-5 mt-3">
+                                            {Object.entries(STEP_GROUPS).map(([groupName, steps]) => (
+                                                <div key={groupName} className="rounded-xl border overflow-hidden">
+                                                    {/* Group Header */}
+                                                    <div className="flex items-center justify-between bg-slate-100 px-4 py-2 border-b">
+                                                        <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-500">{groupName}</h3>
+                                                        <div className="flex gap-6 pr-1">
+                                                            <span className="text-[10px] font-bold uppercase text-slate-400 w-14 text-center">View Only</span>
+                                                            <span className="text-[10px] font-bold uppercase text-slate-400 w-14 text-center">Action</span>
+                                                        </div>
                                                     </div>
+                                                    {/* Step Rows */}
+                                                    {steps.map((step, idx) => (
+                                                        <div
+                                                            key={step.action}
+                                                            className={`flex items-center justify-between px-4 py-2.5 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}`}
+                                                        >
+                                                            <span className="text-sm font-medium text-slate-700">{step.step}</span>
+                                                            <div className="flex gap-6 pr-1">
+                                                                {/* View checkbox */}
+                                                                <div className="w-14 flex justify-center">
+                                                                    {step.view ? (
+                                                                        <Checkbox
+                                                                            checked={field.value?.includes(step.view)}
+                                                                            onCheckedChange={(checked) => {
+                                                                                const values = field.value || [];
+                                                                                field.onChange(
+                                                                                    checked
+                                                                                        ? [...values, step.view!]
+                                                                                        : values.filter((p) => p !== step.view)
+                                                                                );
+                                                                            }}
+                                                                        />
+                                                                    ) : (
+                                                                        <span className="text-slate-300 text-base leading-none select-none">—</span>
+                                                                    )}
+                                                                </div>
+                                                                {/* Action checkbox */}
+                                                                <div className="w-14 flex justify-center">
+                                                                    <Checkbox
+                                                                        checked={field.value?.includes(step.action)}
+                                                                        onCheckedChange={(checked) => {
+                                                                            const values = field.value || [];
+                                                                            field.onChange(
+                                                                                checked
+                                                                                    ? [...values, step.action]
+                                                                                    : values.filter((p) => p !== step.action)
+                                                                            );
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
                                                 </div>
                                             ))}
                                         </div>

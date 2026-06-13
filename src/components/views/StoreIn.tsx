@@ -473,7 +473,7 @@ export default () => {
             <Dialog open={openDialog} onOpenChange={(open) => { setOpenDialog(open); if (!open) setSelectedIndent(null); }}>
                 <Tabs defaultValue="pending">
                     <Heading
-                        heading={"Material Receipt / Store In"}
+                        heading={"HOD Check"}
                         subtext={"Receive items from purchase orders"}
                         tabs={true}
                         pendingCount={tableData.length}

@@ -315,10 +315,6 @@ export default function PIApprovals() {
                     const hasBill = Number(record.billAmount || 0) > 0 || (record.billNo || '').trim() !== '';
                     if (!hasBill) return false;
 
-                    // Must have a bill status (submitted from Get Purchase form)
-                    const billStatus = (record.billStatus || '').trim();
-                    if (!billStatus) return false;
-
                     return true;
                 })
                 .map((record: any) => {

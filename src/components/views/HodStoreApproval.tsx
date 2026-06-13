@@ -11,6 +11,7 @@ import {
     type StoreInRecord,
 } from '@/services/storeInService';
 import { createTallyEntryRecord } from '@/services/tallyEntryService';
+import { insertFullkittingRecord } from '@/services/fullkittingService';
 import { useSheets } from '@/context/SheetsContext';
 
 import {
@@ -29,7 +30,7 @@ import { PuffLoader as Loader } from 'react-spinners';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Input } from '../ui/input';
-import { UserCheck, X, Package2, FileCheck, CheckCircle2, XCircle, AlertCircle, Gavel, CheckSquare } from 'lucide-react';
+import { UserCheck, X, Package2, FileCheck, CheckCircle2, XCircle, AlertCircle, Truck, CheckSquare } from 'lucide-react';
 import { Tabs, TabsContent } from '../ui/tabs';
 import { useAuth } from '@/context/AuthContext';
 import Heading from '../element/Heading';
@@ -73,10 +74,54 @@ interface HodHistoryData {
     firmNameMatch: string;
 }
 
-const schema = z.object({
-    status: z.enum(['Approved', 'Rejected']),
-    remark: z.string().optional(),
-});
+const schema = z
+    .object({
+        transportationInclude: z.string().min(1, 'Required'),
+        transporterName: z.string().optional(),
+        vehicleNo: z.string().optional(),
+        driverName: z.string().optional(),
+        driverMobileNo: z.string().optional(),
+        amount: z.coerce.number().optional(),
+    })
+    .superRefine((data, ctx) => {
+        if (data.transportationInclude === 'Yes') {
+            if (!data.transporterName || data.transporterName.trim() === '') {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ['transporterName'],
+                    message: 'Transporter name is required when transportation is included',
+                });
+            }
+            if (!data.vehicleNo || data.vehicleNo.trim() === '') {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ['vehicleNo'],
+                    message: 'Vehicle number is required when transportation is included',
+                });
+            }
+            if (!data.driverName || data.driverName.trim() === '') {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ['driverName'],
+                    message: 'Driver name is required when transportation is included',
+                });
+            }
+            if (!data.driverMobileNo || data.driverMobileNo.trim() === '') {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ['driverMobileNo'],
+                    message: 'Driver mobile number is required when transportation is included',
+                });
+            }
+            if (!data.amount || data.amount <= 0) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ['amount'],
+                    message: 'Amount must be greater than 0 when transportation is included',
+                });
+            }
+        }
+    });
 
 type FormValues = z.infer<typeof schema>;
 
@@ -94,10 +139,27 @@ export default () => {
     const form = useForm<FormValues>({
         resolver: zodResolver(schema),
         defaultValues: {
-            status: undefined,
-            remark: '',
+            transportationInclude: '',
+            transporterName: '',
+            vehicleNo: '',
+            driverName: '',
+            driverMobileNo: '',
+            amount: 0,
         },
     });
+
+    const transportationInclude = form.watch('transportationInclude');
+
+    // Reset transportation details when "No" is selected
+    useEffect(() => {
+        if (transportationInclude === 'No') {
+            form.setValue('transporterName', '');
+            form.setValue('vehicleNo', '');
+            form.setValue('driverName', '');
+            form.setValue('driverMobileNo', '');
+            form.setValue('amount', 0);
+        }
+    }, [transportationInclude, form]);
 
     const fetchAllData = async () => {
         setDataLoading(true);
@@ -174,72 +236,96 @@ export default () => {
         try {
             const currentDateTime = new Date().toISOString();
 
-            // Trigger stage 7 if rejected by HOD OR if store reports issues
-            const triggerStage7 = values.status === 'Rejected';
-
             await updateStoreInHodApproval(selectedItem.liftNumber, {
                 actualHod: currentDateTime,
-                hodStatus: values.status,
-                hodRemark: values.remark || '',
-                triggerStage7: triggerStage7
+                hodStatus: 'Approved',
+                hodRemark: '',
+                triggerStage7: false,
+                transportationInclude: values.transportationInclude,
+                transporterName: values.transporterName || '',
+                vehicleNo: values.vehicleNo || '',
+                driverName: values.driverName || '',
+                driverMobileNo: values.driverMobileNo || '',
+                amount: values.amount || 0,
             });
 
-            // ✅ Create Payment Entry ONLY if HOD approves
-            if (values.status === 'Approved' && !triggerStage7) {
-                // ✅ ONLY Insert into Payments if term is Advance-related
-                const terms = (selectedItem.paymentTerms || '').toString().toLowerCase();
-                const isAdvanceTerm = terms.includes('partly pi') || 
-                                     terms.includes('partly advance') || 
-                                     terms.includes('100% advance') ||
-                                     terms.includes('advance');
+            // ✅ Create Payment Entry ONLY if transportation is not included
+            const terms = (selectedItem.paymentTerms || '').toString().toLowerCase();
+            const isAdvanceTerm = terms.includes('partly pi') ||
+                                 terms.includes('partly advance') ||
+                                 terms.includes('100% advance') ||
+                                 terms.includes('advance');
 
-                if (isAdvanceTerm && selectedItem.transportationInclude !== 'Yes' && selectedItem.typeOfBill !== 'common') {
-                    console.log('✅ Advance payment detected. Creating payment entry...');
-                    await createPaymentEntry({
-                        indent_number: selectedItem.indentNo,
-                        vendor_name: selectedItem.vendorName || '',
-                        po_number: selectedItem.poNumber || '',
-                        bill_amount: selectedItem.billAmount || 0,
-                        photo_of_bill: selectedItem.photoOfBill || '',
-                        product_name: selectedItem.productName,
-                        firm_name_match: selectedItem.firmNameMatch,
-                        payment_terms: selectedItem.paymentTerms,
-                    });
-                }
+            if (isAdvanceTerm && values.transportationInclude !== 'Yes' && selectedItem.typeOfBill !== 'common') {
+                console.log('✅ Advance payment detected. Creating payment entry...');
+                await createPaymentEntry({
+                    indent_number: selectedItem.indentNo,
+                    vendor_name: selectedItem.vendorName || '',
+                    po_number: selectedItem.poNumber || '',
+                    bill_amount: selectedItem.billAmount || 0,
+                    photo_of_bill: selectedItem.photoOfBill || '',
+                    product_name: selectedItem.productName,
+                    firm_name_match: selectedItem.firmNameMatch,
+                    payment_terms: selectedItem.paymentTerms,
+                });
+            }
 
-                // ✅ ALSO: Create entry in Tally Entry (Audit Data) table
+            // ✅ Create entry in Tally Entry (Audit Data) table
+            try {
+                console.log('📝 Creating Audit Data entry from HOD Approval...');
+                const formattedDateOnly = currentDateTime.split('T')[0];
+                await createTallyEntryRecord({
+                    timestamp: currentDateTime,
+                    lift_number: selectedItem.liftNumber || '',
+                    indent_number: selectedItem.indentNo || '',
+                    po_number: selectedItem.poNumber || '',
+                    material_in_date: formattedDateOnly,
+                    product_name: selectedItem.productName || '',
+                    bill_status: 'Bill Received',
+                    qty: Number(selectedItem.receivedQuantity || selectedItem.qty || 0),
+                    party_name: selectedItem.vendorName || '',
+                    bill_amt: Number(selectedItem.billAmount || 0),
+                    bill_image: selectedItem.photoOfBill || '',
+                    bill_no: selectedItem.billNo || '',
+                    indent_qty: Number(selectedItem.indentQty || 0),
+                    planned1: formattedDateOnly,
+                    firm_name_match: selectedItem.firmNameMatch || user?.firmNameMatch || '',
+                } as any);
+            } catch (auditError) {
+                console.error('Failed to create audit entry during HOD Approval:', auditError);
+            }
+
+            // ✅ If transportation included, create a Full Kitting record
+            if (values.transportationInclude === 'Yes') {
                 try {
-                    console.log('📝 Creating Audit Data entry from HOD Approval...');
-                    const formattedDateOnly = currentDateTime.split('T')[0];
-                    await createTallyEntryRecord({
+                    await insertFullkittingRecord({
+                        indentNumber: selectedItem.indentNo,
+                        vendorName: selectedItem.vendorName || '',
+                        productName: selectedItem.productName || '',
+                        qty: Number(selectedItem.qty || 0),
+                        billNo: selectedItem.billNo || '',
+                        transportingInclude: values.transportationInclude,
+                        transporterName: values.transporterName || '',
+                        amount: values.amount || 0,
+                        vehicalNo: values.vehicleNo || '',
+                        driverName: values.driverName || '',
+                        driverMobileNo: values.driverMobileNo || '',
+                        planned: currentDateTime,
+                        firmNameMatch: selectedItem.firmNameMatch || '',
                         timestamp: currentDateTime,
-                        lift_number: selectedItem.liftNumber || '',
-                        indent_number: selectedItem.indentNo || '',
-                        po_number: selectedItem.poNumber || '',
-                        material_in_date: formattedDateOnly,
-                        product_name: selectedItem.productName || '',
-                        bill_status: 'Bill Received',
-                        qty: Number(selectedItem.receivedQuantity || selectedItem.qty || 0),
-                        party_name: selectedItem.vendorName || '',
-                        bill_amt: Number(selectedItem.billAmount || 0),
-                        bill_image: selectedItem.photoOfBill || '',
-                        bill_no: selectedItem.billNo || '',
-                        indent_qty: Number(selectedItem.indentQty || 0),
-                        planned1: formattedDateOnly, // Start Audit stage
-                        firm_name_match: selectedItem.firmNameMatch || user?.firmNameMatch || '',
-                    } as any);
-                } catch (auditError) {
-                    console.error('Failed to create audit entry during HOD Approval:', auditError);
+                    });
+                } catch (fkError) {
+                    console.error('Failed to create Full Kitting record:', fkError);
                 }
             }
 
-            toast.success(`HOD ${values.status} for ${selectedItem.liftNumber}`);
+            toast.success(`Transportation updated for ${selectedItem.liftNumber}`);
             setOpenDialog(false);
             fetchAllData();
-            updateAll(); // Refresh global sheets data to update Payment Status section
+            updateAll();
         } catch (error) {
             console.error('Error in onSubmit:', error);
-            toast.error('Failed to update HOD approval');
+            toast.error('Failed to update transportation details');
         } finally {
             setIsSubmitting(false);
         }
@@ -300,7 +386,7 @@ export default () => {
             <Dialog open={openDialog} onOpenChange={setOpenDialog}>
                 <Tabs defaultValue="pending">
                     <Heading
-                        heading="HOD Check"
+                        heading="Transporting Update"
                         subtext="Validate store receiving results"
                         tabs
                         pendingCount={pendingData.length}
@@ -327,7 +413,7 @@ export default () => {
                                             <UserCheck className="w-6 h-6 text-primary" />
                                         </div>
                                         <div>
-                                            <DialogTitle className="text-xl font-black">HOD Approval Request</DialogTitle>
+                                            <DialogTitle className="text-xl font-black">Transporting Update</DialogTitle>
                                             <DialogDescription className="text-xs font-medium">Verify store receiving results for Lift #{selectedItem.liftNumber}</DialogDescription>
                                         </div>
                                     </div>
@@ -360,93 +446,97 @@ export default () => {
                                         </div>
                                     </div>
 
-                                    {/* Store Verification Section */}
-                                    <div className="space-y-3">
-                                        <div className="flex items-center gap-2 px-1">
-                                            <FileCheck className="w-4 h-4 text-amber-500" />
-                                            <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Store Verification Results</h4>
-                                        </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                            <div className={`p-3 rounded-xl border flex flex-col gap-1 ${selectedItem.damageOrder === 'No' ? 'bg-red-50 border-red-100' : 'bg-slate-50 border-slate-100'}`}>
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase">Physical Check</span>
-                                                <div className="flex items-center justify-between">
-                                                    <span className={`text-xs font-black ${selectedItem.damageOrder === 'No' ? 'text-red-700' : 'text-slate-700'}`}>
-                                                        {selectedItem.damageOrder === 'No' ? 'Damaged' : 'Good'}
-                                                    </span>
-                                                    {selectedItem.damageOrder === 'No' ? <XCircle className="w-3 h-3 text-red-500" /> : <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
-                                                </div>
-                                            </div>
-                                            <div className={`p-3 rounded-xl border flex flex-col gap-1 ${selectedItem.quantityAsPerBill === 'No' ? 'bg-red-50 border-red-100' : 'bg-slate-50 border-slate-100'}`}>
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase">Qty Matching</span>
-                                                <div className="flex items-center justify-between">
-                                                    <span className={`text-xs font-black ${selectedItem.quantityAsPerBill === 'No' ? 'text-red-700' : 'text-slate-700'}`}>
-                                                        {selectedItem.quantityAsPerBill === 'No' ? 'Mismatch' : 'Matches'}
-                                                    </span>
-                                                    {selectedItem.quantityAsPerBill === 'No' ? <XCircle className="w-3 h-3 text-red-500" /> : <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
-                                                </div>
-                                            </div>
-                                            <div className={`p-3 rounded-xl border flex flex-col gap-1 ${selectedItem.priceAsPerPoCheck === 'No' ? 'bg-red-50 border-red-100' : 'bg-slate-50 border-slate-100'}`}>
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase">Price Matching</span>
-                                                <div className="flex items-center justify-between">
-                                                    <span className={`text-xs font-black ${selectedItem.priceAsPerPoCheck === 'No' ? 'text-red-700' : 'text-slate-700'}`}>
-                                                        {selectedItem.priceAsPerPoCheck === 'No' ? 'Mismatch' : 'Matches'}
-                                                    </span>
-                                                    {selectedItem.priceAsPerPoCheck === 'No' ? <XCircle className="w-3 h-3 text-red-500" /> : <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="bg-amber-50/50 rounded-xl border border-amber-100/50 p-3 mt-2">
-                                            <div className="flex items-start gap-3">
-                                                <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
-                                                <div className="space-y-1">
-                                                    <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Store Inspector Remarks</p>
-                                                    <p className="text-xs text-amber-900 font-medium italic">"{selectedItem.remark || 'No specific remarks from store.'}"</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Action Section */}
+                                    {/* Transportation Details Section */}
                                     <div className="bg-white rounded-xl border p-4 space-y-4">
                                         <div className="flex items-center gap-2">
-                                            <Gavel className="w-4 h-4 text-primary" />
-                                            <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Your Decision</h4>
+                                            <Truck className="w-4 h-4 text-primary" />
+                                            <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Transportation Details</h4>
                                         </div>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <FormField
                                                 control={form.control}
-                                                name="status"
+                                                name="transportationInclude"
                                                 render={({ field }) => (
                                                     <FormItem className="space-y-1">
-                                                        <FormLabel className="text-[10px] font-bold uppercase text-slate-400 pl-1">Approval Decision</FormLabel>
+                                                        <FormLabel className="text-[10px] font-bold uppercase text-slate-400 pl-1">Transportation Include</FormLabel>
                                                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                             <FormControl>
                                                                 <SelectTrigger className="h-10 border-slate-200">
-                                                                    <SelectValue placeholder="Select decision" />
+                                                                    <SelectValue placeholder="Select" />
                                                                 </SelectTrigger>
                                                             </FormControl>
                                                             <SelectContent>
-                                                                <SelectItem value="Approved" className="text-emerald-600 font-bold">Approve</SelectItem>
-                                                                <SelectItem value="Rejected" className="text-red-600 font-bold">Reject</SelectItem>
+                                                                <SelectItem value="Yes">Yes</SelectItem>
+                                                                <SelectItem value="No">No</SelectItem>
                                                             </SelectContent>
                                                         </Select>
                                                     </FormItem>
                                                 )}
                                             />
-
-                                            <FormField
-                                                control={form.control}
-                                                name="remark"
-                                                render={({ field }) => (
-                                                    <FormItem className="space-y-1">
-                                                        <FormLabel className="text-[10px] font-bold uppercase text-slate-400 pl-1">Remarks</FormLabel>
-                                                        <FormControl>
-                                                            <Input placeholder="Add your audit notes..." {...field} className="h-10 border-slate-200" />
-                                                        </FormControl>
-                                                    </FormItem>
-                                                )}
-                                            />
+                                            {transportationInclude === 'Yes' && (
+                                                <>
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="transporterName"
+                                                        render={({ field }) => (
+                                                            <FormItem className="space-y-1">
+                                                                <FormLabel className="text-[10px] font-bold uppercase text-slate-400 pl-1">Transporter Name</FormLabel>
+                                                                <FormControl>
+                                                                    <Input placeholder="Enter transporter name" {...field} className="h-10 border-slate-200" />
+                                                                </FormControl>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="vehicleNo"
+                                                        render={({ field }) => (
+                                                            <FormItem className="space-y-1">
+                                                                <FormLabel className="text-[10px] font-bold uppercase text-slate-400 pl-1">Vehicle No.</FormLabel>
+                                                                <FormControl>
+                                                                    <Input placeholder="Enter Vehicle No." {...field} className="h-10 border-slate-200" />
+                                                                </FormControl>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="driverName"
+                                                        render={({ field }) => (
+                                                            <FormItem className="space-y-1">
+                                                                <FormLabel className="text-[10px] font-bold uppercase text-slate-400 pl-1">Driver Name</FormLabel>
+                                                                <FormControl>
+                                                                    <Input placeholder="Enter Driver name" {...field} className="h-10 border-slate-200" />
+                                                                </FormControl>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="driverMobileNo"
+                                                        render={({ field }) => (
+                                                            <FormItem className="space-y-1">
+                                                                <FormLabel className="text-[10px] font-bold uppercase text-slate-400 pl-1">Driver Mobile No.</FormLabel>
+                                                                <FormControl>
+                                                                    <Input placeholder="Enter Driver Mobile No." {...field} className="h-10 border-slate-200" />
+                                                                </FormControl>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="amount"
+                                                        render={({ field }) => (
+                                                            <FormItem className="space-y-1">
+                                                                <FormLabel className="text-[10px] font-bold uppercase text-slate-400 pl-1">Amount</FormLabel>
+                                                                <FormControl>
+                                                                    <Input type="number" placeholder="0" {...field} className="h-10 border-slate-200" />
+                                                                </FormControl>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -458,10 +548,10 @@ export default () => {
                                     <Button
                                         type="submit"
                                         disabled={isSubmitting}
-                                        className={`h-10 px-8 font-black font-semibold transition-all shadow-md ${form.watch('status') === 'Rejected' ? 'bg-red-600 hover:bg-red-700' : 'bg-primary hover:bg-primary/90'}`}
+                                        className="h-10 px-8 font-black font-semibold transition-all shadow-md bg-primary hover:bg-primary/90"
                                     >
                                         {isSubmitting ? <Loader size={16} color="white" className="mr-2" /> : <CheckSquare className="w-4 h-4 mr-2" />}
-                                        Finalize Approval
+                                        Save Update
                                     </Button>
                                 </DialogFooter>
                             </form>

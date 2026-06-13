@@ -597,7 +597,7 @@ export default () => {
                                                         render={({ field }) => (
                                                             <FormItem>
                                                                 <FormLabel>
-                                                                    Group Head
+                                                                    Department
                                                                     <span className="text-destructive">
                                                                         *
                                                                     </span>

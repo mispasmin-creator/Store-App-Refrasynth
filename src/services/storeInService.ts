@@ -297,17 +297,31 @@ export async function updateStoreInHodApproval(
         actualHod: string;
         hodStatus: string;
         hodRemark: string;
-        triggerStage7: boolean; // If true, triggers Reject for GRN (Stage 7)
+        triggerStage7: boolean;
+        transportationInclude?: string;
+        transporterName?: string;
+        vehicleNo?: string;
+        driverName?: string;
+        driverMobileNo?: string;
+        amount?: number;
     }
 ) {
     try {
+        const updatePayload: Record<string, any> = {
+            hod_actual: updateData.actualHod,
+            hod_status: updateData.hodStatus,
+            hod_remark: updateData.hodRemark,
+            transportation_include: updateData.transportationInclude || '',
+            transporter_name: updateData.transporterName || '',
+            vehicle_no: updateData.vehicleNo || '',
+            driver_name: updateData.driverName || '',
+            driver_mobile_no: updateData.driverMobileNo || '',
+            amount: String(updateData.amount || 0),
+        };
+
         const { error } = await supabase
             .from('store_in')
-            .update({
-                hod_actual: updateData.actualHod,
-                hod_status: updateData.hodStatus,
-                hod_remark: updateData.hodRemark,
-            })
+            .update(updatePayload)
             .eq('lift_number', liftNumber);
 
         if (error) throw error;
