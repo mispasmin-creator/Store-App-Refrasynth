@@ -142,9 +142,10 @@ export const SheetsProvider = ({ children }: { children: React.ReactNode }) => {
             fullkittingSheet,
             tallyEntrySheet,
             paymentsSheet,
-            poMasterSheet
+            poMasterSheet,
+            paymentHistorySheet
         );
-    }, [indentSheet, storeSheet, issueSheet, fullkittingSheet, tallyEntrySheet, paymentsSheet, poMasterSheet]);
+    }, [indentSheet, storeSheet, issueSheet, fullkittingSheet, tallyEntrySheet, paymentsSheet, poMasterSheet, paymentHistorySheet]);
 
     const sheets = storeSheet;
 

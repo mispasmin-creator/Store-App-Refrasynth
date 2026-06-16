@@ -238,8 +238,11 @@ export default function PIApprovals() {
 
                     // ✅ Link with StoreIn to check Bill Type and HOD Status
                     // If Bill Type is "common", or HOD Status is "Rejected", DO NOT show in HOD Approval (Process for Payment)
+                    // Match by indent number, and by PO number too when both sides have one,
+                    // so an indent with multiple lifts doesn't pick the wrong store_in row.
                     const linkedStoreIn = safeStoreInSheet.find((s: any) =>
-                        (s.indentNo || s.indentNumber) === (payment?.internalCode || payment?.internal_code)
+                        (s.indentNo || s.indentNumber) === (payment?.internalCode || payment?.internal_code) &&
+                        (!s.poNumber || !payment?.poNumber || s.poNumber === payment.poNumber)
                     );
 
                     if (linkedStoreIn) {
@@ -269,7 +272,8 @@ export default function PIApprovals() {
                 .map((payment: any) => {
                     const linkedStoreIn = Array.isArray(safeStoreInSheet)
                         ? safeStoreInSheet.find(s =>
-                            (s.indentNo || s.indentNumber) === (payment?.internalCode || payment?.internal_code)
+                            (s.indentNo || s.indentNumber) === (payment?.internalCode || payment?.internal_code) &&
+                            (!s.poNumber || !payment?.poNumber || s.poNumber === payment.poNumber)
                         )
                         : null;
 
@@ -354,7 +358,7 @@ export default function PIApprovals() {
             // Process poBasedPendingItems first
             poBasedPendingItems.forEach(item => {
                 const billKey = item.billNo || 'NoBill';
-                const uniqueKey = `${item.partyName || 'NoVendor'}-${billKey}`;
+                const uniqueKey = `${item.partyName || 'NoVendor'}-${item.poNumber || 'NoPO'}-${billKey}`;
 
                 if (!uniqueBillMap.has(uniqueKey)) {
                     uniqueBillMap.set(uniqueKey, { ...item });
@@ -373,7 +377,7 @@ export default function PIApprovals() {
             // Process paymentBasedItems
             paymentBasedItems.forEach(paymentItem => {
                 const billKey = paymentItem.billNo || 'NoBill';
-                const uniqueKey = `${paymentItem.partyName || 'NoVendor'}-${billKey}`;
+                const uniqueKey = `${paymentItem.partyName || 'NoVendor'}-${paymentItem.poNumber || 'NoPO'}-${billKey}`;
 
                 if (!uniqueBillMap.has(uniqueKey)) {
                     uniqueBillMap.set(uniqueKey, { ...paymentItem });
@@ -393,7 +397,7 @@ export default function PIApprovals() {
             // Process storeInBasedItems (Get Purchase history)
             storeInBasedItems.forEach(storeItem => {
                 const billKey = storeItem.billNo || 'NoBill';
-                const uniqueKey = `${storeItem.partyName || 'NoVendor'}-${billKey}`;
+                const uniqueKey = `${storeItem.partyName || 'NoVendor'}-${storeItem.poNumber || 'NoPO'}-${billKey}`;
 
                 if (!uniqueBillMap.has(uniqueKey)) {
                     uniqueBillMap.set(uniqueKey, { ...storeItem });
@@ -420,10 +424,13 @@ export default function PIApprovals() {
                 // 1. Check if it exists in the payments table
                 const isProcessTable = paymentRecords.some(p => {
                     const poMatch = (p.poNumber || p.po_number || p.po_no) === item.poNumber;
+                    // When the item has no bill number, fall back to matching by indent number
+                    // instead of treating it as a wildcard match against any payment for the PO
+                    // (that previously hid unrelated/advance bills under the same PO).
                     const billMatch = item.billNo
                         ? (p.remark || '').includes(`Bill: ${item.billNo}`) || (p as any).billNo === item.billNo || (p as any).bill_no === item.billNo
-                        : true;
-                    
+                        : (p.internalCode || (p as any).internal_code || '') === item.internalCode;
+
                     const statusVal = String(p.status1 || p.status || '').toLowerCase();
                     // Processed if it's already scheduled or approved
                     const isProcessedStatus = ['pending', 'approved', 'complete', 'completed', 'process'].includes(statusVal);
@@ -438,7 +445,7 @@ export default function PIApprovals() {
                     const poMatch = (h.po_number || (h as any).po_number || (h as any).poNumber) === item.poNumber;
                     const billMatch = item.billNo
                         ? (h.bill_no || (h as any).billNo || (h as any).bill_no) === item.billNo
-                        : true;
+                        : (h.indent_no || (h as any).indentNo || (h as any).internalCode || '') === item.internalCode;
                     return poMatch && billMatch;
                 });
 
@@ -463,10 +470,11 @@ export default function PIApprovals() {
                 // 1. Check if it exists in the payments table (already processed for payment)
                 const isProcessTable = paymentRecords.some(p => {
                     const poMatch = (p.poNumber || p.po_number) === item.poNumber;
-                    // Check for bill match in remark or direct match if available
+                    // Check for bill match in remark or direct match if available.
+                    // Without a bill number, match by indent number rather than any payment on the PO.
                     const billMatch = item.billNo
                         ? (p.remark || '').includes(`Bill: ${item.billNo}`) || (p as any).billNo === item.billNo || (p as any).bill_no === item.billNo
-                        : true;
+                        : (p.internalCode || (p as any).internal_code || '') === item.internalCode;
                     // If it has a planned date or is pending/approved, it's processed
                     const statusVal = String(p.status1 || p.status || '').toLowerCase();
                     const isProcessedStatus = ['pending', 'approved', 'complete', 'completed', 'process'].includes(statusVal);
@@ -479,7 +487,7 @@ export default function PIApprovals() {
                     const poMatch = (h.po_number || (h as any).poNumber) === item.poNumber;
                     const billMatch = item.billNo
                         ? (h.bill_no || (h as any).billNo) === item.billNo
-                        : true;
+                        : (h.indent_no || (h as any).indentNo || (h as any).internalCode || '') === item.internalCode;
                     return poMatch && billMatch;
                 });
 

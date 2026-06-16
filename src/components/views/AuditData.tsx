@@ -173,6 +173,7 @@ interface ProcessedTallyData {
   status3: string;
   status4: string;
   status5: string;
+  actual5: string;
   timestamp: string;
   damageOrder?: string;
   quantityAsPerBill?: string;
@@ -307,6 +308,7 @@ export default function PcReportTable() {
         status3: item.status3,
         status4: item.status4,
         status5: item.status5,
+        actual5: item.actual5,
         timestamp: item.timestamp || '',
         damageOrder: item.damageOrder,
         quantityAsPerBill: item.quantityAsPerBill,
@@ -932,116 +934,9 @@ export default function PcReportTable() {
       },
     },
     {
-      accessorKey: 'remarks1',
-      header: 'Audit Remarks',
-      cell: ({ row }) => {
-        const remarks = row.original.remarks1;
-        return remarks ? (
-          <div className="max-w-xs truncate" title={remarks}>
-            {remarks}
-          </div>
-        ) : null;
-      },
-    },
-    {
-      accessorKey: 'status2',
-      header: 'Rectify Status',
-      cell: ({ row }) => {
-        const status = row.original.status2;
-        return status ? (
-          <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${status === 'Done' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }`}>
-            {status}
-          </span>
-        ) : null;
-      },
-    },
-    {
-      accessorKey: 'remarks2',
-      header: 'Rectify Remarks',
-      cell: ({ row }) => {
-        const remarks = row.original.remarks2;
-        return remarks ? (
-          <div className="max-w-xs truncate" title={remarks}>
-            {remarks}
-          </div>
-        ) : null;
-      },
-    },
-    {
-      accessorKey: 'status3',
-      header: 'Reaudit Status',
-      cell: ({ row }) => {
-        const status = row.original.status3;
-        return status ? (
-          <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${status === 'Done' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }`}>
-            {status}
-          </span>
-        ) : null;
-      },
-    },
-    {
-      accessorKey: 'remarks3',
-      header: 'Reaudit Remarks',
-      cell: ({ row }) => {
-        const remarks = row.original.remarks3;
-        return remarks ? (
-          <div className="max-w-xs truncate" title={remarks}>
-            {remarks}
-          </div>
-        ) : null;
-      },
-    },
-    {
-      accessorKey: 'status4',
-      header: 'Tally Status',
-      cell: ({ row }) => {
-        const status = row.original.status4;
-        return status ? (
-          <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${status === 'Done' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }`}>
-            {status}
-          </span>
-        ) : null;
-      },
-    },
-    {
-      accessorKey: 'remarks4',
-      header: 'Tally Remarks',
-      cell: ({ row }) => {
-        const remarks = row.original.remarks4;
-        return remarks ? (
-          <div className="max-w-xs truncate" title={remarks}>
-            {remarks}
-          </div>
-        ) : null;
-      },
-    },
-    {
-      accessorKey: 'status5',
-      header: 'Again Audit Status',
-      cell: ({ row }) => {
-        const status = row.original.status5;
-        return status ? (
-          <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${status === 'Done' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }`}>
-            {status}
-          </span>
-        ) : null;
-      },
-    },
-    {
-      accessorKey: 'remarks5',
-      header: 'Again Audit Remarks',
-      cell: ({ row }) => {
-        const remarks = row.original.remarks5;
-        return remarks ? (
-          <div className="max-w-xs truncate" title={remarks}>
-            {remarks}
-          </div>
-        ) : null;
-      },
+      accessorKey: 'actual5',
+      header: 'Again Audit Completed On',
+      cell: ({ row }) => row.original.actual5 ? formatDateTime(parseCustomDate(row.original.actual5)) : '-',
     },
   ];
 
