@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase';
 // ==================== INTERFACES ====================
 
 export interface StoreInRecord {
+    id: number;
     liftNumber: string;
     indentNo: string;
     billNo: string;
@@ -106,6 +107,7 @@ export async function fetchStoreInRecords() {
         if (error) throw error;
 
         return (data || []).map((r: any) => ({
+            id: r.id || 0,
             liftNumber: r.lift_number || '',
             indentNo: r.indent_no || '',
             billNo: r.bill_no || '',
@@ -362,15 +364,21 @@ export async function updateStoreInQuantityCheck(
     }
 ) {
     try {
+        const updatePayload: any = {
+            actual7: updateData.actual7,
+            status: updateData.status,
+            bill_copy_attached: updateData.billCopyAttached,
+            send_debit_note: updateData.sendDebitNote,
+            reason: updateData.reason,
+        };
+
+        if (updateData.sendDebitNote === 'Yes') {
+            updatePayload.planned9 = updateData.actual7;
+        }
+
         const { error } = await supabase
             .from('store_in')
-            .update({
-                actual7: updateData.actual7,
-                status: updateData.status,
-                bill_copy_attached: updateData.billCopyAttached,
-                send_debit_note: updateData.sendDebitNote,
-                reason: updateData.reason,
-            })
+            .update(updatePayload)
             .eq('lift_number', liftNumber);
 
         if (error) throw error;
@@ -539,7 +547,6 @@ export async function createPaymentEntry(storeInData: {
             planned: null,
             actual: null,
             status1: 'hod_approval_pending',
-            payment_form: storeInData.payment_form || 'store_in',
             firm_name: storeInData.firm_name_match,
         };
 

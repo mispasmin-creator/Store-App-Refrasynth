@@ -25,8 +25,8 @@ import { Textarea } from '../ui/textarea';
 import { Truck, ExternalLink } from 'lucide-react';
 import Heading from '../element/Heading';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { fetchFullkittingRecords, updateFullkittingRecord, uploadBiltyImage, type FullkittingRecord } from '@/services/fullkittingService';
-import { createPaymentEntry } from '@/services/storeInService';
+import { fetchFullkittingRecords, updateFullkittingRecord, uploadBiltyImage, createFreightPaymentEntry, type FullkittingRecord } from '@/services/fullkittingService';
+import { useSheets } from '@/context/SheetsContext';
 import { formatDateTime, parseCustomDate } from '@/lib/utils';
 
 // Helper function to format date as "YYYY-MM-DD"
@@ -39,6 +39,7 @@ function formatDate(date: Date): string {
 
 export default function FullKiting() {
     const { user } = useAuth();
+    const { storeInSheet, updateAll } = useSheets();
     const [pendingData, setPendingData] = useState<FullkittingRecord[]>([]);
     const [historyData, setHistoryData] = useState<FullkittingRecord[]>([]);
     const [selectedIndent, setSelectedIndent] = useState<FullkittingRecord | null>(null);
@@ -227,10 +228,30 @@ export default function FullKiting() {
                 biltyImage: biltyImageUrl,
             });
 
+            // Create freight payment entry in payments table
+            try {
+                const linkedStoreIn = (storeInSheet || []).find(s => s.indentNo === selectedIndent.indentNumber);
+                const poNumber = linkedStoreIn?.poNumber || '';
+                
+                await createFreightPaymentEntry({
+                    indentNumber: selectedIndent.indentNumber,
+                    transporterName: selectedIndent.transporterName || '',
+                    poNumber: poNumber,
+                    freightAmount: Number(values.amount),
+                    biltyImage: biltyImageUrl,
+                    productName: selectedIndent.productName || '',
+                    firmNameMatch: selectedIndent.firmNameMatch || '',
+                    biltyNumber: values.biltyNumber,
+                    vehicleNumber: values.vehicleNumber,
+                });
+            } catch (payError) {
+                console.error('Failed to create freight payment entry:', payError);
+            }
 
             toast.success(`Updated fullkitting for ${selectedIndent.indentNumber}`);
             setOpenDialog(false);
             fetchData();
+            updateAll();
         } catch (error) {
             console.error('Error updating fullkitting:', error);
             toast.error('Failed to update fullkitting');

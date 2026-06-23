@@ -342,8 +342,7 @@ export default () => {
                 return photo ? <a href={photo} target="_blank" rel="noopener noreferrer" className="text-green-600 underline">View</a> : null;
             },
         },
-        { accessorKey: 'transportationInclude', header: 'Trans. Include', cell: textWrapCell },
-        { accessorKey: 'transporterName', header: 'Transporter', cell: textWrapCell },
+        { accessorKey: 'transportationInclude', header: 'Transporter', cell: textWrapCell },
         { accessorKey: 'amount', header: 'Freight Amount' },
     ];
 
@@ -382,7 +381,16 @@ export default () => {
         { accessorKey: 'transportationInclude', header: 'Trans. Include', cell: textWrapCell },
         { accessorKey: 'transporterName', header: 'Transporter', cell: textWrapCell },
         { accessorKey: 'amount', header: 'Freight Amount' },
-        { accessorKey: 'receiveStatus', header: 'Rec. Status', cell: textWrapCell },
+        {
+            accessorKey: 'receiveStatus',
+            header: 'Rec. Status',
+            cell: ({ getValue }) => {
+                const val = getValue() as string;
+                if (val === 'Not Received') return <span className="text-red-600 font-bold">Rejected</span>;
+                if (val === 'Received') return <span className="text-emerald-600 font-bold">Received</span>;
+                return val || '-';
+            }
+        },
         { accessorKey: 'receivedQuantity', header: 'Rec. Qty' },
         {
             accessorKey: 'photoOfProduct',
@@ -451,13 +459,23 @@ export default () => {
         try {
             const currentDateTime = new Date().toISOString();
             for (const item of (selectedIndent.originalItems || [])) {
-                const { error } = await supabase.from('store_in').update({
+                const isRejected = values.status === 'Not Received';
+                // Rejected: go directly to Reject For GRN (planned7), skip Transporting Update (hod_planned)
+                // Received: go to Transporting Update (hod_planned), no planned7
+                const updatePayload: Record<string, any> = {
                     actual6: currentDateTime,
                     receiving_status: values.status,
                     remark: values.remark || '',
-                    hod_planned: currentDateTime,
-                    hod_status: 'Pending',
-                }).eq('lift_number', item.liftNumber);
+                };
+                if (isRejected) {
+                    updatePayload.planned7 = currentDateTime;
+                    updatePayload.hod_status = 'Rejected';
+                    updatePayload.hod_actual = currentDateTime;
+                } else {
+                    updatePayload.hod_planned = currentDateTime;
+                    updatePayload.hod_status = 'Pending';
+                }
+                const { error } = await supabase.from('store_in').update(updatePayload).eq('id', item.id);
                 if (error) throw error;
             }
             toast.success(`Store In completed for ${(selectedIndent.originalItems || []).length} item(s)!`);
@@ -648,7 +666,7 @@ export default () => {
                                                         </FormControl>
                                                         <SelectContent>
                                                             <SelectItem value="Received" className="text-emerald-600 font-bold">Received</SelectItem>
-                                                            <SelectItem value="Not Received" className="text-red-600 font-bold">Not Received</SelectItem>
+                                                            <SelectItem value="Not Received" className="text-red-600 font-bold">Reject</SelectItem>
                                                         </SelectContent>
                                                     </Select>
                                                     <FormMessage />

@@ -140,10 +140,20 @@ export const calculatePcReportCounts = (
                 // same vendor don't collapse into a single count.
                 const uniqueBills = new Set<string>();
 
-                const isAlreadyProcessed = (poNum: string, billNo: string, internalCode: string) => {
+                const isAlreadyProcessed = (poNum: string, billNo: string, internalCode: string, biltyNo?: string) => {
                     const inPayments = (paymentsSheet || []).some((p: any) => {
                         const poMatch = (p.poNumber || p.po_number) === poNum;
                         if (!poMatch) return false;
+
+                        const isFreightPayment = String(p.payment_form || p.paymentForm || '').toLowerCase() === 'freight' || (p.remark || '').startsWith('Freight Payment');
+
+                        if (biltyNo) {
+                            if (!isFreightPayment) return false;
+                            return (p.remark || '').includes(`Bilty No: ${biltyNo}`) || p.biltyNo === biltyNo || p.bilty_no === biltyNo;
+                        }
+
+                        if (isFreightPayment) return false;
+
                         const billMatch = billNo
                             ? (p.remark || '').includes(`Bill: ${billNo}`) || p.billNo === billNo || p.bill_no === billNo
                             : (p.internalCode || p.internal_code || '') === internalCode;
@@ -158,6 +168,16 @@ export const calculatePcReportCounts = (
                     return (paymentHistorySheet || []).some((h: any) => {
                         const poMatch = (h.po_number || h.poNumber) === poNum;
                         if (!poMatch) return false;
+
+                        const isFreightHistory = ((h as any).remarks || '').startsWith('Freight Payment') || ((h as any).remark || '').startsWith('Freight Payment') || (h as any).payment_form === 'freight' || (h as any).paymentForm === 'freight';
+
+                        if (biltyNo) {
+                            if (!isFreightHistory) return false;
+                            return ((h as any).remarks || (h as any).remark || '').includes(`Bilty No: ${biltyNo}`) || (h as any).biltyNo === biltyNo || (h as any).bilty_no === biltyNo;
+                        }
+
+                        if (isFreightHistory) return false;
+
                         return billNo
                             ? (h.bill_no || h.billNo) === billNo
                             : (h.indent_no || h.indentNo || '') === internalCode;
@@ -182,7 +202,7 @@ export const calculatePcReportCounts = (
                     const linkedStoreIn = (storeInSheet || []).find((s: any) => (s.poNumber || s.po_number) === poNum);
                     if (linkedStoreIn) {
                         if (linkedStoreIn.typeOfBill && linkedStoreIn.typeOfBill.toLowerCase() !== 'independent') return;
-                        if ((linkedStoreIn.hodStatus || linkedStoreIn.hod_status) !== 'Approved') return;
+                        if (linkedStoreIn.hodStatus !== 'Approved') return;
                     }
 
                     const billNo = linkedStoreIn?.billNo || '';
@@ -205,15 +225,41 @@ export const calculatePcReportCounts = (
                         (!s.poNumber || !poNum || s.poNumber === poNum)
                     );
 
-                    if (linkedStoreIn) {
+                    if (linkedStoreIn && String(p.payment_form || p.paymentForm || '').toLowerCase() !== 'freight') {
                         if (linkedStoreIn.typeOfBill && linkedStoreIn.typeOfBill.toLowerCase() !== 'independent') return;
-                        if ((linkedStoreIn.hodStatus || linkedStoreIn.hod_status) !== 'Approved') return;
+                        if (linkedStoreIn.hodStatus !== 'Approved') return;
                     }
 
                     const billNo = p.billNo || p.bill_no || linkedStoreIn?.billNo || '';
                     if (isAlreadyProcessed(poNum, billNo, internalCode)) return;
 
                     uniqueBills.add(`${p.partyName || p.party_name}-${poNum || 'NoPO'}-${billNo || 'NoBill'}`);
+                });
+
+                // Process Freight-based items from completed fullkitting records that don't have a payment entry yet
+                (fullkittingSheet || []).forEach((record: any) => {
+                    const isCompleted = record.actual && record.actual.toString().trim() !== '';
+                    if (!isCompleted) return;
+
+                    // Skip if a payment entry for this freight already exists in payments table
+                    const hasPaymentEntry = (paymentsSheet || []).some((p: any) => 
+                        (p.internalCode || p.internal_code) === record.indentNumber &&
+                        String(p.payment_form || p.paymentForm || '').toLowerCase() === 'freight' &&
+                        (p.remark || '').includes(`Bilty No: ${record.biltyNumber || record.bilty_number}`)
+                    );
+                    if (hasPaymentEntry) return;
+
+                    const linkedStoreIn = (storeInSheet || []).find((s: any) =>
+                        (s.indentNo || s.indentNumber) === record.indentNumber
+                    );
+                    const poNum = linkedStoreIn?.poNumber || 'NoPO';
+                    const billNo = 'NoBill'; // Freight payments don't use material bill number
+                    const biltyNo = record.biltyNumber || record.bilty_number || 'NoBilty';
+                    const partyName = record.transporterName || 'Freight Transporter';
+
+                    if (isAlreadyProcessed(poNum, billNo, record.indentNumber, biltyNo)) return;
+
+                    uniqueBills.add(`${partyName}-${poNum || 'NoPO'}-${billNo || 'NoBill'}-${biltyNo || 'NoBilty'}`);
                 });
 
                 return uniqueBills.size;

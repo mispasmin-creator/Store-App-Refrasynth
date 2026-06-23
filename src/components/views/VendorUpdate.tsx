@@ -124,7 +124,7 @@ export default () => {
             const mappedData = rows.map((r) => ({
                 id: r.id,
                 indentNo: r.indent_number || '',
-                firmNameMatch: r.firm_name_match || '',
+                firmNameMatch: r.firm_name_match || r.firm_name || '',
                 indenter: r.indenter_name || '',
                 department: r.department || '',
                 product: r.product_name || '',
@@ -172,7 +172,7 @@ export default () => {
                 id: r.id,
                 date: formatDate(new Date(r.actual2)),
                 indentNo: r.indent_number || '',
-                firmNameMatch: r.firm_name_match || '',
+                firmNameMatch: r.firm_name_match || r.firm_name || '',
                 indenter: r.indenter_name || '',
                 department: r.department || '',
                 product: r.product_name || '',

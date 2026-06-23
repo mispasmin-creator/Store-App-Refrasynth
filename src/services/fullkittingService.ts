@@ -200,3 +200,75 @@ export async function uploadBiltyImage(file: File, indentNumber: string): Promis
         throw error;
     }
 }
+
+/**
+ * Create a payment entry for freight payment in the payments table
+ */
+export async function createFreightPaymentEntry(data: {
+    indentNumber: string;
+    transporterName: string;
+    poNumber?: string;
+    freightAmount: number;
+    biltyImage?: string;
+    productName: string;
+    firmNameMatch: string;
+    biltyNumber: string;
+    vehicleNumber: string;
+}) {
+    try {
+        const nowIso = new Date().toISOString();
+
+        // Fetch latest unique_no to continue sequence (format: PAY-XXXX)
+        const { data: latestPayment } = await supabase
+            .from('payments')
+            .select('unique_no')
+            .like('unique_no', 'PAY-%')
+            .order('unique_no', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        let uniqueNo = 'PAY-0001';
+        if (latestPayment && latestPayment.unique_no) {
+            const matches = latestPayment.unique_no.match(/PAY-(\d+)/);
+            if (matches && matches[1]) {
+                const nextNum = parseInt(matches[1], 10) + 1;
+                uniqueNo = `PAY-${nextNum.toString().padStart(4, '0')}`;
+            }
+        }
+
+        const paymentEntry = {
+            timestamp: nowIso,
+            unique_no: uniqueNo,
+            party_name: data.transporterName || 'Freight Transporter',
+            po_number: data.poNumber || '',
+            total_po_amount: String(data.freightAmount),
+            internal_code: data.indentNumber,
+            product: data.productName,
+            delivery_date: null,
+            payment_terms: 'Partly PI', // Marks as advance/PI so it passes default filters
+            number_of_days: '0',
+            pdf: data.biltyImage || '',
+            pay_amount: String(data.freightAmount),
+            file: data.biltyImage || '',
+            remark: `Freight Payment | Bilty No: ${data.biltyNumber} | Vehicle: ${data.vehicleNumber}`,
+            total_paid_amount: '0',
+            outstanding_amount: String(data.freightAmount),
+            status: 'Pending',
+            planned: null,
+            actual: null,
+            status1: 'hod_approval_pending',
+            firm_name: data.firmNameMatch,
+        };
+
+        const { error } = await supabase
+            .from('payments')
+            .insert([paymentEntry]);
+
+        if (error) throw error;
+        return true;
+    } catch (error) {
+        console.error('Error creating freight payment entry:', error);
+        throw error;
+    }
+}
+

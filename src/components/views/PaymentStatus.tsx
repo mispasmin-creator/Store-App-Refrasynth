@@ -62,9 +62,11 @@ interface PIPendingData {
     pdf?: string;
     paymentForm?: string;
     billNo?: string;
+    biltyNo?: string;
     billAmount?: number;
     rowIds: number[];
     liftNumber?: string;
+    remark?: string;
 }
 
 interface POMasterRecord {
@@ -98,6 +100,7 @@ export default function PIApprovals() {
         paymentsSheet,
         storeInSheet,
         paymentHistorySheet,
+        fullkittingSheet,
         updateAll,
         allLoading: poMasterLoading
     } = useSheets();
@@ -148,6 +151,7 @@ export default function PIApprovals() {
             const safePoMasterSheet: any[] = Array.isArray(poMasterSheet) ? poMasterSheet : [];
             const safePaymentsSheet: any[] = Array.isArray(paymentsSheet) ? paymentsSheet : [];
             const safeStoreInSheet: any[] = Array.isArray(storeInSheet) ? storeInSheet : [];
+            const safeFullkittingSheet: any[] = Array.isArray(fullkittingSheet) ? fullkittingSheet : [];
 
             // 1. Identify received PO numbers from store_in
             const receivedPoNumbersSet = new Set(
@@ -193,6 +197,10 @@ export default function PIApprovals() {
                         (s.poNumber || s.po_number || '') === (record.poNumber || record.po_number || record.po_no || '')
                     );
 
+                    const linkedFullkitting = safeFullkittingSheet.find((f: any) => 
+                        (f.indentNumber || f.indent_number) === (record.internalCode || record.internal_code)
+                    );
+
                     return {
                         rowIndex: record.id || 0,
                         timestamp: record.timestamp || '',
@@ -217,6 +225,7 @@ export default function PIApprovals() {
                         status: record.status || 'Pending',
                         pdf: record.pdf || '',
                         billNo: linkedStoreIn?.billNo || linkedStoreIn?.bill_no || '',
+                        biltyNo: linkedFullkitting?.biltyNumber || linkedFullkitting?.bilty_number || '',
                         billAmount: Number(linkedStoreIn?.billAmount || linkedStoreIn?.bill_amount || 0),
                         advanceAmount: Number(record.advanceAmount || record.advance_amount || 0),
                         advancePercent: Number(record.advancePercent || record.advance_percent || record.advance_percentage || record.number_of_days || 0),
@@ -245,7 +254,7 @@ export default function PIApprovals() {
                         (!s.poNumber || !payment?.poNumber || s.poNumber === payment.poNumber)
                     );
 
-                    if (linkedStoreIn) {
+                    if (linkedStoreIn && String(payment?.paymentForm || payment?.payment_form || '').toLowerCase() !== 'freight') {
                         if (linkedStoreIn.typeOfBill && linkedStoreIn.typeOfBill.toLowerCase() !== 'independent') {
                             return false;
                         }
@@ -300,7 +309,24 @@ export default function PIApprovals() {
                         outstandingAmount: Number(payment?.outstandingAmount || payment?.outstanding_amount || payment?.payAmount || payment?.pay_amount || 0),
                         status: payment?.status || 'Pending',
                         pdf: payment?.pdf || payment?.file || '',
-                        billNo: payment?.billNo || payment?.bill_no || linkedStoreIn?.billNo || linkedStoreIn?.bill_no || '',
+                        paymentForm: payment?.paymentForm || payment?.payment_form || '',
+                        billNo: (() => {
+                            const isFreight = String(payment?.paymentForm || payment?.payment_form || '').toLowerCase() === 'freight';
+                            if (isFreight) return '';
+                            return payment?.billNo || payment?.bill_no || linkedStoreIn?.billNo || linkedStoreIn?.bill_no || '';
+                        })(),
+                        biltyNo: (() => {
+                            const isFreight = String(payment?.paymentForm || payment?.payment_form || '').toLowerCase() === 'freight';
+                            if (!isFreight) {
+                                const linkedFullkitting = safeFullkittingSheet.find((f: any) => 
+                                    (f.indentNumber || f.indent_number) === (payment?.internalCode || payment?.internal_code)
+                                );
+                                return payment?.biltyNo || payment?.bilty_number || linkedFullkitting?.biltyNumber || linkedFullkitting?.bilty_number || '';
+                            }
+                            const remarkStr = payment?.remark || '';
+                            const match = remarkStr.match(/Bilty No:\s*([^\s|]+)/i) || remarkStr.match(/Bilty:\s*([^\s|]+)/i);
+                            return payment?.biltyNo || payment?.bilty_number || (match ? match[1] : '') || payment?.billNo || payment?.bill_no || '';
+                        })(),
                         billAmount: Number(payment?.billAmount || payment?.bill_amount || linkedStoreIn?.billAmount || linkedStoreIn?.bill_amount || 0),
                         rowIds: [payment?.id || 0],
                         liftNumber: linkedStoreIn?.liftNumber || linkedStoreIn?.lift_number || '',
@@ -323,6 +349,9 @@ export default function PIApprovals() {
                 })
                 .map((record: any) => {
                     const billAmt = Number(record.billAmount || 0);
+                    const linkedFullkitting = safeFullkittingSheet.find((f: any) => 
+                        (f.indentNumber || f.indent_number) === (record.indentNo || record.indentNumber)
+                    );
                     return {
                         rowIndex: record.id || 0,
                         timestamp: record.timestamp || '',
@@ -346,9 +375,69 @@ export default function PIApprovals() {
                         outstandingAmount: billAmt,
                         status: 'Pending',
                         billNo: record.billNo || '',
+                        biltyNo: linkedFullkitting?.biltyNumber || linkedFullkitting?.bilty_number || '',
                         billAmount: billAmt,
                         rowIds: [record.id || 0],
                         liftNumber: record.liftNumber || '',
+                    } as PIPendingData;
+                });
+
+            // 4. Freight-based items: completed fullkitting records that don't have a payments record yet
+            const freightBasedItems: PIPendingData[] = safeFullkittingSheet
+                .filter((record: any) => {
+                    const isCompleted = record.actual && record.actual.toString().trim() !== '';
+                    if (!isCompleted) return false;
+
+                    const firmMatch = !user || user.firmNameMatch?.toLowerCase() === 'all' ||
+                        record.firmNameMatch === user.firmNameMatch;
+                    if (!firmMatch) return false;
+
+                    // Skip if a payment entry for this freight already exists in payments table
+                    const hasPaymentEntry = safePaymentsSheet.some((p: any) => 
+                        (p.internalCode || p.internal_code) === record.indentNumber &&
+                        String(p.payment_form || p.paymentForm || '').toLowerCase() === 'freight' &&
+                        (p.remark || '').includes(`Bilty No: ${record.biltyNumber || record.bilty_number}`)
+                    );
+                    if (hasPaymentEntry) return false;
+
+                    return true;
+                })
+                .map((record: any) => {
+                    const linkedStoreIn = safeStoreInSheet.find((s: any) =>
+                        (s.indentNo || s.indentNumber) === record.indentNumber
+                    );
+                    const poNum = linkedStoreIn?.poNumber || '';
+                    const amt = Number(record.amount1 || record.amount || 0);
+
+                    return {
+                        rowIndex: record.id || 0,
+                        timestamp: record.timestamp || '',
+                        partyName: record.transporterName || 'Freight Transporter',
+                        poNumber: poNum,
+                        internalCode: record.indentNumber,
+                        product: record.productName || '',
+                        description: `FREIGHT - ${record.productName || ''}`,
+                        quantity: Number(record.qty || 0),
+                        unit: '',
+                        rate: 0,
+                        gstPercent: 0,
+                        discountPercent: 0,
+                        amount: amt,
+                        totalPoAmount: amt,
+                        deliveryDate: '',
+                        paymentTerms: 'Partly PI',
+                        numberOfDays: 0,
+                        firmNameMatch: record.firmNameMatch || '',
+                        totalPaidAmount: 0,
+                        outstandingAmount: amt,
+                        status: 'Pending',
+                        billNo: '', // Freight has no Bill No, only Bilty No
+                        biltyNo: record.biltyNumber || record.bilty_number || '',
+                        billAmount: amt,
+                        rowIds: [record.id || 0],
+                        liftNumber: linkedStoreIn?.liftNumber || '',
+                        paymentForm: 'freight',
+                        pdf: record.biltyImage || '',
                     } as PIPendingData;
                 });
 
@@ -415,18 +504,42 @@ export default function PIApprovals() {
                 }
             });
 
+            // Process freightBasedItems
+            freightBasedItems.forEach(freightItem => {
+                const billKey = freightItem.billNo || 'NoBill';
+                const biltyKey = freightItem.biltyNo || 'NoBilty';
+                const uniqueKey = `${freightItem.partyName || 'NoVendor'}-${freightItem.poNumber || 'NoPO'}-${billKey}-${biltyKey}`;
+
+                if (!uniqueBillMap.has(uniqueKey)) {
+                    uniqueBillMap.set(uniqueKey, { ...freightItem });
+                } else {
+                    const existing = uniqueBillMap.get(uniqueKey)!;
+                    existing.rowIds = Array.from(new Set([...existing.rowIds, ...freightItem.rowIds]));
+                }
+            });
+
             // Final processing: Filter out items that are already "Processed"
             // (meaning a payment record exists for this PO + Bill, OR it's in history)
             const finalProcessedList = Array.from(uniqueBillMap.values()).filter(item => {
                 const paymentRecords = Array.isArray(safePaymentsSheet) ? safePaymentsSheet : [];
                 const historyRecords = Array.isArray(paymentHistorySheet) ? paymentHistorySheet : [];
 
+                const isFreight = item.paymentForm === 'freight';
+
                 // 1. Check if it exists in the payments table
                 const isProcessTable = paymentRecords.some(p => {
                     const poMatch = (p.poNumber || p.po_number || p.po_no) === item.poNumber;
-                    // When the item has no bill number, fall back to matching by indent number
-                    // instead of treating it as a wildcard match against any payment for the PO
-                    // (that previously hid unrelated/advance bills under the same PO).
+                    if (!poMatch) return false;
+
+                    const isFreightPayment = String(p.payment_form || p.paymentForm || '').toLowerCase() === 'freight' || (p.remark || '').startsWith('Freight Payment');
+
+                    if (isFreight) {
+                        if (!isFreightPayment) return false;
+                        return (p.remark || '').includes(`Bilty No: ${item.biltyNo}`) || (p as any).biltyNo === item.biltyNo || (p as any).bilty_no === item.biltyNo;
+                    }
+
+                    if (isFreightPayment) return false;
+
                     const billMatch = item.billNo
                         ? (p.remark || '').includes(`Bill: ${item.billNo}`) || (p as any).billNo === item.billNo || (p as any).bill_no === item.billNo
                         : (p.internalCode || (p as any).internal_code || '') === item.internalCode;
@@ -437,16 +550,27 @@ export default function PIApprovals() {
                     // Also check for planned date as a sign of proceeding
                     const hasPlannedDate = p.planned && p.planned.toString().trim() !== '';
 
-                    return poMatch && billMatch && (isProcessedStatus || hasPlannedDate);
+                    return billMatch && (isProcessedStatus || hasPlannedDate);
                 });
 
                 // 2. Check if it exists in the payment history
                 const isInHistory = historyRecords.some(h => {
                     const poMatch = (h.po_number || (h as any).po_number || (h as any).poNumber) === item.poNumber;
+                    if (!poMatch) return false;
+
+                    const isFreightHistory = ((h as any).remarks || '').startsWith('Freight Payment') || ((h as any).remark || '').startsWith('Freight Payment') || (h as any).payment_form === 'freight' || (h as any).paymentForm === 'freight';
+
+                    if (isFreight) {
+                        if (!isFreightHistory) return false;
+                        return ((h as any).remarks || (h as any).remark || '').includes(`Bilty No: ${item.biltyNo}`) || (h as any).biltyNo === item.biltyNo || (h as any).bilty_no === item.biltyNo;
+                    }
+
+                    if (isFreightHistory) return false;
+
                     const billMatch = item.billNo
                         ? (h.bill_no || (h as any).billNo || (h as any).bill_no) === item.billNo
                         : (h.indent_no || (h as any).indentNo || (h as any).internalCode || '') === item.internalCode;
-                    return poMatch && billMatch;
+                    return billMatch;
                 });
 
                 return !(isProcessTable || isInHistory);
@@ -467,28 +591,50 @@ export default function PIApprovals() {
                 const paymentRecords = Array.isArray(paymentsSheet) ? paymentsSheet : [];
                 const historyRecords = Array.isArray(paymentHistorySheet) ? paymentHistorySheet : [];
 
+                const isFreight = item.paymentForm === 'freight';
+
                 // 1. Check if it exists in the payments table (already processed for payment)
                 const isProcessTable = paymentRecords.some(p => {
                     const poMatch = (p.poNumber || p.po_number) === item.poNumber;
-                    // Check for bill match in remark or direct match if available.
-                    // Without a bill number, match by indent number rather than any payment on the PO.
+                    if (!poMatch) return false;
+
+                    const isFreightPayment = String((p as any).payment_form || p.paymentForm || '').toLowerCase() === 'freight' || (p.remark || '').startsWith('Freight Payment');
+
+                    if (isFreight) {
+                        if (!isFreightPayment) return false;
+                        return (p.remark || '').includes(`Bilty No: ${item.biltyNo}`) || (p as any).biltyNo === item.biltyNo || (p as any).bilty_no === item.biltyNo;
+                    }
+
+                    if (isFreightPayment) return false;
+
                     const billMatch = item.billNo
                         ? (p.remark || '').includes(`Bill: ${item.billNo}`) || (p as any).billNo === item.billNo || (p as any).bill_no === item.billNo
                         : (p.internalCode || (p as any).internal_code || '') === item.internalCode;
-                    // If it has a planned date or is pending/approved, it's processed
+                    
                     const statusVal = String(p.status1 || p.status || '').toLowerCase();
                     const isProcessedStatus = ['pending', 'approved', 'complete', 'completed', 'process'].includes(statusVal);
 
-                    return poMatch && billMatch && isProcessedStatus;
+                    return billMatch && isProcessedStatus;
                 });
 
                 // 2. Check if it exists in the payment history (already paid)
                 const isInHistory = historyRecords.some(h => {
                     const poMatch = (h.po_number || (h as any).poNumber) === item.poNumber;
+                    if (!poMatch) return false;
+
+                    const isFreightHistory = ((h as any).remarks || '').startsWith('Freight Payment') || ((h as any).remark || '').startsWith('Freight Payment') || (h as any).payment_form === 'freight' || (h as any).paymentForm === 'freight';
+
+                    if (isFreight) {
+                        if (!isFreightHistory) return false;
+                        return ((h as any).remarks || (h as any).remark || '').includes(`Bilty No: ${item.biltyNo}`) || (h as any).biltyNo === item.biltyNo || (h as any).bilty_no === item.biltyNo;
+                    }
+
+                    if (isFreightHistory) return false;
+
                     const billMatch = item.billNo
                         ? (h.bill_no || (h as any).billNo) === item.billNo
                         : (h.indent_no || (h as any).indentNo || (h as any).internalCode || '') === item.internalCode;
-                    return poMatch && billMatch;
+                    return billMatch;
                 });
 
                 const isProcessed = isProcessTable || isInHistory;
@@ -527,6 +673,13 @@ export default function PIApprovals() {
             header: 'Bill No.',
             cell: ({ row }) => (
                 <span className="text-sm font-medium text-green-800">{row.original.billNo || '-'}</span>
+            ),
+        },
+        {
+            accessorKey: 'biltyNo',
+            header: 'Bilty No.',
+            cell: ({ row }) => (
+                <span className="text-sm font-medium text-slate-800">{row.original.biltyNo || '-'}</span>
             ),
         },
         {
@@ -731,9 +884,12 @@ export default function PIApprovals() {
             const payAmount = Number(values.payAmount) || 0;
             const newOutstanding = (selectedItem.outstandingAmount || 0) - payAmount;
             const newStatus = newOutstanding <= 0 ? 'Complete' : 'Pending';
+            const isFreight = selectedItem.paymentForm === 'freight' || (selectedItem.remark || '').startsWith('Freight Payment');
+            const remarkPrefix = isFreight ? 'Freight Payment | ' : '';
+            const biltySuffix = selectedItem.biltyNo ? ` | Bilty No: ${selectedItem.biltyNo}` : '';
             const finalRemark = selectedItem.billNo
-                ? `${values.remark} | Bill: ${selectedItem.billNo}`
-                : values.remark;
+                ? `${remarkPrefix}${values.remark} | Bill: ${selectedItem.billNo}${biltySuffix}`
+                : `${remarkPrefix}${values.remark}${biltySuffix}`;
 
             const uniqueNo = generateUniqueNo();
 
@@ -745,7 +901,7 @@ export default function PIApprovals() {
                 total_po_amount: String(selectedItem.totalPoAmount || ''),
                 internal_code: selectedItem.internalCode,
                 product: selectedItem.product,
-                delivery_date: selectedItem.deliveryDate || '',
+                delivery_date: selectedItem.deliveryDate || null,
                 payment_terms: selectedItem.paymentTerms || '',
                 number_of_days: String(selectedItem.numberOfDays || '0'),
                 pdf: selectedItem.pdf || '',
@@ -759,7 +915,6 @@ export default function PIApprovals() {
                 actual: null,
                 firm_name: selectedItem.firmNameMatch || user?.firmNameMatch || '',
                 status1: 'pending',
-                payment_form: 'store_in',
             };
 
             const { error: insertError } = await supabase
@@ -946,6 +1101,12 @@ export default function PIApprovals() {
                                                     <p className="text-xs font-medium text-gray-600">Indent No.</p>
                                                     <p className="text-sm font-semibold text-gray-800">{selectedItem.internalCode}</p>
                                                 </div>
+                                                {selectedItem.biltyNo && (
+                                                    <div className="space-y-1">
+                                                        <p className="text-xs font-medium text-gray-600">Bilty Number</p>
+                                                        <p className="text-sm font-semibold text-gray-800">{selectedItem.biltyNo}</p>
+                                                    </div>
+                                                )}
                                                 <div className="space-y-1">
                                                     <p className="text-xs font-medium text-gray-600">Product</p>
                                                     <p className="text-sm font-semibold text-gray-800">{selectedItem.product}</p>
@@ -1022,7 +1183,7 @@ export default function PIApprovals() {
                                             name="remark"
                                             render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel className="font-medium">Remarks *</FormLabel>
+                                                    <FormLabel className="font-medium">Remarks <span className='text-red-500'>*</span></FormLabel>
                                                     <FormControl>
                                                         <Input
                                                             type="text"

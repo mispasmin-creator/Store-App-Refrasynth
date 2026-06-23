@@ -756,7 +756,10 @@ export default function GetPurchase() {
                         typeOfBill: values.typeOfBill || '', billAmount: Number(values.billAmount) || 0,
                         paymentType: '', advanceAmountIfAny: 0,
                         photoOfBill: billCopyUrl,
-                        transportationInclude: '', transporterName: '', amount: 0,
+                        transportationInclude: (() => {
+                            const match = (selectedIndent?.originalItems || []).find((oi: any) => oi.indentNumber?.toString() === item.indentNo);
+                            return match?.rawIndent?.approvedTransportType || (selectedIndent?.originalItems?.[0] as any)?.rawIndent?.approvedTransportType || '';
+                        })(), transporterName: '', amount: 0,
                         billStatus: values.billStatus || '',
                         quantityAsPerBill: values.quantityAsPerBill || Number(item.liftQty),
                         poDate: selectedIndent?.poDate || '', poNumber: item.poNumber || '',
@@ -851,7 +854,7 @@ export default function GetPurchase() {
         { accessorKey: 'timestamp', header: 'Timestamp', cell: ({ getValue }) => <div className="text-xs">{getValue() ? formatDateTime(parseCustomDate(getValue())) : '-'}</div> },
         { accessorKey: 'poNumber', header: 'PO Number', cell: ({ getValue }) => <div className="font-bold text-primary">{(getValue() as string) || '-'}</div> },
         { accessorKey: 'vendorName', header: 'Vendor', cell: ({ getValue }) => <div className="min-w-[120px]">{(getValue() as string) || '-'}</div> },
-        { accessorKey: 'billNo', header: 'Bill No.' },
+
         {
             accessorKey: 'products', header: 'Products', cell: ({ row }) => {
                 const products = row.original.products || [];
@@ -859,7 +862,7 @@ export default function GetPurchase() {
             }
         },
         { accessorKey: 'firmNameMatch', header: 'Firm' },
-        { accessorKey: 'billStatus', header: 'Bill Status' },
+
         { accessorKey: 'billAmount', header: 'Bill Amount' },
         { accessorKey: 'qty', header: 'Qty' },
         { accessorKey: 'typeOfBill', header: 'Type of Bill' },
@@ -1000,14 +1003,7 @@ export default function GetPurchase() {
                 return '-';
             },
         },
-        {
-            accessorKey: 'billNo', header: 'Bill No.',
-            cell: ({ row }) => row.original.rowType === 'storein' ? (row.original.billNo || '-') : '-',
-        },
-        {
-            accessorKey: 'billStatus', header: 'Bill Status',
-            cell: ({ row }) => row.original.rowType === 'storein' ? (row.original.billStatus || '-') : '-',
-        },
+
     ];
 
     // ── Render ──────────────────────────────────────────────────────────

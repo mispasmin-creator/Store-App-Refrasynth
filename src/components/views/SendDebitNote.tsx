@@ -10,6 +10,7 @@ import {
     uploadDebitNoteCopy,
     type StoreInRecord,
 } from '@/services/storeInService';
+import { createTallyEntryRecord } from '@/services/tallyEntryService';
 import {
     Dialog,
     DialogContent,
@@ -67,6 +68,8 @@ interface StoreInPendingData {
     reason: string;
     plannedDate: string;
     timestamp: string;
+    poNumber: string;
+    indentQty: number;
 }
 
 interface StoreInHistoryData {
@@ -162,6 +165,8 @@ export default () => {
                     reason: i.reason || '',
                     plannedDate: i.planned9 || '',
                     timestamp: i.timestamp || '',
+                    poNumber: i.poNumber || '',
+                    indentQty: i.indentQty || 0,
                 }))
         );
 
@@ -238,6 +243,42 @@ export default () => {
                 debitNoteCopy: debitNoteCopyUrl,
                 debitNoteNumber: values.debitNoteNumber || '',
             });
+
+            // ✅ Forward to Account Audit by creating a Tally Entry
+            try {
+                console.log('📝 Creating Audit Data entry from Debit Note...');
+                const formattedDateOnly = currentDateTime.split('T')[0];
+                await createTallyEntryRecord({
+                    timestamp: currentDateTime,
+                    lift_number: selectedItem.liftNumber || '',
+                    indent_number: selectedItem.indentNumber || '',
+                    po_number: selectedItem.poNumber || '',
+                    material_in_date: formattedDateOnly,
+                    product_name: selectedItem.productName || '',
+                    bill_status: 'Bill Received',
+                    qty: Number(selectedItem.qty || 0),
+                    party_name: selectedItem.vendorName || '',
+                    bill_amt: Number(selectedItem.billAmount || 0),
+                    bill_image: selectedItem.photoOfBill || '',
+                    bill_no: selectedItem.billNo || '',
+                    indent_qty: Number(selectedItem.indentQty || 0),
+                    location: '',
+                    type_of_bills: selectedItem.typeOfBill || '',
+                    product_image: '',
+                    area: '',
+                    indented_for: '',
+                    approved_party_name: selectedItem.vendorName || '',
+                    rate: Number(selectedItem.amount || 0),
+                    total_rate: Number(selectedItem.amount || 0),
+                    bill_recieved_later: 'No',
+                    firm_name_match: selectedItem.firmNameMatch || '',
+                    planned1: formattedDateOnly,
+                } as any);
+                console.log('✅ Account Audit entry created successfully');
+            } catch (auditError) {
+                console.error('❌ Failed to create Account Audit entry:', auditError);
+                toast.error('Processed Debit Note, but failed to forward to Account Audit');
+            }
 
             console.log('✅ Update successful');
             toast.success(`Updated status for ${selectedItem.indentNumber}`);

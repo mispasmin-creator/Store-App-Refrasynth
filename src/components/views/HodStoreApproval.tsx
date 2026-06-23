@@ -69,9 +69,14 @@ interface HodHistoryData {
     productName: string;
     qty: number;
     hodStatus: string;
-    hodRemark: string;
     hodDate: string;
     firmNameMatch: string;
+    transportationInclude: string;
+    transporterName: string;
+    vehicleNo: string;
+    driverName: string;
+    driverMobileNo: string;
+    amount: number;
 }
 
 const schema = z
@@ -222,9 +227,14 @@ export default () => {
                     productName: i.productName || '',
                     qty: Number(i.qty) || 0,
                     hodStatus: i.hodStatus || '',
-                    hodRemark: i.hodRemark || '',
                     hodDate: i.actualHod ? formatDateTime(new Date(i.actualHod)) : '',
                     firmNameMatch: i.firmNameMatch || '',
+                    transportationInclude: i.transportationInclude || '',
+                    transporterName: i.transporterName || '',
+                    vehicleNo: i.vehicleNo || '',
+                    driverName: i.driverName || '',
+                    driverMobileNo: i.driverMobileNo || '',
+                    amount: Number(i.amount) || 0,
                 }))
         );
     }, [storeInRecords, user.firmNameMatch]);
@@ -377,7 +387,12 @@ export default () => {
                 );
             }
         },
-        { accessorKey: 'hodRemark', header: 'Remark' },
+        { accessorKey: 'transportationInclude', header: 'Trans. Include' },
+        { accessorKey: 'transporterName', header: 'Transporter' },
+        { accessorKey: 'vehicleNo', header: 'Vehicle No.' },
+        { accessorKey: 'driverName', header: 'Driver Name' },
+        { accessorKey: 'driverMobileNo', header: 'Driver Mobile' },
+        { accessorKey: 'amount', header: 'Freight Amount' },
         { accessorKey: 'hodDate', header: 'Date' },
     ];
 

@@ -114,7 +114,7 @@ export default () => {
                     .map((r): RateApprovalData => ({
                         id: r.id,
                         indentNo: r.indent_number || '',
-                        firmNameMatch: r.firm_name_match || '',
+                        firmNameMatch: r.firm_name_match || r.firm_name || '',
                         indenter: r.indenter_name || '',
                         department: r.department || '',
                         product: r.product_name || '',
@@ -206,7 +206,7 @@ export default () => {
                     .map((r): HistoryData => ({
                         id: r.id,
                         indentNo: r.indent_number || '',
-                        firmNameMatch: r.firm_name_match || '',
+                        firmNameMatch: r.firm_name_match || r.firm_name || '',
                         indenter: r.indenter_name || '',
                         department: r.department || '',
                         product: r.product_name || '',

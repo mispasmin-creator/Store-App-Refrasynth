@@ -33,6 +33,7 @@ export interface GetLiftIndentRecord {
     approvedQuantity: number;
     receivedQuantity: number;
     uom: string;
+    approvedTransportType: string;
 }
 
 export interface GetLiftStoreInRecord {
@@ -123,7 +124,7 @@ export async function fetchIndentRecords() {
         console.log("fetchIndentRecords", data);
         return (data || []).map((r: any) => ({
             indentNumber: r.indent_number || '',
-            firmNameMatch: r.firm_name_match || '',
+            firmNameMatch: r.firm_name_match || r.firm_name || '',
             approvedVendorName: r.approved_vendor_name || '',
             poNumber: r.po_number || '',
             actual4: r.actual4 || '',
@@ -146,6 +147,14 @@ export async function fetchIndentRecords() {
             approvedQuantity: Number(r.approved_quantity) || 0,
             receivedQuantity: Number(r.received_quantity) || 0,
             uom: r.uom || '',
+            approvedTransportType: (() => {
+                // Determine which vendor slot is the approved (T1) vendor
+                if (r.vendor1_rank === 'T1') return r.transport_type1 || '';
+                if (r.vendor2_rank === 'T1') return r.transport_type2 || '';
+                if (r.vendor3_rank === 'T1') return r.transport_type3 || '';
+                // Fallback: if no ranking set (Regular vendor), use vendor1 transport type
+                return r.transport_type1 || '';
+            })(),
         }));
     } catch (error) {
         console.error('Error fetching indent records:', error);

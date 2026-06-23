@@ -102,7 +102,7 @@ const STAGES: Record<string, StageConfig> = {
     icon: Calculator,
     description: 'Enter data into tally system',
     formTitle: 'Tally Entry',
-    statusOptions: ['Done', 'Not Done']
+    statusOptions: ['Done']
   },
   AGAIN_AUDIT: {
     name: 'Again Audit',
@@ -239,35 +239,29 @@ export default function PcReportTable() {
       let plannedDate = '';
       let isCompleted = false;
 
-      if (hasValue(item.planned1) && !hasValue(item.actual1)) {
+      const auditStatus = String(item.status1 || '').toLowerCase();
+      
+      if (!hasValue(item.actual1)) {
         currentStage = 'AUDIT';
-        plannedDate = item.planned1;
-      }
-      // Skip Stage 2 and 3 if Audit is already Done
-      else if (!isAuditDone && hasValue(item.planned2) && !hasValue(item.actual2)) {
+        plannedDate = item.planned1 || item.timestamp;
+      } else if (auditStatus === 'not done' && !hasValue(item.actual2)) {
         currentStage = 'RECTIFY';
-        plannedDate = item.planned2;
-      } else if (!isAuditDone && hasValue(item.planned3) && !hasValue(item.actual3)) {
+        plannedDate = item.planned2 || item.actual1;
+      } else if (auditStatus === 'not done' && hasValue(item.actual2) && !hasValue(item.actual3)) {
         currentStage = 'REAUDIT';
-        plannedDate = item.planned3;
-      } else if (hasValue(item.planned4) && !hasValue(item.actual4)) {
+        plannedDate = item.planned3 || item.actual2;
+      } else if ((auditStatus === 'done' || hasValue(item.actual3)) && !hasValue(item.actual4)) {
         currentStage = 'TALLY_ENTRY';
-        plannedDate = item.planned4;
-      } else if (hasValue(item.planned5) && !hasValue(item.actual5)) {
+        plannedDate = item.planned4 || item.actual1 || item.actual3;
+      } else if (hasValue(item.actual4) && !hasValue(item.actual5)) {
         currentStage = 'AGAIN_AUDIT';
-        plannedDate = item.planned5;
+        plannedDate = item.planned5 || item.actual4;
       } else if (hasValue(item.actual5)) {
         currentStage = 'COMPLETED';
         isCompleted = true;
-        plannedDate = item.planned5 || item.planned4 || item.planned3 || item.planned2 || item.planned1;
+        plannedDate = item.planned5 || item.planned4 || item.planned3 || item.planned2 || item.planned1 || item.timestamp;
       } else {
-        // If Audit was Done, we might be ready for Stage 4 even if 2 and 3 were never touched
-        if (isAuditDone && hasValue(item.planned4) && !hasValue(item.actual4)) {
-          currentStage = 'TALLY_ENTRY';
-          plannedDate = item.planned4;
-        } else {
-          return null;
-        }
+        return null;
       }
 
       return {
@@ -481,14 +475,24 @@ export default function PcReportTable() {
         [stageConfig.remarksField]: values.remarks
       };
 
-      // Handle workflow logic: Set the actual completion date to fire database triggers
-      if (values.status === 'Done') {
-        // For all stages, 'Done' marks the stage as complete
+      // Handle workflow logic: Set the actual completion date
+      if (values.status === 'Done' || values.status === 'Not Done') {
         updates[stageConfig.actualField] = currentDateTime;
-      } else if (selectedRow.currentStage === 'AUDIT' && values.status === 'Not Done') {
-        // Special Case: Audit Data 'Not Done' also marks the stage as complete
-        // This triggers the 'planned2' update (Rectify Mistake) via DB trigger
-        updates[stageConfig.actualField] = currentDateTime;
+      }
+
+      // Explicitly set the planned date for the next stage to ensure it advances properly
+      if (selectedRow.currentStage === 'AUDIT') {
+        if (values.status === 'Done') {
+            updates['planned4'] = currentDateTime;
+        } else if (values.status === 'Not Done') {
+            updates['planned2'] = currentDateTime;
+        }
+      } else if (selectedRow.currentStage === 'RECTIFY') {
+        updates['planned3'] = currentDateTime;
+      } else if (selectedRow.currentStage === 'REAUDIT') {
+        updates['planned4'] = currentDateTime;
+      } else if (selectedRow.currentStage === 'TALLY_ENTRY') {
+        updates['planned5'] = currentDateTime;
       }
 
       // Update all items in the group
@@ -969,7 +973,7 @@ export default function PcReportTable() {
 
         <Tabs defaultValue="all" className="w-full">
           {/* Tabs Navigation */}
-          <TabsList className="grid grid-cols-2 md:grid-cols-6 mb-6">
+          <TabsList className="grid grid-cols-2 md:grid-cols-7 mb-6 h-auto w-full gap-1">
             <TabsTrigger value="all" onClick={() => setActiveTab('ALL')}>
               All Pending
             </TabsTrigger>
@@ -1044,6 +1048,15 @@ export default function PcReportTable() {
             />
           </TabsContent>
 
+          <TabsContent value="again_audit">
+            <DataTable
+              data={filteredData}
+              columns={pendingColumns}
+              searchFields={['indentNumber', 'productName', 'partyName', 'billNo', 'firmNameMatch']}
+              dataLoading={dataLoading}
+              className='h-[70dvh]'
+            />
+          </TabsContent>
 
           <TabsContent value="completed">
             <DataTable
@@ -1265,8 +1278,9 @@ export default function PcReportTable() {
                               <SelectValue placeholder="Select status" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="Done">Done</SelectItem>
-                              <SelectItem value="Not Done">Not Done</SelectItem>
+                              {STAGES[selectedRow.currentStage]?.statusOptions.map((option) => (
+                                <SelectItem key={option} value={option}>{option}</SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                         </FormControl>

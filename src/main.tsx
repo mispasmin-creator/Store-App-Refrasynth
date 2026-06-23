@@ -432,8 +432,8 @@ const routes: RouteAttributes[] = [
         element: <PaymentStatus />,
         notifications: (sheetsData: any[]) => {
             try {
-                // ✅ IMPORTANT: Expect [poMasterSheet, paymentsSheet, user, storeInSheet] from Sidebar
-                const [poMasterSheet = [], paymentsSheet = [], user = null, storeInSheet = []] = sheetsData;
+                // ✅ IMPORTANT: Expect [poMasterSheet, paymentsSheet, user, storeInSheet, fullkittingSheet] from Sidebar
+                const [poMasterSheet = [], paymentsSheet = [], user = null, storeInSheet = [], fullkittingSheet = []] = sheetsData;
 
                 if (!Array.isArray(poMasterSheet)) return 0;
 
@@ -514,7 +514,7 @@ const routes: RouteAttributes[] = [
                             const linkedStoreIn = (storeInSheet || []).find((s: any) =>
                                 (s.indentNo || s.indentNumber) === (payment.internalCode || payment.internal_code)
                             );
-                            if (linkedStoreIn) {
+                            if (linkedStoreIn && String(payment.payment_form || payment.paymentForm || '').toLowerCase() !== 'freight') {
                                 if (linkedStoreIn.typeOfBill && linkedStoreIn.typeOfBill.toLowerCase() !== 'independent') return;
                                 if ((linkedStoreIn.hodStatus || linkedStoreIn.hod_status) !== 'Approved') return;
                             }
@@ -524,6 +524,34 @@ const routes: RouteAttributes[] = [
                             uniqueBills.add(uniqueKey);
                         }
                     }
+                });
+
+                // Process Freight-based items from completed fullkitting records that don't have a payment entry yet
+                (fullkittingSheet || []).forEach((record: any) => {
+                    const isCompleted = record.actual && record.actual.toString().trim() !== '';
+                    if (!isCompleted) return;
+
+                    const firmMatch = !user || user.firmNameMatch?.toLowerCase() === 'all' ||
+                        record.firmNameMatch === user.firmNameMatch;
+                    if (!firmMatch) return;
+
+                    // Skip if a payment entry for this freight already exists in payments table
+                    const hasPaymentEntry = (paymentsSheet || []).some((p: any) => 
+                        (p.internalCode || p.internal_code) === record.indentNumber &&
+                        String(p.payment_form || p.paymentForm || '').toLowerCase() === 'freight' &&
+                        (p.remark || '').includes(`Bilty No: ${record.biltyNumber || record.bilty_number}`)
+                    );
+                    if (hasPaymentEntry) return;
+
+                    const linkedStoreIn = (storeInSheet || []).find((s: any) =>
+                        (s.indentNo || s.indentNumber) === record.indentNumber
+                    );
+                    const billNo = record.billNo || record.bill_no || 'NoBill';
+                    const biltyNo = record.biltyNumber || record.bilty_number || 'NoBilty';
+                    const partyName = record.transporterName || 'Freight Transporter';
+                    const uniqueKey = `${partyName}-${billNo}-${biltyNo}`;
+
+                    uniqueBills.add(uniqueKey);
                 });
 
                 return uniqueBills.size;

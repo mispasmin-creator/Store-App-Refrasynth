@@ -132,7 +132,7 @@ export default ({ items }: SidebarProps) => {
                                             sheetData = storeInSheet || [];
                                             break;
                                         case 'Payment-Status':
-                                            sheetData = [poMasterSheet || [], paymentsSheet || [], user, storeInSheet || []];
+                                            sheetData = [poMasterSheet || [], paymentsSheet || [], user, storeInSheet || [], fullkittingSheet || []];
                                             break;
                                         case 'DBforPc':
                                             sheetData = pcReportSheet || [];
