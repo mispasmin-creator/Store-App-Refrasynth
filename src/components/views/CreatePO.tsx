@@ -211,9 +211,9 @@ const CreatePO = () => {
     const [readOnly, setReadOnly] = useState(-1);
     const [mode, setMode] = useState<'create' | 'revise'>('create');
     const [isEditingDestination, setIsEditingDestination] = useState(false);
-    const [destinationAddress, setDestinationAddress] = useState(`${localStorage.getItem('company_name') || 'M/S Refrasynth Minerals India Private Limited'}, Khasra No 297/2 & 297/6 Village AKoli, Near Tarpongi Toll Plaza, PO- Devri, Raipur - 493221 (CG)`);
-    const [firmCompanyName, setFirmCompanyName] = useState(localStorage.getItem('company_name') || 'M/S Refrasynth Minerals India Private Limited');
-    const [firmCompanyAddress, setFirmCompanyAddress] = useState('Shri Ram Business Park , Block - C, 2nd floor , Room No. 212');
+    const [destinationAddress, setDestinationAddress] = useState(`REFRASYNTH MINERALS INDIA PRIVATE LIMITED, Near Tarpongi TollPlaza, PO Devri, Akoli 1 Akoli, Raipur, Chhattisgarh, 493221`);
+    const [firmCompanyName, setFirmCompanyName] = useState('REFRASYNTH MINERALS INDIA PRIVATE LIMITED');
+    const [firmCompanyAddress, setFirmCompanyAddress] = useState('Near Tarpongi TollPlaza, PO Devri, Akoli 1 Akoli, Raipur, Chhattisgarh, 493221');
     const [firmCompanyPhone, setFirmCompanyPhone] = useState('+91 7223844007');
     const [firmCompanyGstin, setFirmCompanyGstin] = useState('22AAHCP9274B1ZI');
     const [firmCompanyPan, setFirmCompanyPan] = useState('AACCJ1154B');
@@ -353,8 +353,8 @@ const CreatePO = () => {
                     companyDetails.destinationAddress || (details as MasterDetails).destinationAddress || ''
                 );
             } else {
-                setFirmCompanyName((details as MasterDetails).companyName || localStorage.getItem('company_name') || 'M/S Refrasynth Minerals India Private Limited');
-                setFirmCompanyAddress((details as MasterDetails).companyAddress || 'Shri Ram Business Park , Block - C, 2nd floor , Room No. 212');
+                setFirmCompanyName((details as MasterDetails).companyName || 'REFRASYNTH MINERALS INDIA PRIVATE LIMITED');
+                setFirmCompanyAddress((details as MasterDetails).companyAddress || 'Near Tarpongi TollPlaza, PO Devri, Akoli 1 Akoli, Raipur, Chhattisgarh, 493221');
                 setFirmCompanyPhone((details as MasterDetails).companyPhone || '+91 7223844007');
                 setFirmCompanyGstin((details as MasterDetails).companyGstin || '22AAHCP9274B1ZI');
                 setFirmCompanyPan((details as MasterDetails).companyPan || 'AACCJ1154B');
@@ -597,13 +597,13 @@ const CreatePO = () => {
         const grandTotal = subtotal + totalGst;
 
         return {
-            companyName: firmCompanyName || localStorage.getItem('company_name') || 'M/S Refrasynth Minerals India Private Limited',
+            companyName: firmCompanyName || localStorage.getItem('company_name') || 'REFRASYNTH MINERALS INDIA PRIVATE LIMITED',
             companyPhone: firmCompanyPhone || '+91 7223844007',
             companyGstin: firmCompanyGstin || '22AAHCP9274B1ZI',
             companyPan: firmCompanyPan || 'AACCJ1154B',
-            companyAddress: firmCompanyAddress || 'Shri Ram Business Park , Block - C, 2nd floor , Room No. 212',
-            billingAddress: `${firmCompanyName || localStorage.getItem('company_name') || 'M/S Refrasynth Minerals India Private Limited'}, ${firmCompanyAddress || 'Shri Ram Business Park , Block - C, 2nd floor , Room No. 212'}`,
-            destinationAddress: destinationAddress || `${localStorage.getItem('company_name') || 'M/S Refrasynth Minerals India Private Limited'}, Khasra No 297/2 & 297/6 Village AKoli, Near Tarpongi Toll Plaza, PO- Devri, Raipur - 493221 (CG)`,
+            companyAddress: firmCompanyAddress || 'Near Tarpongi TollPlaza, PO Devri, Akoli 1 Akoli, Raipur, Chhattisgarh, 493221',
+            billingAddress: `${firmCompanyName || localStorage.getItem('company_name') || 'REFRASYNTH MINERALS INDIA PRIVATE LIMITED'}, ${firmCompanyAddress || 'Near Tarpongi TollPlaza, PO Devri, Akoli 1 Akoli, Raipur, Chhattisgarh, 493221'}`,
+            destinationAddress: destinationAddress || `${localStorage.getItem('company_name') || 'REFRASYNTH MINERALS INDIA PRIVATE LIMITED'}, Khasra No 297/2 & 297/6 Village AKoli, Near Tarpongi Toll Plaza, PO- Devri, Raipur - 493221 (CG)`,
             supplierName: values.supplierName,
             supplierAddress: values.supplierAddress,
             supplierGstin: values.gstin || '',
@@ -698,13 +698,13 @@ const CreatePO = () => {
             const logoBase64 = await getLogoBase64();
 
             const pdfProps: POPdfProps = {
-                companyName: firmCompanyName || localStorage.getItem('company_name') || 'M/S Refrasynth Minerals India Private Limited',
+                companyName: firmCompanyName || localStorage.getItem('company_name') || 'REFRASYNTH MINERALS INDIA PRIVATE LIMITED',
                 companyPhone: firmCompanyPhone || '+91 7223844007',
                 companyGstin: firmCompanyGstin || '22AAHCP9274B1ZI',
                 companyPan: firmCompanyPan || 'AACCJ1154B',
-                companyAddress: firmCompanyAddress || 'Shri Ram Business Park , Block - C, 2nd floor , Room No. 212',
-                billingAddress: `${firmCompanyName || localStorage.getItem('company_name') || 'M/S Refrasynth Minerals India Private Limited'}, ${firmCompanyAddress || 'Shri Ram Business Park , Block - C, 2nd floor , Room No. 212'}`,
-                destinationAddress: destinationAddress || `${localStorage.getItem('company_name') || 'M/S Refrasynth Minerals India Private Limited'}, Khasra No 297/2 & 297/6 Village AKoli, Near Tarpongi Toll Plaza, PO- Devri, Raipur - 493221 (CG)`,
+                companyAddress: firmCompanyAddress || 'Near Tarpongi TollPlaza, PO Devri, Akoli 1 Akoli, Raipur, Chhattisgarh, 493221',
+                billingAddress: `${firmCompanyName || localStorage.getItem('company_name') || 'REFRASYNTH MINERALS INDIA PRIVATE LIMITED'}, ${firmCompanyAddress || 'Near Tarpongi TollPlaza, PO Devri, Akoli 1 Akoli, Raipur, Chhattisgarh, 493221'}`,
+                destinationAddress: destinationAddress || `${localStorage.getItem('company_name') || 'REFRASYNTH MINERALS INDIA PRIVATE LIMITED'}, Khasra No 297/2 & 297/6 Village AKoli, Near Tarpongi Toll Plaza, PO- Devri, Raipur - 493221 (CG)`,
                 supplierName: values.supplierName,
                 supplierAddress: values.supplierAddress,
                 supplierGstin: values.gstin || '',
@@ -902,13 +902,12 @@ const CreatePO = () => {
                                 <img src="/Passary.jpeg" alt="Company Logo" className="w-40  object-contain" />
                                 <div className="text-center">
                                     <h1 className="text-2xl font-bold">
-                                        {firmCompanyName || 'Refrasynth Minerals India Private Limited'}
+                                        {firmCompanyName || 'REFRASYNTH MINERALS INDIA PRIVATE LIMITED'}
                                     </h1>
                                     <div>
                                         <p className="text-sm">
-                                            {firmCompanyAddress || 'Shri Ram Business Park , Block - C, 2nd floor , Room No. 212'}
+                                            {firmCompanyAddress || 'Near Tarpongi TollPlaza, PO Devri, Akoli 1 Akoli, Raipur, Chhattisgarh, 493221'}
                                         </p>
-                                        <p className="text-sm">Phone No: +91 {firmCompanyPhone || '+91 7223844007'}</p>
                                     </div>
                                 </div>
                             </div>
@@ -975,23 +974,26 @@ const CreatePO = () => {
                                                             </SelectTrigger>
                                                         </FormControl>
                                                         <SelectContent>
-                                                            {[...new Map(
-                                                                indentSheet
-                                                                    .filter((i: IndentSheetItem) => {
-                                                                        const vendorName = i.approvedVendorName;
-                                                                        const hasVendor = vendorName && typeof vendorName === 'string' && vendorName.trim() !== '';
-                                                                        const hasApprovedVendor = i.approvedVendorName && typeof i.approvedVendorName === 'string' && i.approvedVendorName.trim() !== '';
-                                                                        const hasPlannedDate = i.planned4 !== '';
-                                                                        const hasNoActualDate = i.actual4 === '';
-                                                                        return hasVendor && hasApprovedVendor && hasPlannedDate && hasNoActualDate;
-                                                                    })
-                                                                    .map((i) => [i.approvedVendorName, i])
-                                                            ).values()]
-                                                                .map((i, k) => (
-                                                                    <SelectItem key={k} value={i.approvedVendorName as string}>
-                                                                        {i.approvedVendorName as string}
-                                                                    </SelectItem>
-                                                                ))}
+                                                            {Array.from(
+                                                                new Set(
+                                                                    indentSheet
+                                                                        .filter((i: IndentSheetItem) => {
+                                                                            const vendorName = i.approvedVendorName;
+                                                                            return (
+                                                                                vendorName &&
+                                                                                typeof vendorName === 'string' &&
+                                                                                vendorName.trim() !== '' &&
+                                                                                i.planned4 !== '' &&
+                                                                                i.actual4 === ''
+                                                                            );
+                                                                        })
+                                                                        .map((i) => i.approvedVendorName as string)
+                                                                )
+                                                            ).map((supplierName, k) => (
+                                                                <SelectItem key={k} value={supplierName}>
+                                                                    {supplierName}
+                                                                </SelectItem>
+                                                            ))}
                                                         </SelectContent>
                                                     </Select>
                                                 </FormControl>
@@ -1154,8 +1156,8 @@ const CreatePO = () => {
                                     <CardContent className="p-5 text-sm">
                                         {vendor ? (
                                             <>
-                                                <p className="font-semibold text-xs">{firmCompanyName || 'M/S Refrasynth Minerals India Private Limited'}</p>
-                                                <p className="text-xs">{firmCompanyAddress || 'Shri Ram Business Park , Block - C, 2nd floor , Room No. 212'}</p>
+                                                <p className="font-semibold text-xs">{firmCompanyName || 'REFRASYNTH MINERALS INDIA PRIVATE LIMITED'}</p>
+                                                <p className="text-xs">{firmCompanyAddress || 'Near Tarpongi TollPlaza, PO Devri, Akoli 1 Akoli, Raipur, Chhattisgarh, 493221'}</p>
                                             </>
                                         ) : (
                                             <p className="text-gray-400 text-center">Select Supplier</p>
@@ -1183,7 +1185,7 @@ const CreatePO = () => {
                                     <CardContent className="p-5 text-sm">
                                         {vendor ? (
                                             <>
-                                                <p className="font-semibold text-xs">{firmCompanyName || 'M/S Refrasynth Minerals India Private Limited'}</p>
+                                                <p className="font-semibold text-xs">{firmCompanyName || 'REFRASYNTH MINERALS INDIA PRIVATE LIMITED'}</p>
                                                 {isEditingDestination ? (
                                                     <div className="flex items-center gap-2 mt-1">
                                                         <Input value={destinationAddress} onChange={(e) => setDestinationAddress(e.target.value)}
