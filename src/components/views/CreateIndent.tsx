@@ -25,12 +25,15 @@ import { formatDate } from '@/lib/utils';
 import { ClipboardList, Trash, Search, PlusCircle, History } from 'lucide-react';
 import { useSheets } from '@/context/SheetsContext';
 import Heading from '../element/Heading';
+import { fetchStoreInRecords } from '@/services/storeInService';
+import { fetchIssueRecords } from '@/services/issueService';
 
 export default () => {
     const { masterSheet: options } = useSheets();
     const { user } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
     const [searchTermGroupHead, setSearchTermGroupHead] = useState('');
+    const [searchTermGroupMaster, setSearchTermGroupMaster] = useState('');
     const [searchTermProductName, setSearchTermProductName] = useState('');
     const [searchTermUOM, setSearchTermUOM] = useState('');
     const [searchTermFirmName, setSearchTermFirmName] = useState('');
@@ -40,6 +43,50 @@ export default () => {
     const [searchTermIndenter, setSearchTermIndenter] = useState('');
     const [historyData, setHistoryData] = useState<any[]>([]);
     const [historyLoading, setHistoryLoading] = useState(false);
+    const [availableQtyByProduct, setAvailableQtyByProduct] = useState<Map<string, number>>(new Map());
+
+    // Available Qty per product: HOD Check history qty (Received only) minus
+    // Issue Data history's Given Qty — same logic as the Inventory/Store Issue pages.
+    useEffect(() => {
+        const fetchAvailableQty = async () => {
+            try {
+                const [storeInRecords, issueRecords] = await Promise.all([
+                    fetchStoreInRecords(),
+                    fetchIssueRecords(),
+                ]);
+
+                const latestRecords: typeof storeInRecords = [];
+                const seen = new Set<string>();
+                for (const item of storeInRecords) {
+                    const key = `${item.indentNo}-${item.productName}`;
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        latestRecords.push(item);
+                    }
+                }
+                const historyRecords = latestRecords.filter(
+                    r => r.actual6 !== '' && r.receivingStatus !== 'Not Received'
+                );
+
+                const qtyByProduct = new Map<string, number>();
+                for (const r of historyRecords) {
+                    const key = (r.productName || '').trim().toLowerCase();
+                    qtyByProduct.set(key, (qtyByProduct.get(key) || 0) + (Number(r.qty) || 0));
+                }
+
+                for (const i of issueRecords.filter(i => i.planned1 && i.actual1)) {
+                    const key = (i.product_name || '').trim().toLowerCase();
+                    qtyByProduct.set(key, (qtyByProduct.get(key) || 0) - (Number(i.given_qty) || 0));
+                }
+
+                setAvailableQtyByProduct(qtyByProduct);
+            } catch (error) {
+                console.error('Error fetching available qty:', error);
+            }
+        };
+
+        fetchAvailableQty();
+    }, []);
 
     const schema = z.object({
         indenterName: z.string().nonempty(),
@@ -52,6 +99,7 @@ export default () => {
                 z.object({
                     department: z.string().nonempty(),
                     groupHead: z.string().nonempty(),
+                    groupMaster: z.string().nonempty(),
                     productName: z.string().nonempty(),
                     quantity: z.coerce.number().gt(0, 'Must be greater than 0'),
                     minStockQty: z.coerce.number().optional(),
@@ -82,6 +130,7 @@ export default () => {
                     areaOfUse: '',
                     expectedRequirementDate: '',
                     groupHead: '',
+                    groupMaster: '',
                     department: '',
                 },
             ],
@@ -179,6 +228,7 @@ export default () => {
                     department: product.department,
                     area_of_use: product.areaOfUse,
                     group_head: product.groupHead,
+                    group_master: product.groupMaster,
                     product_name: product.productName,
                     quantity: product.quantity,
                     min_stock_qty: product.minStockQty || 0,
@@ -218,6 +268,7 @@ export default () => {
                         areaOfUse: '',
                         expectedRequirementDate: '',
                         groupHead: '',
+                        groupMaster: '',
                         department: '',
                     },
                 ],
@@ -490,6 +541,7 @@ export default () => {
                                             append({
                                                 department: '',
                                                 groupHead: '',
+                                                groupMaster: '',
                                                 productName: '',
                                                 quantity: '' as any,
                                                 minStockQty: 0,
@@ -510,6 +562,10 @@ export default () => {
                                     const currentGroupHead = products[index]?.groupHead;
                                     const groupHeadOptions = options?.allGroupHeads || [];
                                     const productOptions = options?.products[currentGroupHead] || [];
+                                    const selectedProductName = products[index]?.productName;
+                                    const availableQty = selectedProductName
+                                        ? availableQtyByProduct.get(selectedProductName.trim().toLowerCase()) ?? 0
+                                        : null;
 
                                     return (
                                         <div
@@ -550,7 +606,7 @@ export default () => {
                                                                 >
                                                                     <FormControl>
                                                                         <SelectTrigger className="w-full">
-                                                                            <SelectValue placeholder="Select department" />
+                                                                            <SelectValue placeholder="Select Category" />
                                                                         </SelectTrigger>
                                                                     </FormControl>
                                                                     <SelectContent>
@@ -610,7 +666,7 @@ export default () => {
                                                                 >
                                                                     <FormControl>
                                                                         <SelectTrigger className="w-full">
-                                                                            <SelectValue placeholder="Select group head" />
+                                                                            <SelectValue placeholder="Select Department" />
                                                                         </SelectTrigger>
                                                                     </FormControl>
                                                                     <SelectContent>
@@ -644,6 +700,66 @@ export default () => {
                                                                                     value={gh}
                                                                                 >
                                                                                     {gh}
+                                                                                </SelectItem>
+                                                                            ))}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`products.${index}.groupMaster`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel>
+                                                                    Group Master
+                                                                    <span className="text-destructive">
+                                                                        *
+                                                                    </span>
+                                                                </FormLabel>
+                                                                <Select
+                                                                    onValueChange={(val) => {
+                                                                        field.onChange(val);
+                                                                    }}
+                                                                    value={field.value}
+                                                                >
+                                                                    <FormControl>
+                                                                        <SelectTrigger className="w-full">
+                                                                            <SelectValue placeholder="Select Group Master" />
+                                                                        </SelectTrigger>
+                                                                    </FormControl>
+                                                                    <SelectContent>
+                                                                        <div className="flex items-center border-b px-3 pb-3">
+                                                                            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                            <input
+                                                                                placeholder="Search group master..."
+                                                                                value={searchTermGroupMaster}
+                                                                                onChange={(e) =>
+                                                                                    setSearchTermGroupMaster(
+                                                                                        e.target.value
+                                                                                    )
+                                                                                }
+                                                                                onKeyDown={(e) =>
+                                                                                    e.stopPropagation()
+                                                                                }
+                                                                                className="flex h-10 w-full rounded-md border-0 bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground"
+                                                                            />
+                                                                        </div>
+                                                                        {(options?.groupMasters || [])
+                                                                            .filter((gm) =>
+                                                                                gm
+                                                                                    .toLowerCase()
+                                                                                    .includes(
+                                                                                        searchTermGroupMaster.toLowerCase()
+                                                                                    )
+                                                                            )
+                                                                            .map((gm, i) => (
+                                                                                <SelectItem
+                                                                                    key={i}
+                                                                                    value={gm}
+                                                                                >
+                                                                                    {gm}
                                                                                 </SelectItem>
                                                                             ))}
                                                                     </SelectContent>
@@ -842,6 +958,13 @@ export default () => {
                                                         )}
                                                     />
                                                 </div>
+
+                                                {availableQty !== null && (
+                                                    <p className="text-xs text-muted-foreground -mt-2">
+                                                        Available Qty for <span className="font-medium text-foreground">{selectedProductName}</span>: <span className="font-semibold text-foreground">{availableQty}</span>
+                                                    </p>
+                                                )}
+
                                                 <FormField
                                                     control={form.control}
                                                     name={`products.${index}.attachment`}

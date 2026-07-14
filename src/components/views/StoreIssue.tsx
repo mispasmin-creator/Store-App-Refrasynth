@@ -25,6 +25,7 @@ import { useEffect, useState } from 'react';
 import { fetchIssueRecords, createIssueRecords, type IssueRecord } from '@/services/issueService';
 import { fetchInventoryRecords, type InventoryRecord } from '@/services/inventoryService';
 import { fetchMasterOptions, type MasterData } from '@/services/masterService';
+import { fetchStoreInRecords } from '@/services/storeInService';
 import { useAuth } from '@/context/AuthContext';
 
 export default () => {
@@ -33,18 +34,48 @@ export default () => {
     const [inventoryData, setInventoryData] = useState<InventoryRecord[]>([]);
     const [options, setOptions] = useState<MasterData | null>(null);
     const [dataLoading, setDataLoading] = useState(true);
+    const [availableQtyByProduct, setAvailableQtyByProduct] = useState<Map<string, number>>(new Map());
 
     const fetchData = async () => {
         try {
             setDataLoading(true);
-            const [issues, inventory, masterOptions] = await Promise.all([
+            const [issues, inventory, masterOptions, storeInRecords] = await Promise.all([
                 fetchIssueRecords(),
                 fetchInventoryRecords(),
                 fetchMasterOptions(),
+                fetchStoreInRecords(),
             ]);
             setIssueData(issues);
             setInventoryData(inventory);
             setOptions(masterOptions);
+
+            // Available Qty per product: HOD Check history qty (Received only, same
+            // logic as the Inventory page's Avil Qty) minus Issue Data history's Given Qty.
+            const latestRecords: typeof storeInRecords = [];
+            const seen = new Set<string>();
+            for (const item of storeInRecords) {
+                const key = `${item.indentNo}-${item.productName}`;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    latestRecords.push(item);
+                }
+            }
+            const historyRecords = latestRecords.filter(
+                r => r.actual6 !== '' && r.receivingStatus !== 'Not Received'
+            );
+
+            const qtyByProduct = new Map<string, number>();
+            for (const r of historyRecords) {
+                const key = (r.productName || '').trim().toLowerCase();
+                qtyByProduct.set(key, (qtyByProduct.get(key) || 0) + (Number(r.qty) || 0));
+            }
+
+            for (const i of issues.filter(i => i.planned1 && i.actual1)) {
+                const key = (i.product_name || '').trim().toLowerCase();
+                qtyByProduct.set(key, (qtyByProduct.get(key) || 0) - (Number(i.given_qty) || 0));
+            }
+
+            setAvailableQtyByProduct(qtyByProduct);
         } catch (error) {
             console.error('Error fetching data for StoreIssue:', error);
         } finally {
@@ -179,6 +210,10 @@ export default () => {
                             const groupHead = products[index]?.groupHead;
                             const groupHeadOptions = options?.allGroupHeads || [];
                             const productOptions = options?.products[groupHead] || [];
+                            const selectedProductName = products[index]?.productName;
+                            const availableQty = selectedProductName
+                                ? availableQtyByProduct.get(selectedProductName.trim().toLowerCase()) ?? 0
+                                : null;
 
                             return (
                                 <div
@@ -207,7 +242,7 @@ export default () => {
                                                         >
                                                             <FormControl>
                                                                 <SelectTrigger className="w-full">
-                                                                    <SelectValue placeholder="Select department" />
+                                                                    <SelectValue placeholder="Select Category" />
                                                                 </SelectTrigger>
                                                             </FormControl>
                                                             <SelectContent>
@@ -252,7 +287,7 @@ export default () => {
                                                         >
                                                             <FormControl>
                                                                 <SelectTrigger className="w-full">
-                                                                    <SelectValue placeholder="Select group head" />
+                                                                    <SelectValue placeholder="Select Department" />
                                                                 </SelectTrigger>
                                                             </FormControl>
                                                             <SelectContent>
@@ -395,6 +430,12 @@ export default () => {
                                                 )}
                                             />
                                         </div>
+
+                                        {availableQty !== null && (
+                                            <p className="text-xs text-muted-foreground -mt-2">
+                                                Available Qty for <span className="font-medium text-foreground">{selectedProductName}</span>: <span className="font-semibold text-foreground">{availableQty}</span>
+                                            </p>
+                                        )}
 
                                         {/* Second row for Location and other fields if needed */}
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
