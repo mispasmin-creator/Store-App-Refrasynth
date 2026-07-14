@@ -32,6 +32,7 @@ import {
     updateIssueApproval,
     type IssueRecord
 } from '@/services/issueService';
+import { fetchStoreInRecords } from '@/services/storeInService';
 
 export default function IssueData() {
     const { user } = useAuth();
@@ -40,6 +41,7 @@ export default function IssueData() {
     const [selectedIssue, setSelectedIssue] = useState<IssueRecord | null>(null);
     const [openDialog, setOpenDialog] = useState(false);
     const [downloading, setDownloading] = useState(false);
+    const [availableQtyByProduct, setAvailableQtyByProduct] = useState<Map<string, number>>(new Map());
 
     const fetchData = async () => {
         setDataLoading(true);
@@ -61,6 +63,49 @@ export default function IssueData() {
     useEffect(() => {
         fetchData();
     }, [user.firmNameMatch]);
+
+    // Available Qty per product: HOD Check history qty (Received only) minus
+    // Issue Data history's Given Qty — same logic as the Inventory/Store Issue pages.
+    useEffect(() => {
+        const fetchAvailableQty = async () => {
+            try {
+                const [storeInRecords, issueRecords] = await Promise.all([
+                    fetchStoreInRecords(),
+                    fetchIssueRecords(),
+                ]);
+
+                const latestRecords: typeof storeInRecords = [];
+                const seen = new Set<string>();
+                for (const item of storeInRecords) {
+                    const key = `${item.indentNo}-${item.productName}`;
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        latestRecords.push(item);
+                    }
+                }
+                const historyRecords = latestRecords.filter(
+                    r => r.actual6 !== '' && r.receivingStatus !== 'Not Received'
+                );
+
+                const qtyByProduct = new Map<string, number>();
+                for (const r of historyRecords) {
+                    const key = (r.productName || '').trim().toLowerCase();
+                    qtyByProduct.set(key, (qtyByProduct.get(key) || 0) + (Number(r.qty) || 0));
+                }
+
+                for (const i of issueRecords.filter(i => i.planned1 && i.actual1)) {
+                    const key = (i.product_name || '').trim().toLowerCase();
+                    qtyByProduct.set(key, (qtyByProduct.get(key) || 0) - (Number(i.given_qty) || 0));
+                }
+
+                setAvailableQtyByProduct(qtyByProduct);
+            } catch (error) {
+                console.error('Error fetching available qty:', error);
+            }
+        };
+
+        fetchAvailableQty();
+    }, []);
 
     const pendingData = useMemo(() => {
         return allData.filter(i => i.planned1 && !i.actual1);
@@ -127,7 +172,6 @@ export default function IssueData() {
         { accessorKey: 'product_name', header: 'Product Name' },
         { accessorKey: 'quantity', header: 'Quantity' },
         { accessorKey: 'department', header: 'Department' },
-        { accessorKey: 'location', header: 'Location' },
         {
             accessorKey: 'planned1',
             header: 'Planned Date',
@@ -143,7 +187,6 @@ export default function IssueData() {
         { accessorKey: 'product_name', header: 'Product Name' },
         { accessorKey: 'quantity', header: 'Quantity' },
         { accessorKey: 'department', header: 'Department' },
-        { accessorKey: 'location', header: 'Location' },
         { accessorKey: 'status', header: 'Status' },
         { accessorKey: 'given_qty', header: 'Given Qty' },
         {
@@ -181,6 +224,15 @@ export default function IssueData() {
     async function onSubmit(values: z.infer<typeof schema>) {
         try {
             if (!selectedIssue) return;
+
+            if (values.status === 'Yes') {
+                const key = (selectedIssue.product_name || '').trim().toLowerCase();
+                const availableQty = availableQtyByProduct.get(key) ?? 0;
+                if (availableQty <= 0) {
+                    toast.error(`No stock available for ${selectedIssue.product_name}`);
+                    return;
+                }
+            }
 
             const currentDateTime = new Date().toISOString();
 

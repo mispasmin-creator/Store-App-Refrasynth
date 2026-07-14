@@ -143,6 +143,47 @@ export default () => {
         name: 'products',
     });
 
+    // Fetch indenter names for a selected firm and auto-fill if only one exists
+    const handleFirmSelect = async (val: string) => {
+        form.setValue('firmName', val);
+        form.setValue('indenterName', '');
+        setIndenterOptions([]);
+        setIndenterLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from('master')
+                .select('indenter_name')
+                .eq('firm_name', val);
+
+            if (!error && data) {
+                // Deduplicate indenter names
+                const unique = Array.from(
+                    new Set(
+                        data
+                            .map((r: any) => r.indenter_name)
+                            .filter(Boolean)
+                    )
+                ) as string[];
+                setIndenterOptions(unique);
+                if (unique.length === 1) {
+                    form.setValue('indenterName', unique[0]);
+                }
+            }
+        } catch (err) {
+            console.error('Error fetching indenter names:', err);
+        } finally {
+            setIndenterLoading(false);
+        }
+    };
+
+    // Auto-select the firm when only one option is available
+    useEffect(() => {
+        const firms = options?.firms || [];
+        if (firms.length === 1 && !form.getValues('firmName')) {
+            handleFirmSelect(firms[0]);
+        }
+    }, [options?.firms]);
+
     // Helper: Generate next indent number from Supabase
     const getNextIndentNumber = async (): Promise<string> => {
         try {
@@ -379,37 +420,7 @@ export default () => {
                                                 <span className="text-destructive">*</span>
                                             </FormLabel>
                                             <Select
-                                                onValueChange={async (val) => {
-                                                    field.onChange(val);
-                                                    form.setValue('indenterName', '');
-                                                    setIndenterOptions([]);
-                                                    setIndenterLoading(true);
-                                                    try {
-                                                        const { data, error } = await supabase
-                                                            .from('master')
-                                                            .select('indenter_name')
-                                                            .eq('firm_name', val);
-
-                                                        if (!error && data) {
-                                                            // Deduplicate indenter names
-                                                            const unique = Array.from(
-                                                                new Set(
-                                                                    data
-                                                                        .map((r: any) => r.indenter_name)
-                                                                        .filter(Boolean)
-                                                                )
-                                                            ) as string[];
-                                                            setIndenterOptions(unique);
-                                                            if (unique.length === 1) {
-                                                                form.setValue('indenterName', unique[0]);
-                                                            }
-                                                        }
-                                                    } catch (err) {
-                                                        console.error('Error fetching indenter names:', err);
-                                                    } finally {
-                                                        setIndenterLoading(false);
-                                                    }
-                                                }}
+                                                onValueChange={(val) => handleFirmSelect(val)}
                                                 value={field.value}
                                             >
                                                 <FormControl>

@@ -133,6 +133,19 @@ export default () => {
 
     async function onSubmit(data: z.infer<typeof schema>) {
         try {
+            for (const product of data.products) {
+                const key = product.productName.trim().toLowerCase();
+                const availableQty = availableQtyByProduct.get(key) ?? 0;
+                if (availableQty <= 0) {
+                    toast.error(`No stock available for ${product.productName}`);
+                    return;
+                }
+                if (product.quantity > availableQty) {
+                    toast.error(`Only ${availableQty} in stock for ${product.productName}`);
+                    return;
+                }
+            }
+
             const getNextIssueNumber = (existingIssues: IssueRecord[]) => {
                 if (!Array.isArray(existingIssues) || existingIssues.length === 0) return 'IS-0001';
 
