@@ -249,6 +249,7 @@ export type MasterSheet = {
     locations: string[];
     allGroupHeads: string[];
     groupMasters: string[];
+    areasOfUse: string[];
 
     firmCompanyMap: Record<string, { companyName: string; companyAddress: string; destinationAddress: string; }>;
 };

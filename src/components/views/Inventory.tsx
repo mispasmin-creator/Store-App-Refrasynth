@@ -67,14 +67,14 @@ export default () => {
             const [records, issueRecords, { data: masterRows }, { data: indentRows }, { data: invRows }] = await Promise.all([
                 fetchStoreInRecords(),
                 fetchIssueRecords(),
-                supabase.from('master').select('item_name, group_head, group_master'),
+                supabase.from('master').select('item_name, group_name, department'),
                 supabase.from('indent').select('product_name, uom'),
                 supabase.from('inventory').select('item_name, min_qty_req'),
             ]);
 
             // Item-level metadata isn't stored on store_in rows — look it up by product/item name.
-            // Department is shown from the master table's group_head column,
-            // Group Master is shown from the master table's group_master column,
+            // Department is shown from the master table's group_name column,
+            // Group Master is shown from the master table's department column,
             // UOM is shown from the indent table's uom column,
             // Min Qty Req is shown from the inventory table's min_qty_req column.
             const departmentByName = new Map<string, string>();
@@ -82,8 +82,8 @@ export default () => {
             for (const m of masterRows || []) {
                 const key = (m.item_name || '').trim().toLowerCase();
                 if (key && !departmentByName.has(key)) {
-                    departmentByName.set(key, m.group_head || '');
-                    groupMasterByName.set(key, m.group_master || '');
+                    departmentByName.set(key, m.group_name || '');
+                    groupMasterByName.set(key, m.department || '');
                 }
             }
 
@@ -247,8 +247,8 @@ export default () => {
         },
         { accessorKey: 'uom', header: 'UOM' },
         { accessorKey: 'loc', header: 'LOC' },
-        { accessorKey: 'groupMaster', header: 'Group Master' },
-        { accessorKey: 'department', header: 'Department' },
+        { accessorKey: 'groupMaster', header: 'Department' },
+        { accessorKey: 'department', header: 'Group' },
         {
             accessorKey: 'current',
             header: 'Avil Qty',

@@ -126,7 +126,7 @@ export default () => {
                 indentNo: r.indent_number || '',
                 firmNameMatch: r.firm_name_match || r.firm_name || '',
                 indenter: r.indenter_name || '',
-                department: r.department || '',
+                department: r.category || '',
                 product: r.product_name || '',
                 quantity: r.approved_quantity || 0,
                 uom: r.uom || '',
@@ -174,7 +174,7 @@ export default () => {
                 indentNo: r.indent_number || '',
                 firmNameMatch: r.firm_name_match || r.firm_name || '',
                 indenter: r.indenter_name || '',
-                department: r.department || '',
+                department: r.category || '',
                 product: r.product_name || '',
                 quantity: r.approved_quantity || r.quantity || 0,
                 uom: r.uom || '',
@@ -425,7 +425,7 @@ export default () => {
         },
         {
             accessorKey: 'department',
-            header: 'Department',
+            header: 'Category',
         },
         {
             accessorKey: 'specifications',
@@ -518,7 +518,7 @@ export default () => {
         },
         {
             accessorKey: 'department',
-            header: 'Department',
+            header: 'Category',
         },
         {
             accessorKey: 'specifications',

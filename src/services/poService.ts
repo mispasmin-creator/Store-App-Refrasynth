@@ -126,7 +126,8 @@ export async function fetchMasterData() {
     try {
         const { data: records, error } = await supabase
             .from('master')
-            .select('*');
+            .select('*')
+            .order('id', { ascending: true });
 
         if (error) throw error;
 
@@ -162,6 +163,15 @@ export async function fetchMasterData() {
         // Extract payment terms
         const paymentTerms = Array.from(new Set(records.map(r => r.payment_term).filter(Boolean)));
 
+        // Extract default terms - each row can hold one term, so collect all non-empty values
+        const defaultTerms = Array.from(
+            new Set(
+                records
+                    .map(r => (typeof r.default_terms === 'string' ? r.default_terms.trim() : ''))
+                    .filter(Boolean)
+            )
+        );
+
         // Firm to Company Mapping
         const firmCompanyMap: Record<string, any> = {};
         records.forEach(r => {
@@ -183,7 +193,7 @@ export async function fetchMasterData() {
 
         return {
             destinationAddress: firstWithCompany.destination_address || '',
-            defaultTerms: firstWithCompany.default_terms ? firstWithCompany.default_terms.split('\n') : [],
+            defaultTerms,
             vendors: uniqueVendors,
             firmCompanyMap,
             companyName: firstWithCompany.company_name || '',

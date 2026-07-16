@@ -37,6 +37,7 @@ export default () => {
     const [searchTermProductName, setSearchTermProductName] = useState('');
     const [searchTermUOM, setSearchTermUOM] = useState('');
     const [searchTermFirmName, setSearchTermFirmName] = useState('');
+    const [searchTermAreaOfUse, setSearchTermAreaOfUse] = useState('');
 
     const [indenterOptions, setIndenterOptions] = useState<string[]>([]);
     const [indenterLoading, setIndenterLoading] = useState(false);
@@ -266,10 +267,10 @@ export default () => {
                     planned1: new Date().toISOString(),
                     indent_number: nextIndentNumber,
                     indenter_name: data.indenterName,
-                    department: product.department,
+                    category: product.department,
                     area_of_use: product.areaOfUse,
-                    group_head: product.groupHead,
-                    group_master: product.groupMaster,
+                    group_name: product.groupHead,
+                    department: product.groupMaster,
                     product_name: product.productName,
                     quantity: product.quantity,
                     min_stock_qty: product.minStockQty || 0,
@@ -370,7 +371,7 @@ export default () => {
         },
         {
             accessorKey: 'department',
-            header: 'Department',
+            header: 'Category',
         },
         {
             accessorKey: 'product_name',
@@ -660,7 +661,7 @@ export default () => {
                                                     />
                                                     <FormField
                                                         control={form.control}
-                                                        name={`products.${index}.groupHead`}
+                                                        name={`products.${index}.groupMaster`}
                                                         render={({ field }) => (
                                                             <FormItem>
                                                                 <FormLabel>
@@ -684,67 +685,7 @@ export default () => {
                                                                         <div className="flex items-center border-b px-3 pb-3">
                                                                             <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                                                                             <input
-                                                                                placeholder="Search group heads..."
-                                                                                value={searchTermGroupHead}
-                                                                                onChange={(e) =>
-                                                                                    setSearchTermGroupHead(
-                                                                                        e.target.value
-                                                                                    )
-                                                                                }
-                                                                                onKeyDown={(e) =>
-                                                                                    e.stopPropagation()
-                                                                                }
-                                                                                className="flex h-10 w-full rounded-md border-0 bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground"
-                                                                            />
-                                                                        </div>
-                                                                        {groupHeadOptions
-                                                                            .filter((gh) =>
-                                                                                gh
-                                                                                    .toLowerCase()
-                                                                                    .includes(
-                                                                                        searchTermGroupHead.toLowerCase()
-                                                                                    )
-                                                                            )
-                                                                            .map((gh, i) => (
-                                                                                <SelectItem
-                                                                                    key={i}
-                                                                                    value={gh}
-                                                                                >
-                                                                                    {gh}
-                                                                                </SelectItem>
-                                                                            ))}
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    <FormField
-                                                        control={form.control}
-                                                        name={`products.${index}.groupMaster`}
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel>
-                                                                    Group Master
-                                                                    <span className="text-destructive">
-                                                                        *
-                                                                    </span>
-                                                                </FormLabel>
-                                                                <Select
-                                                                    onValueChange={(val) => {
-                                                                        field.onChange(val);
-                                                                    }}
-                                                                    value={field.value}
-                                                                >
-                                                                    <FormControl>
-                                                                        <SelectTrigger className="w-full">
-                                                                            <SelectValue placeholder="Select Group Master" />
-                                                                        </SelectTrigger>
-                                                                    </FormControl>
-                                                                    <SelectContent>
-                                                                        <div className="flex items-center border-b px-3 pb-3">
-                                                                            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                                                                            <input
-                                                                                placeholder="Search group master..."
+                                                                                placeholder="Search department..."
                                                                                 value={searchTermGroupMaster}
                                                                                 onChange={(e) =>
                                                                                     setSearchTermGroupMaster(
@@ -780,6 +721,66 @@ export default () => {
                                                     />
                                                     <FormField
                                                         control={form.control}
+                                                        name={`products.${index}.groupHead`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel>
+                                                                    Group
+                                                                    <span className="text-destructive">
+                                                                        *
+                                                                    </span>
+                                                                </FormLabel>
+                                                                <Select
+                                                                    onValueChange={(val) => {
+                                                                        field.onChange(val);
+                                                                    }}
+                                                                    value={field.value}
+                                                                >
+                                                                    <FormControl>
+                                                                        <SelectTrigger className="w-full">
+                                                                            <SelectValue placeholder="Select Group" />
+                                                                        </SelectTrigger>
+                                                                    </FormControl>
+                                                                    <SelectContent>
+                                                                        <div className="flex items-center border-b px-3 pb-3">
+                                                                            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                            <input
+                                                                                placeholder="Search groups..."
+                                                                                value={searchTermGroupHead}
+                                                                                onChange={(e) =>
+                                                                                    setSearchTermGroupHead(
+                                                                                        e.target.value
+                                                                                    )
+                                                                                }
+                                                                                onKeyDown={(e) =>
+                                                                                    e.stopPropagation()
+                                                                                }
+                                                                                className="flex h-10 w-full rounded-md border-0 bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground"
+                                                                            />
+                                                                        </div>
+                                                                        {groupHeadOptions
+                                                                            .filter((gh) =>
+                                                                                gh
+                                                                                    .toLowerCase()
+                                                                                    .includes(
+                                                                                        searchTermGroupHead.toLowerCase()
+                                                                                    )
+                                                                            )
+                                                                            .map((gh, i) => (
+                                                                                <SelectItem
+                                                                                    key={i}
+                                                                                    value={gh}
+                                                                                >
+                                                                                    {gh}
+                                                                                </SelectItem>
+                                                                            ))}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    <FormField
+                                                        control={form.control}
                                                         name={`products.${index}.areaOfUse`}
                                                         render={({ field }) => (
                                                             <FormItem>
@@ -789,12 +790,39 @@ export default () => {
                                                                         *
                                                                     </span>
                                                                 </FormLabel>
-                                                                <FormControl>
-                                                                    <Input
-                                                                        placeholder="Enter area of use"
-                                                                        {...field}
-                                                                    />
-                                                                </FormControl>
+                                                                <Select
+                                                                    onValueChange={field.onChange}
+                                                                    value={field.value}
+                                                                >
+                                                                    <FormControl>
+                                                                        <SelectTrigger className="w-full">
+                                                                            <SelectValue placeholder="Select Area of Use" />
+                                                                        </SelectTrigger>
+                                                                    </FormControl>
+                                                                    <SelectContent>
+                                                                        <div className="flex items-center border-b px-3 pb-3">
+                                                                            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                            <input
+                                                                                placeholder="Search Area of Use..."
+                                                                                value={searchTermAreaOfUse}
+                                                                                onChange={(e) => setSearchTermAreaOfUse(e.target.value)}
+                                                                                onKeyDown={(e) => e.stopPropagation()}
+                                                                                className="flex h-10 w-full rounded-md border-0 bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground"
+                                                                            />
+                                                                        </div>
+                                                                        {(options?.areasOfUse || [])
+                                                                            .filter((area) =>
+                                                                                area
+                                                                                    .toLowerCase()
+                                                                                    .includes(searchTermAreaOfUse.toLowerCase())
+                                                                            )
+                                                                            .map((area, i) => (
+                                                                                <SelectItem key={i} value={area}>
+                                                                                    {area}
+                                                                                </SelectItem>
+                                                                            ))}
+                                                                    </SelectContent>
+                                                                </Select>
                                                             </FormItem>
                                                         )}
                                                     />

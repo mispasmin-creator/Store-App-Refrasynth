@@ -37,7 +37,7 @@ export async function fetchInventoryRecords(): Promise<InventoryRecord[]> {
 
         return (data || []).map((row: any) => ({
             itemName: row.item_name || '',
-            groupHead: row.group_head || '',
+            groupHead: row.group_name || '',
             uom: row.uom || '',
             opening: Number(row.opening) || 0,
             rate: Number(row.rate) || 0,

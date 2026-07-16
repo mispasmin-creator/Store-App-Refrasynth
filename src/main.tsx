@@ -168,7 +168,7 @@ const routes: RouteAttributes[] = [
     {
         path: 'approve-indent',
         gateKey: 'indentApprovalView',
-        name: 'Department Indent Approval',
+        name: 'Group Indent Approval',
         icon: <CheckSquare size={20} />,
         element: <ApproveIndent />,
         notifications: (sheets: any[], user: any) => {

@@ -33,6 +33,7 @@ export interface MasterData {
     fmsNames: string[];
     locations: string[];
     allGroupHeads: string[];
+    areasOfUse: string[];
     firmCompanyMap: Record<string, { companyName: string; companyAddress: string; destinationAddress: string; }>;
 }
 
@@ -43,20 +44,29 @@ export async function fetchMasterOptions(): Promise<MasterData> {
     try {
         const { data, error } = await supabase
             .from('master')
-            .select('*');
+            .select('*')
+            .order('id', { ascending: true });
 
         if (error) throw error;
 
         const records = data || [];
 
-        const departments = Array.from(new Set(records.map(r => r.department).filter(Boolean)));
+        const departments = Array.from(new Set(records.map(r => r.category).filter(Boolean)));
         const uoms = Array.from(new Set(records.map(r => r.uom).filter(Boolean)));
         const firms = Array.from(new Set(records.map(r => r.firm_name).filter(Boolean)));
         const fmsNames = Array.from(new Set(records.map(r => r.fms_name).filter(Boolean)));
         const paymentTerms = Array.from(new Set(records.map(r => r.payment_term).filter(Boolean)));
+        const defaultTerms = Array.from(
+            new Set(
+                records
+                    .map(r => (typeof r.default_terms === 'string' ? r.default_terms.trim() : ''))
+                    .filter(Boolean)
+            )
+        );
         const locations = Array.from(new Set(records.map(r => r.where).filter(Boolean)));
-        const allGroupHeads = Array.from(new Set(records.map(r => r.group_head).filter(Boolean))).sort();
-        const groupMasters = Array.from(new Set(records.map(r => r.group_master).filter(Boolean))).sort();
+        const allGroupHeads = Array.from(new Set(records.map(r => r.group_name).filter(Boolean))).sort();
+        const groupMasters = Array.from(new Set(records.map(r => r.department).filter(Boolean))).sort();
+        const areasOfUse = Array.from(new Set(records.map(r => r.area_of_use).filter(Boolean))).sort();
 
         // Aggregate vendors
         const vendors = records
@@ -77,20 +87,20 @@ export async function fetchMasterOptions(): Promise<MasterData> {
         const groupHeads: Record<string, string[]> = {};
         const products: Record<string, string[]> = {};
         records.forEach(r => {
-            if (r.department && r.group_head) {
-                if (!groupHeads[r.department]) {
-                    groupHeads[r.department] = [];
+            if (r.category && r.group_name) {
+                if (!groupHeads[r.category]) {
+                    groupHeads[r.category] = [];
                 }
-                if (!groupHeads[r.department].includes(r.group_head)) {
-                    groupHeads[r.department].push(r.group_head);
+                if (!groupHeads[r.category].includes(r.group_name)) {
+                    groupHeads[r.category].push(r.group_name);
                 }
             }
-            if (r.group_head && r.item_name) {
-                if (!products[r.group_head]) {
-                    products[r.group_head] = [];
+            if (r.group_name && r.item_name) {
+                if (!products[r.group_name]) {
+                    products[r.group_name] = [];
                 }
-                if (!products[r.group_head].includes(r.item_name)) {
-                    products[r.group_head].push(r.item_name);
+                if (!products[r.group_name].includes(r.item_name)) {
+                    products[r.group_name].push(r.item_name);
                 }
             }
         });
@@ -114,6 +124,7 @@ export async function fetchMasterOptions(): Promise<MasterData> {
             departments,
             groupHeads,
             allGroupHeads,
+            areasOfUse,
             groupMasters,
             products,
             uoms,
@@ -131,7 +142,7 @@ export async function fetchMasterOptions(): Promise<MasterData> {
             billingAddress: firstWithCompany.billing_address || '',
             companyPan: firstWithCompany.company_pan || '',
             destinationAddress: firstWithCompany.destination_address || '',
-            defaultTerms: firstWithCompany.default_terms ? firstWithCompany.default_terms.split('\n') : [],
+            defaultTerms,
             firmCompanyMap,
         };
     } catch (error) {
@@ -140,6 +151,7 @@ export async function fetchMasterOptions(): Promise<MasterData> {
             departments: [],
             groupHeads: {},
             allGroupHeads: [],
+            areasOfUse: [],
             groupMasters: [],
             products: {},
             uoms: [],

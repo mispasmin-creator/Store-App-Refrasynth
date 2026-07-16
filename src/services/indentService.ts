@@ -86,7 +86,7 @@ export async function fetchIndentRecords(): Promise<IndentRecord[]> {
             id: r.id, // Added
             indent_number: r.indent_number || '',
             indenter_name: r.indenter_name || '',
-            department: r.department || '',
+            department: r.category || '',
             product_name: r.product_name || '',
             quantity: Number(r.quantity) || 0,
             uom: r.uom || '',
@@ -134,7 +134,7 @@ export async function fetchIndentRecords(): Promise<IndentRecord[]> {
             vendor2_rank: r.vendor2_rank || '',
             vendor3_rank: r.vendor3_rank || '',
             expected_req_date: r.expected_req_date || '',
-            group_head: r.group_head || '',
+            group_head: r.group_name || '',
             firm_name: r.firm_name || r.firm_name_match || '',
         }));
     } catch (error) {

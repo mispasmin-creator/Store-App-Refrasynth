@@ -235,7 +235,7 @@ export default function ApproveIndent() {
             ]),
         { accessorKey: 'firm_name_match', header: 'Firm Name' },
         { accessorKey: 'indenter_name', header: 'Indenter' },
-        { accessorKey: 'department', header: 'Department' },
+        { accessorKey: 'department', header: 'Category' },
         {
             accessorKey: 'specifications',
             header: 'Specifications',
@@ -314,7 +314,7 @@ export default function ApproveIndent() {
         { accessorKey: 'indent_number', header: 'Indent No.' },
         { accessorKey: 'firm_name_match', header: 'Firm Name' },
         { accessorKey: 'indenter_name', header: 'Indenter' },
-        { accessorKey: 'department', header: 'Department' },
+        { accessorKey: 'department', header: 'Category' },
         {
             accessorKey: 'product_name',
             header: 'Product',

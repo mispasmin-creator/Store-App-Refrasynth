@@ -197,7 +197,7 @@ export default () => {
             : []),
         { accessorKey: 'indentNo', header: 'Indent No.' },
         { accessorKey: 'indenter', header: 'Indenter' },
-        { accessorKey: 'department', header: 'Department' },
+        { accessorKey: 'department', header: 'Category' },
         { accessorKey: 'product', header: 'Item' },
         { accessorKey: 'date', header: 'Date' },
         {
@@ -221,7 +221,7 @@ export default () => {
     const historyColumns: ColumnDef<HistoryData>[] = [
         { accessorKey: 'indentNo', header: 'Indent No.' },
         { accessorKey: 'indenter', header: 'Indenter' },
-        { accessorKey: 'department', header: 'Department' },
+        { accessorKey: 'department', header: 'Category' },
         { accessorKey: 'product', header: 'Item' },
         { accessorKey: 'uom', header: 'UOM' },
         { accessorKey: 'quantity', header: 'Issued Quantity' },

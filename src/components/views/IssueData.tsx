@@ -167,11 +167,11 @@ export default function IssueData() {
             : []),
         { accessorKey: 'issue_no', header: 'Issue No' },
         { accessorKey: 'issue_to', header: 'Issue to' },
-        { accessorKey: 'group_head', header: 'Group Head' },
+        { accessorKey: 'group_head', header: 'Group' },
         { accessorKey: 'uom', header: 'Uom' },
         { accessorKey: 'product_name', header: 'Product Name' },
         { accessorKey: 'quantity', header: 'Quantity' },
-        { accessorKey: 'department', header: 'Department' },
+        { accessorKey: 'department', header: 'Category' },
         {
             accessorKey: 'planned1',
             header: 'Planned Date',
@@ -182,11 +182,11 @@ export default function IssueData() {
     const historyColumns: ColumnDef<IssueRecord>[] = [
         { accessorKey: 'issue_no', header: 'Issue No' },
         { accessorKey: 'issue_to', header: 'Issue to' },
-        { accessorKey: 'group_head', header: 'Group Head' },
+        { accessorKey: 'group_head', header: 'Group' },
         { accessorKey: 'uom', header: 'Uom' },
         { accessorKey: 'product_name', header: 'Product Name' },
         { accessorKey: 'quantity', header: 'Quantity' },
-        { accessorKey: 'department', header: 'Department' },
+        { accessorKey: 'department', header: 'Category' },
         { accessorKey: 'status', header: 'Status' },
         { accessorKey: 'given_qty', header: 'Given Qty' },
         {

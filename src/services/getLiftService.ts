@@ -140,7 +140,7 @@ export async function fetchIndentRecords() {
             approvedRate: r.approved_rate || '',
             taxValue: Number(r.tax_value4) || 0,
             withTax: r.with_tax_or_not4 || 'No',
-            department: r.department || '',
+            department: r.category || '',
             areaOfUse: r.area_of_use || '',
             timestamp: r.timestamp || '',
             expectedDate: r.expected_req_date || '',

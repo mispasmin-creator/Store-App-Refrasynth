@@ -386,7 +386,7 @@ export default function GetPurchase() {
             user?.firmNameMatch?.toLowerCase() === 'all' || sheet.firmNameMatch === user?.firmNameMatch
         );
         const completedIndents = filteredByFirm.filter(sheet =>
-            sheet.liftingStatus === 'Complete' && sheet.planned5 && sheet.planned5.toString().trim() !== ''
+            sheet.planned5 && sheet.planned5.toString().trim() !== ''
         );
         const indentDataMap = new Map(completedIndents.map(sheet => [
             `${sheet.indentNumber?.toString() || ''}_${sheet.firmNameMatch || ''}`,
@@ -1283,7 +1283,7 @@ x
                                         <FormField control={form.control} name="billAmount" render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>Bill Amount (₹) <span className="text-destructive">*</span></FormLabel>
-                                                <FormControl><Input type="number" {...field} className="h-10" /></FormControl>
+                                                <FormControl><Input type="number" {...field} className="h-10" disabled={!user?.administrate} /></FormControl>
                                                 <FormMessage />
                                             </FormItem>
                                         )} />
