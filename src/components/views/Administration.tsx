@@ -78,6 +78,7 @@ const STEP_PERMISSIONS: { step: string; group: string; view?: string; action: st
 
     // Audit & Finance
     { step: 'Make Payment',              group: 'Audit & Finance',  action: 'makePayment' },
+    { step: 'Process for Payment / Debit Note', group: 'Audit & Finance', action: 'paymentStatus' },
     { step: 'Again Auditing',            group: 'Audit & Finance',  action: 'againAuditing' },
     { step: 'Take Entry By Telly',       group: 'Audit & Finance',  action: 'takeEntryByTelly' },
     { step: 'Re-audit Data',             group: 'Audit & Finance',  action: 'reauditData' },

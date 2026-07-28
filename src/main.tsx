@@ -427,6 +427,7 @@ const routes: RouteAttributes[] = [
     },
     {
         path: 'Payment-Status',
+        gateKey: 'paymentStatus',
         name: 'Process for Payment / Debit Note',
         icon: <RefreshCw size={20} />,
         element: <PaymentStatus />,

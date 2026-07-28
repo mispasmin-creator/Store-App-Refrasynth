@@ -298,6 +298,7 @@ export type UserPermissions = {
     pendingPo: boolean;
     fullKiting: boolean;
     makePayment: boolean;
+    paymentStatus: boolean;
 };
 
 export interface PaymentsSheet {
@@ -366,6 +367,7 @@ export const allPermissionKeys = [
     "pendingPo",
     "fullKiting",
     "makePayment",
+    "paymentStatus",
 ] as const;
 
 
