@@ -57,20 +57,20 @@ const STEP_PERMISSIONS: { step: string; group: string; view?: string; action: st
 
     // Procurement
     { step: 'Create Indent',             group: 'Procurement & PO', action: 'createIndent' },
-    { step: 'Indent Approval',           group: 'Procurement & PO', view: 'indentApprovalView',      action: 'indentApprovalAction' },
+    { step: 'Group Indent Approval',     group: 'Procurement & PO', view: 'indentApprovalView',      action: 'indentApprovalAction' },
     { step: 'Pending Indents',           group: 'Procurement & PO', action: 'pendingIndentsView' },
-    { step: 'Update Vendor / Rate',      group: 'Procurement & PO', view: 'updateVendorView',         action: 'updateVendorAction' },
-    { step: 'Three Party Approval',      group: 'Procurement & PO', view: 'threePartyApprovalView',   action: 'threePartyApprovalAction' },
+    { step: 'Vendor Rate Update',        group: 'Procurement & PO', view: 'updateVendorView',         action: 'updateVendorAction' },
+    { step: 'Technical / Mgmt Approval', group: 'Procurement & PO', view: 'threePartyApprovalView',   action: 'threePartyApprovalAction' },
     { step: 'Create PO',                 group: 'Procurement & PO', action: 'createPo' },
-    { step: 'Pending PO',                group: 'Procurement & PO', action: 'pendingPo' },
+    { step: 'Pending PO to be Created',  group: 'Procurement & PO', action: 'pendingPo' },
     { step: 'PO History',                group: 'Procurement & PO', action: 'poHistory' },
 
     // Store
-    { step: 'Lifting',                   group: 'Store & Inventory', action: 'ordersView' },
+    { step: 'Material Receipt / Store In', group: 'Store & Inventory', action: 'ordersView' },
     { step: 'Receive Item',              group: 'Store & Inventory', view: 'receiveItemView',          action: 'receiveItemAction' },
-    { step: 'Store Check',               group: 'Store & Inventory', action: 'storeIn' },
+    { step: 'HOD Check',                 group: 'Store & Inventory', action: 'storeIn' },
     { step: 'Transporting Update',       group: 'Store & Inventory', action: 'hodStoreApproval' },
-    { step: 'Full Kitting',              group: 'Store & Inventory', action: 'fullKiting' },
+    { step: 'Freight Payment',           group: 'Store & Inventory', action: 'fullKiting' },
     { step: 'Store Out Approval',        group: 'Store & Inventory', view: 'storeOutApprovalView',     action: 'storeOutApprovalAction' },
     { step: 'Store Issue',               group: 'Store & Inventory', action: 'storeIssue' },
     { step: 'Issue Data',                group: 'Store & Inventory', action: 'issueData' },
@@ -86,7 +86,7 @@ const STEP_PERMISSIONS: { step: string; group: string; view?: string; action: st
     { step: 'Send Debit Note',           group: 'Audit & Finance',  action: 'sendDebitNote' },
     { step: 'Return Material to Party',  group: 'Audit & Finance',  action: 'returnMaterialToParty' },
     { step: 'Exchange Materials',        group: 'Audit & Finance',  action: 'exchangeMaterials' },
-    { step: 'Quality Check Override',    group: 'Audit & Finance',  action: 'insteadOfQualityCheckInReceivedItem' },
+    { step: 'Reject For GRN',            group: 'Audit & Finance',  action: 'insteadOfQualityCheckInReceivedItem' },
     { step: 'DB for PC',                 group: 'Audit & Finance',  action: 'dbForPc' },
 ];
 
