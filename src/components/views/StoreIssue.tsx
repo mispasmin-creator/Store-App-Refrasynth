@@ -88,6 +88,7 @@ export default () => {
     }, []);
 
     const [searchTerm, setSearchTerm] = useState('');
+    const [searchTermGroupMaster, setSearchTermGroupMaster] = useState('');
     const [searchTermGroupHead, setSearchTermGroupHead] = useState('');
     const [searchTermProductName, setSearchTermProductName] = useState('');
     const [searchTermUOM, setSearchTermUOM] = useState('');
@@ -98,6 +99,7 @@ export default () => {
             .array(
                 z.object({
                     department: z.string().nonempty(),
+                    groupMaster: z.string().nonempty(),
                     groupHead: z.string().nonempty(),
                     productName: z.string().nonempty(),
                     quantity: z.coerce.number().gt(0, 'Must be greater than 0'),
@@ -118,6 +120,7 @@ export default () => {
                     productName: '',
                     specifications: '',
                     quantity: 1,
+                    groupMaster: '',
                     groupHead: '',
                     department: '',
                 },
@@ -192,6 +195,7 @@ export default () => {
                         productName: '',
                         specifications: '',
                         quantity: 1,
+                        groupMaster: '',
                         groupHead: '',
                         department: '',
                     },
@@ -238,7 +242,7 @@ export default () => {
                                     </div>
                                     <div className="grid gap-4">
                                         {/* Increased grid columns to accommodate location */}
-                                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                                             {/* Department Field */}
                                             <FormField
                                                 control={form.control}
@@ -284,10 +288,10 @@ export default () => {
                                                 )}
                                             />
 
-                                            {/* Group Head Field */}
+                                            {/* Group Master Field */}
                                             <FormField
                                                 control={form.control}
-                                                name={`products.${index}.groupHead`}
+                                                name={`products.${index}.groupMaster`}
                                                 render={({ field }) => (
                                                     <FormItem>
                                                         <FormLabel>
@@ -307,7 +311,52 @@ export default () => {
                                                                 <div className="flex items-center border-b px-3 pb-3">
                                                                     <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                                                                     <input
-                                                                        placeholder="Search group heads..."
+                                                                        placeholder="Search department..."
+                                                                        value={searchTermGroupMaster}
+                                                                        onChange={(e) => setSearchTermGroupMaster(e.target.value)}
+                                                                        onKeyDown={(e) => e.stopPropagation()}
+                                                                        className="flex h-10 w-full rounded-md border-0 bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground"
+                                                                    />
+                                                                </div>
+                                                                {(options?.groupMasters || [])
+                                                                    .filter((gm) =>
+                                                                        gm.toLowerCase().includes(searchTermGroupMaster.toLowerCase())
+                                                                    )
+                                                                    .map((gm, i) => (
+                                                                        <SelectItem key={i} value={gm}>
+                                                                            {gm}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </FormItem>
+                                                )}
+                                            />
+
+                                            {/* Group Head Field */}
+                                            <FormField
+                                                control={form.control}
+                                                name={`products.${index}.groupHead`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>
+                                                            Group
+                                                            <span className="text-destructive">*</span>
+                                                        </FormLabel>
+                                                        <Select
+                                                            onValueChange={field.onChange}
+                                                            value={field.value}
+                                                        >
+                                                            <FormControl>
+                                                                <SelectTrigger className="w-full">
+                                                                    <SelectValue placeholder="Select Group" />
+                                                                </SelectTrigger>
+                                                            </FormControl>
+                                                            <SelectContent>
+                                                                <div className="flex items-center border-b px-3 pb-3">
+                                                                    <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                    <input
+                                                                        placeholder="Search groups..."
                                                                         value={searchTermGroupHead}
                                                                         onChange={(e) => setSearchTermGroupHead(e.target.value)}
                                                                         onKeyDown={(e) => e.stopPropagation()}

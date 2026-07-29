@@ -214,6 +214,25 @@ export default function IssueData() {
                 message: 'Given quantity is required when status is Yes',
             });
         }
+        if (data.status === 'Yes' && data.givenQty && selectedIssue) {
+            if (data.givenQty > selectedIssue.quantity) {
+                ctx.addIssue({
+                    path: ['givenQty'],
+                    code: z.ZodIssueCode.custom,
+                    message: `Cannot exceed requested quantity (${selectedIssue.quantity})`,
+                });
+            }
+
+            const key = (selectedIssue.product_name || '').trim().toLowerCase();
+            const availableQty = availableQtyByProduct.get(key) ?? 0;
+            if (data.givenQty > availableQty) {
+                ctx.addIssue({
+                    path: ['givenQty'],
+                    code: z.ZodIssueCode.custom,
+                    message: `Cannot exceed available stock (${availableQty})`,
+                });
+            }
+        }
     });
 
     const form = useForm<z.infer<typeof schema>>({
@@ -255,7 +274,13 @@ export default function IssueData() {
 
     function onError(e: FieldErrors<z.infer<typeof schema>>) {
         console.log(e);
-        toast.error('Please fill all required fields');
+        if (e.givenQty?.message) {
+            toast.error(e.givenQty.message);
+        } else if (e.status?.message) {
+            toast.error(e.status.message);
+        } else {
+            toast.error('Please fill all required fields');
+        }
     }
 
     return (

@@ -165,7 +165,7 @@ interface GetPurchaseData {
     receivedQty?: number; pendingPoQty?: number; plannedDate?: string; approvedRate?: string;
     timestamp?: string; department?: string; areaOfUse?: string; approvedVendorName?: string;
     liftingStatus?: string; products?: string[]; indentNumbers?: string[]; expectedDate?: string;
-    originalItems?: any[];
+    originalItems?: any[]; poCopy?: string;
 }
 
 interface HistoryData {
@@ -177,7 +177,7 @@ interface HistoryData {
     qty?: number; billNo?: string; billStatus?: string; typeOfBill?: string; billAmount?: number;
     transportationInclude?: string; transporterName?: string; vehicleNo?: string; driverName?: string;
     driverMobileNo?: string; amount?: number; billRemark?: string; approvedRate?: string;
-    taxValue?: number; withTax?: string;
+    taxValue?: number; withTax?: string; poCopy?: string;
 }
 
 interface SIPendingData {
@@ -361,7 +361,7 @@ export default function GetPurchase() {
                     approvedVendorName: item.approvedVendorName || '', liftingStatus: item.liftingStatus || '',
                     indentNumbers: [], products: [],
                     expectedDate: item.expectedDate ? formatDate(parseCustomDate(item.expectedDate)) : '',
-                    rawExpectedDate: item.expectedDate || null, originalItems: [],
+                    rawExpectedDate: item.expectedDate || null, originalItems: [], poCopy: item.poCopy || '',
                 });
             }
             const group = groupedMap.get(key);
@@ -422,7 +422,7 @@ export default function GetPurchase() {
                         driverName: sheet.driverName || '', driverMobileNo: sheet.driverMobileNo || '',
                         amount: sheet.amount || 0, billRemark: sheet.billRemark || '',
                         approvedRate: indentRecord?.approvedRate || '', taxValue: indentRecord?.taxValue || 0,
-                        withTax: indentRecord?.withTax || 'No',
+                        withTax: indentRecord?.withTax || 'No', poCopy: indentRecord?.poCopy || '',
                     };
                 })
                 .sort((a, b) => b.indentNo.localeCompare(a.indentNo))
@@ -557,7 +557,7 @@ export default function GetPurchase() {
         billAmount: z.coerce.number().min(0.01, 'Bill amount is required'),
         billRemark: z.string().optional(),
         vendorName: z.string().optional(),
-        billCopy: z.instanceof(File).optional(),
+        billCopy: z.instanceof(File, { message: 'Bill copy is required' }),
         receivingStatus: z.string().optional(),
         location: z.string().min(1, 'Storage location is required'),
         photoOfProduct: z.instanceof(File, { message: 'Photo of product is required' }),
@@ -837,6 +837,7 @@ export default function GetPurchase() {
         { accessorKey: 'vendorName', header: 'Vendor' },
         { accessorKey: 'photoOfBill', header: 'Bill Photo', cell: ({ getValue }) => { const url = getValue() as string; return url ? <Button variant="outline" size="sm" onClick={() => window.open(url, '_blank')}>View</Button> : <span className="text-muted-foreground text-xs">-</span>; } },
         { accessorKey: 'poNumber', header: 'PO Number' },
+        { accessorKey: 'poCopy', header: 'PO Copy', cell: ({ getValue }) => { const url = getValue() as string; return url ? <Button variant="outline" size="sm" onClick={() => window.open(url, '_blank')}>View</Button> : <span className="text-muted-foreground text-xs">-</span>; } },
         { accessorKey: 'pendingLiftQty', header: 'Pending Qty', cell: ({ getValue }) => <div className="text-center">{(getValue() as number) || 0}</div> },
         { accessorKey: 'receivedQty', header: 'Received Qty', cell: ({ getValue }) => <div className="text-center text-green-600 font-medium">{(getValue() as number) || 0}</div> },
     ];
@@ -908,6 +909,7 @@ export default function GetPurchase() {
         billNo?: string;
         billStatus?: string;
         billAmount?: number;
+        poCopy?: string;
         liftData?: GetPurchaseData;
         siData?: SIPendingData;
     }
@@ -923,6 +925,7 @@ export default function GetPurchase() {
             pendingQty: r.pendingLiftQty || 0,
             expectedDate: r.expectedDate || '',
             plannedDate: r.plannedDate || '',
+            poCopy: r.poCopy || '',
             liftData: r,
         }));
         return liftRows;
@@ -972,6 +975,10 @@ export default function GetPurchase() {
         {
             accessorKey: 'poNumber', header: 'PO Number',
             cell: ({ getValue }) => <div className="font-bold text-primary">{(getValue() as string) || '-'}</div>,
+        },
+        {
+            accessorKey: 'poCopy', header: 'PO Copy',
+            cell: ({ getValue }) => { const url = getValue() as string; return url ? <Button variant="outline" size="sm" onClick={() => window.open(url, '_blank')}>View</Button> : <span className="text-muted-foreground text-xs">-</span>; }
         },
         {
             accessorKey: 'vendorName', header: 'Vendor',
@@ -1295,10 +1302,11 @@ x
                                         )} />
                                         <FormField control={form.control} name="billCopy" render={({ field: { onChange, ...field } }) => (
                                             <FormItem>
-                                                <FormLabel>Bill Copy (Image/PDF)</FormLabel>
+                                                <FormLabel>Bill Copy (Image/PDF) <span className="text-destructive">*</span></FormLabel>
                                                 <FormControl>
                                                     <Input type="file" accept="image/*,.pdf" onChange={e => onChange(e.target.files?.[0])} {...field} value={undefined} />
                                                 </FormControl>
+                                                <FormMessage />
                                             </FormItem>
                                         )} />
                                     </div>

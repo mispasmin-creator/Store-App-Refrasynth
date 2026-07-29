@@ -34,6 +34,7 @@ export interface GetLiftIndentRecord {
     receivedQuantity: number;
     uom: string;
     approvedTransportType: string;
+    poCopy?: string;
 }
 
 export interface GetLiftStoreInRecord {
@@ -155,6 +156,7 @@ export async function fetchIndentRecords() {
                 // Fallback: if no ranking set (Regular vendor), use vendor1 transport type
                 return r.transport_type1 || '';
             })(),
+            poCopy: r.po_copy || '',
         }));
     } catch (error) {
         console.error('Error fetching indent records:', error);
