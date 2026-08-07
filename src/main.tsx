@@ -52,6 +52,7 @@ import {
     BarChart,
     FileWarning,
     Activity,
+    Database,
 } from 'lucide-react';
 import type { UserPermissions } from './types/sheets';
 import Administration from './components/views/Administration';
@@ -60,6 +61,7 @@ import CreatePO from './components/views/CreatePO';
 import PendingIndents from './components/views/PendingIndents';
 import Order from './components/views/Order';
 import Inventory from './components/views/Inventory';
+import Master from './components/views/Master';
 import POMaster from './components/views/POMaster';
 import StoreIssue from './components/views/StoreIssue';
 import QuantityCheckInReceiveItem from './components/views/QuantityCheckInReceiveItem';
@@ -153,6 +155,14 @@ const routes: RouteAttributes[] = [
         gateKey: 'inventory',
         icon: <Store size={20} />,
         element: <Inventory />,
+        notifications: () => 0,
+    },
+
+    {
+        path: 'master',
+        name: 'Master',
+        icon: <Database size={20} />,
+        element: <Master />,
         notifications: () => 0,
     },
 
