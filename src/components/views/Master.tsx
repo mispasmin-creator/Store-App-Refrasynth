@@ -5,6 +5,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { Database, MoreHorizontal, Pencil, Plus, Trash } from 'lucide-react';
 import DataTable from '../element/DataTable';
 import { supabase } from '@/lib/supabase';
+import { fetchMasterRecords } from '@/services/masterService';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -84,15 +85,8 @@ export default () => {
     const fetchData = async () => {
         try {
             setDataLoading(true);
-            const { data, error } = await supabase
-                .from('master')
-                .select('*')
-                .order('id', { ascending: true });
-
-            if (error) throw error;
-
             setTableData(
-                (data || []).map((r: any) => ({
+                (await fetchMasterRecords()).map((r: any) => ({
                     id: r.id,
                     itemName: r.item_name || '',
                     uom: r.uom || '',

@@ -27,9 +27,11 @@ import { useSheets } from '@/context/SheetsContext';
 import Heading from '../element/Heading';
 import { fetchStoreInRecords } from '@/services/storeInService';
 import { fetchIssueRecords } from '@/services/issueService';
+import { fetchMasterOptions, type MasterData } from '@/services/masterService';
 
 export default () => {
-    const { masterSheet: options } = useSheets();
+    const { masterSheet } = useSheets();
+    const [options, setOptions] = useState<MasterData | undefined>(masterSheet);
     const { user } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
     const [searchTermGroupHead, setSearchTermGroupHead] = useState('');
@@ -45,6 +47,19 @@ export default () => {
     const [historyData, setHistoryData] = useState<any[]>([]);
     const [historyLoading, setHistoryLoading] = useState(false);
     const [availableQtyByProduct, setAvailableQtyByProduct] = useState<Map<string, number>>(new Map());
+
+    // Refresh master options whenever Create Indent opens so newly added products
+    // are available even if the app-level cached options have not refreshed yet.
+    useEffect(() => {
+        let isActive = true;
+        fetchMasterOptions().then((freshOptions) => {
+            if (isActive) setOptions(freshOptions);
+        });
+
+        return () => {
+            isActive = false;
+        };
+    }, []);
 
     // Available Qty per product: HOD Check history qty (Received only) minus
     // Issue Data history's Given Qty — same logic as the Inventory/Store Issue pages.
