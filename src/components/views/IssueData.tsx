@@ -47,9 +47,11 @@ export default function IssueData() {
         setDataLoading(true);
         try {
             const records = await fetchIssueRecords();
-            // Filter by firm name
+            // Filter by firm name. The issue table has no firm column, so records
+            // without a firm are visible to every user (otherwise non-"all" users see nothing).
+            const userFirm = (user.firmNameMatch || '').toLowerCase();
             const filteredByFirm = records.filter(item => {
-                return user.firmNameMatch.toLowerCase() === "all" || item.firm_name_match === user.firmNameMatch;
+                return userFirm === "all" || !item.firm_name_match || item.firm_name_match === user.firmNameMatch;
             });
             setAllData(filteredByFirm);
         } catch (error) {

@@ -141,7 +141,7 @@ const routes: RouteAttributes[] = [
         element: <IssueData />,
         notifications: (issueSheet: any[], user: any) =>
             issueSheet.filter((sheet: any) =>
-                (!user || (user.firmNameMatch || '').toLowerCase() === "all" || (sheet.firmNameMatch || sheet.firm_name_match) === user.firmNameMatch) &&
+                (!user || (user.firmNameMatch || '').toLowerCase() === "all" || !(sheet.firmNameMatch || sheet.firm_name_match) || (sheet.firmNameMatch || sheet.firm_name_match) === user.firmNameMatch) &&
                 sheet.planned1 &&
                 sheet.planned1.toString().trim() !== '' &&
                 (!sheet.actual1 || sheet.actual1.toString().trim() === '')
