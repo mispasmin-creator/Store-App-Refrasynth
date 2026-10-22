@@ -23,6 +23,7 @@ import Heading from '../element/Heading';
 import { useEffect, useState } from 'react';
 
 import { fetchIssueRecords, createIssueRecords, type IssueRecord } from '@/services/issueService';
+import { issuedStockByProduct, stockProductKey } from '@/lib/issueStock';
 import { fetchInventoryRecords, type InventoryRecord } from '@/services/inventoryService';
 import { fetchMasterOptions, type MasterData } from '@/services/masterService';
 import { fetchStoreInRecords } from '@/services/storeInService';
@@ -66,13 +67,12 @@ export default () => {
 
             const qtyByProduct = new Map<string, number>();
             for (const r of historyRecords) {
-                const key = (r.productName || '').trim().toLowerCase();
+                const key = stockProductKey(r.productName || '');
                 qtyByProduct.set(key, (qtyByProduct.get(key) || 0) + (Number(r.qty) || 0));
             }
 
-            for (const i of issues.filter(i => i.planned1 && i.actual1)) {
-                const key = (i.product_name || '').trim().toLowerCase();
-                qtyByProduct.set(key, (qtyByProduct.get(key) || 0) - (Number(i.given_qty) || 0));
+            for (const [key, quantity] of issuedStockByProduct(issues)) {
+                qtyByProduct.set(key, (qtyByProduct.get(key) || 0) - quantity);
             }
 
             setAvailableQtyByProduct(qtyByProduct);
@@ -137,7 +137,7 @@ export default () => {
     async function onSubmit(data: z.infer<typeof schema>) {
         try {
             for (const product of data.products) {
-                const key = product.productName.trim().toLowerCase();
+                const key = stockProductKey(product.productName);
                 const availableQty = availableQtyByProduct.get(key) ?? 0;
                 if (availableQty <= 0) {
                     toast.error(`No stock available for ${product.productName}`);

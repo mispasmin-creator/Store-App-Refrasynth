@@ -33,6 +33,7 @@ import {
     type IssueRecord
 } from '@/services/issueService';
 import { fetchStoreInRecords } from '@/services/storeInService';
+import { issuedStockByProduct, stockProductKey } from '@/lib/issueStock';
 
 export default function IssueData() {
     const { user } = useAuth();
@@ -91,13 +92,12 @@ export default function IssueData() {
 
                 const qtyByProduct = new Map<string, number>();
                 for (const r of historyRecords) {
-                    const key = (r.productName || '').trim().toLowerCase();
+                    const key = stockProductKey(r.productName || '');
                     qtyByProduct.set(key, (qtyByProduct.get(key) || 0) + (Number(r.qty) || 0));
                 }
 
-                for (const i of issueRecords.filter(i => i.planned1 && i.actual1)) {
-                    const key = (i.product_name || '').trim().toLowerCase();
-                    qtyByProduct.set(key, (qtyByProduct.get(key) || 0) - (Number(i.given_qty) || 0));
+                for (const [key, quantity] of issuedStockByProduct(issueRecords)) {
+                    qtyByProduct.set(key, (qtyByProduct.get(key) || 0) - quantity);
                 }
 
                 setAvailableQtyByProduct(qtyByProduct);
@@ -107,7 +107,7 @@ export default function IssueData() {
         };
 
         fetchAvailableQty();
-    }, []);
+    }, [allData]);
 
     const pendingData = useMemo(() => {
         return allData.filter(i => i.planned1 && !i.actual1);
@@ -225,7 +225,7 @@ export default function IssueData() {
                 });
             }
 
-            const key = (selectedIssue.product_name || '').trim().toLowerCase();
+            const key = stockProductKey(selectedIssue.product_name || '');
             const availableQty = availableQtyByProduct.get(key) ?? 0;
             if (data.givenQty > availableQty) {
                 ctx.addIssue({
@@ -247,7 +247,7 @@ export default function IssueData() {
             if (!selectedIssue) return;
 
             if (values.status === 'Yes') {
-                const key = (selectedIssue.product_name || '').trim().toLowerCase();
+                const key = stockProductKey(selectedIssue.product_name || '');
                 const availableQty = availableQtyByProduct.get(key) ?? 0;
                 if (availableQty <= 0) {
                     toast.error(`No stock available for ${selectedIssue.product_name}`);
@@ -257,7 +257,7 @@ export default function IssueData() {
 
             const currentDateTime = new Date().toISOString();
 
-            await updateIssueApproval(selectedIssue.issue_no, {
+            await updateIssueApproval(selectedIssue.id, {
                 actual1: currentDateTime,
                 status: values.status,
                 given_qty: values.status === 'Yes' ? values.givenQty : null,

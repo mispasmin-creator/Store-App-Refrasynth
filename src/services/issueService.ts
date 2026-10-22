@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 // ==================== INTERFACES ====================
 
 export interface IssueRecord {
+    id: number;
     issue_no: string;
     issue_to: string;
     uom: string;
@@ -38,7 +39,8 @@ export async function fetchIssueRecords(): Promise<IssueRecord[]> {
 
         if (error) throw error;
 
-        return (data || []).map((r: any) => ({
+        return (data || []).map((r) => ({
+            id: r.id,
             issue_no: r.issue_no || '',
             issue_to: r.issue_to || '',
             uom: r.uom || '',
@@ -68,7 +70,7 @@ export async function fetchIssueRecords(): Promise<IssueRecord[]> {
  * @param updateData - Data to update
  */
 export async function updateIssueApproval(
-    issue_no: string,
+    id: number,
     updateData: {
         actual1: string;
         status: string;
@@ -76,16 +78,21 @@ export async function updateIssueApproval(
     }
 ) {
     try {
-        const { error } = await supabase
+        if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Invalid issue record. Refresh and try again.');
+        if (updateData.status === 'Yes' && (!Number.isFinite(updateData.given_qty) || Number(updateData.given_qty) <= 0)) throw new Error('Given quantity must be greater than zero.');
+        const { data, error } = await supabase
             .from('issue')
             .update({
                 actual1: updateData.actual1,
                 status: updateData.status,
-                given_qty: updateData.given_qty,
+                given_qty: updateData.status === 'Yes' ? updateData.given_qty : null,
             })
-            .eq('issue_no', issue_no);
+            .eq('id', id)
+            .or('actual1.is.null,actual1.eq.')
+            .select('id');
 
         if (error) throw error;
+        if (data?.length !== 1) throw new Error('Issue was already updated or is unavailable. Refresh and try again.');
 
         return true;
     } catch (error) {

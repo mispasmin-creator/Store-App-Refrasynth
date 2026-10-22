@@ -26,6 +26,8 @@ export interface IndentRecord {
     actual1: string;
     firm_name_match: string;
     approved_quantity: number;
+    approved_rate?: number;
+    approved_vendor_name?: string;
     timestamp: string;
     price: number;
     total_rate: number;
@@ -101,6 +103,8 @@ export async function fetchIndentRecords(): Promise<IndentRecord[]> {
             actual1: r.actual1 || '',
             firm_name_match: r.firm_name || r.firm_name_match || '',
             approved_quantity: Number(r.approved_quantity) || 0,
+            approved_rate: r.approved_rate == null ? undefined : Number(r.approved_rate),
+            approved_vendor_name: r.approved_vendor_name || '',
             timestamp: r.timestamp || '',
             price: Number(r.price) || 0,
             total_rate: Number(r.total_rate) || 0,

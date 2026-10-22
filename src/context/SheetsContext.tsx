@@ -223,7 +223,8 @@ export const SheetsProvider = ({ children }: { children: React.ReactNode }) => {
                     actual2: r.actual2,
                     planned3: r.planned3,
                     actual3: r.actual3,
-                    approvedVendorName: r.vendor_name || '',
+                    approvedVendorName: r.approved_vendor_name || r.vendor_name || '',
+                    approvedRate: r.approved_rate,
                     planned4: r.planned4,
                     actual4: r.actual4,
                     poNumber: r.po_number,
@@ -446,6 +447,7 @@ export const SheetsProvider = ({ children }: { children: React.ReactNode }) => {
                     planned5: r.planned5,
                     actual5: r.actual5,
                     status5: r.status5,
+                    remarks5: r.remarks5,
                     firmNameMatch: r.firmNameMatch,
                     id: r.id,
                     // Additional fields from join

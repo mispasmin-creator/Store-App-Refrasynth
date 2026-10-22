@@ -1,0 +1,3 @@
+[functions.audit-automation]
+# Requests authenticate with a server-only worker secret, never an anonymous browser key.
+verify_jwt = false

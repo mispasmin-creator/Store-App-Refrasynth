@@ -1,4 +1,6 @@
 import { supabase } from '@/lib/supabase';
+import { auditStage, moneyMatches } from '@/lib/auditWorkflow';
+import { receiptKey, uniqueReceipts, sameAuditSnapshot, type AuditSnapshot } from '@/lib/auditRecords';
 
 /**
  * TallyEntry Service
@@ -83,25 +85,20 @@ export async function fetchTallyEntryRecords(): Promise<TallyEntryRecord[]> {
         // Fetch additional details from store_in table
         const { data: storeData, error: storeError } = await supabase
             .from('store_in')
-            .select('lift_number, indent_no, hod_status, hod_remark, damage_order, quantity_as_per_bill, bill_received2, receiving_status, received_quantity');
+            .select('firm_name_match, po_number, product_name, lift_number, indent_no, hod_status, hod_remark, damage_order, quantity_as_per_bill, price_as_per_po_check, bill_received2, receiving_status, received_quantity');
 
         if (storeError) {
             console.warn('⚠️ Error fetching supplementary store_in data:', storeError);
         }
 
         // Map store_in data with trimmed keys for better matching
-        const storeMap = new Map();
-        (storeData || []).forEach(item => {
-            const key = `${String(item.lift_number || '').trim()}-${String(item.indent_no || '').trim()}`;
-            storeMap.set(key, item);
-        });
+        const storeMap = uniqueReceipts(storeData || []);
 
         console.log(`📊 Fetched ${tallyData?.length || 0} tally entries and ${storeData?.length || 0} store_in records for join.`);
 
-        return (tallyData || []).map((r: any) => {
-            const liftKey = String(r.lift_number || '').trim();
-            const indentKey = String(r.indent_number || '').trim();
-            const storeInfo = storeMap.get(`${liftKey}-${indentKey}`);
+        return (tallyData || []).map((r) => {
+            const key = receiptKey(r, true);
+            const storeInfo = key ? storeMap.get(key) : null;
 
             return {
                 id: r.id,
@@ -156,7 +153,7 @@ export async function fetchTallyEntryRecords(): Promise<TallyEntryRecord[]> {
                 // Use Store In supplementary data if available
                 damageOrder: storeInfo?.damage_order || '',
                 quantityAsPerBill: storeInfo?.quantity_as_per_bill || '',
-                priceAsPerPoCheck: storeInfo?.bill_received2 || '',
+                priceAsPerPoCheck: storeInfo?.price_as_per_po_check || storeInfo?.bill_received2 || '',
                 hodStatus: storeInfo?.hod_status || r.hod_status || 'Pending',
                 hodRemark: storeInfo?.hod_remark || r.hod_remark || '',
                 receivingStatus: storeInfo?.receiving_status || r.receiving_status || '',
@@ -178,15 +175,35 @@ export async function fetchTallyEntryRecords(): Promise<TallyEntryRecord[]> {
  */
 export async function updateTallyEntryRecord(
     id: number,
-    updates: Record<string, any>
+    updates: Record<string, unknown>,
+    expected?: Record<string, string>,
+    expectedSnapshot?: AuditSnapshot
 ) {
     try {
-        const { error } = await supabase
+        let snapshot: Record<string, unknown> | undefined;
+        if (expected) {
+            const { data, error } = await supabase.from('tally_entry').select('*').eq('id', id).single();
+            if (error) throw error;
+            if (!data || auditStage(data) !== 'TALLY_ENTRY') throw new Error('Record is no longer awaiting Tally Entry. Refresh and try again.');
+            snapshot = data;
+            if (expectedSnapshot && !sameAuditSnapshot(data, expectedSnapshot)) throw new Error('Bill changed while this form was open. Refresh before saving the voucher.');
+            for (const [field, value] of Object.entries(expected)) {
+                if (field === 'bill_amt' ? !moneyMatches(data[field], value) : String(data[field] ?? '') !== value) throw new Error('Bill changed since this form was opened. Refresh and try again.');
+            }
+        }
+        let query = supabase
             .from('tally_entry')
             .update(updates)
             .eq('id', id);
-
+        if (expected) {
+            for (const field of ['status1', 'status2', 'status3', 'status4', 'status5', 'actual1', 'actual2', 'actual3', 'actual4', 'actual5', 'bill_no', 'bill_amt', 'qty', 'rate', 'bill_image', 'product_name', 'party_name', 'po_number', 'lift_number', 'indent_number', 'firm_name_match', 'remarks4']) {
+                const value = snapshot?.[field];
+                query = value === null || value === undefined ? query.is(field, null) : query.eq(field, value);
+            }
+        }
+        const { data, error } = await query.select('id');
         if (error) throw error;
+        if (!data?.length) throw new Error('Record changed or update is not permitted. Refresh and try again.');
 
         return true;
     } catch (error) {
