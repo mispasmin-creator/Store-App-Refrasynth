@@ -18,6 +18,25 @@ export type LiftingProgress = { ordered: number; current: number; lifted: number
 export type VoucherProof = { kind: 'tally-voucher'; voucherNo: string; voucherDate: string; proofUrl: string; remarks: string; enteredBy: string };
 export const norm = (v: unknown) => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
 export const present = (v: unknown) => v !== null && v !== undefined && String(v).trim() !== '';
+// Name tolerance never applies to invoice IDs, quantities, rates or amounts.
+export function nameMatches(a: unknown, b: unknown): boolean {
+  const words = (value: unknown) => norm(value).replace(/\b(pvt|ltd|co|mfg)\./g, '$1')
+    .replace(/&/g, ' and ').replace(/[.,]/g, ' ').split(/\s+/).filter(Boolean)
+    .map(word => ({ pvt: 'private', ltd: 'limited', co: 'company', mfg: 'manufacturing' }[word] || word));
+  const left = words(a), right = words(b);
+  if (!left.length || !right.length) return false;
+  if (left.join('') === right.join('')) return true;
+  if (left.length !== right.length) return false;
+  let typos = 0;
+  return left.every((word, index) => {
+    const other = right[index];
+    if (word === other) return true;
+    // Only one single-letter substitution in a long word; protect grades and digits.
+    if (!/^[a-z]{6,}$/.test(word) || !/^[a-z]{6,}$/.test(other) || word.length !== other.length) return false;
+    const differences = [...word].filter((letter, i) => letter !== other[i]).length;
+    return differences === 1 && ++typos === 1;
+  });
+}
 export function numberValue(v: unknown): number {
   if (!present(v)) return NaN;
   return Number(String(v).replace(/,/g, '').trim());
@@ -58,6 +77,14 @@ export function readVoucher(value: unknown): VoucherProof | null {
     const parsed = JSON.parse(String(value));
     return parsed?.kind === 'tally-voucher' && present(parsed.voucherNo) && present(parsed.voucherDate) && present(parsed.proofUrl) ? parsed : null;
   } catch { return null; }
+}
+export function tallyConfirmed(value: unknown): boolean {
+  try {
+    const entry = JSON.parse(String(value));
+    return entry?.kind === 'tally-confirmation' && entry.answer === 'Yes' &&
+      typeof entry.enteredBy === 'string' && present(entry.enteredBy) &&
+      typeof entry.at === 'string' && Number.isFinite(Date.parse(entry.at));
+  } catch { return false; }
 }
 const legacyHindiDetails: Record<string, string> = {
   'Invoice buyer must match the record firm.': 'बिल और ऐप में कंपनी का नाम अलग है।',
@@ -124,15 +151,57 @@ export function englishCheckDetail(detail: string): string {
 }
 export function englishSummary(report: AuditReport): string {
   if (report.outcome === 'passed') return report.lifting?.valid ? `Checks passed. Lift ${report.lifting.current}; total ${report.lifting.lifted}/${report.lifting.ordered}; pending ${report.lifting.pending}.` : 'All checks passed.';
-  if (report.outcome === 'processing') return 'AI is checking the source documents.';
+  if (report.outcome === 'processing') return 'Checking documents...';
   if (report.outcome === 'error') return !/[\u0900-\u097f]/.test(report.summary) ? report.summary : 'AI check could not be completed. Please retry.';
   const failures = report.checks.filter(c => !c.passed).length;
-  if (failures) return failures + ' issues found. Correction required.';
+  if (failures) return `${failures} ${failures === 1 ? 'issue' : 'issues'}. Correction needed.`;
   if (!/[\u0900-\u097f]/.test(report.summary)) return report.summary;
   return 'AI check could not be completed. Please retry.';
 }
 export function englishReport(report: AuditReport): AuditReport {
   return { ...report, summary: englishSummary(report), checks: report.checks.map(check => ({ ...check, detail: englishCheckDetail(check.detail) })) };
+}
+// Keep the complete checks in the report; shorten only the visible remarks.
+function shortCheckRemark(check: AuditCheck): string {
+  const labels: Record<string, string> = {
+    Firm: 'Company', 'Invoice number': 'Bill no.', 'Lifting bill': 'Lifting bill no.',
+    'Invoice total': 'Amount', 'Invoice line': 'Bill product', 'PO line': 'PO product',
+    'PO quantity': 'PO qty', 'PO lifting total': 'PO lifting', Quantity: 'Qty',
+    'Voucher details': 'Tally voucher',
+  };
+  const messages: Record<string, string> = {
+    'Multiple matching PO lines.': 'Multiple matches; check PO.',
+    'Matching approved receipt missing/ambiguous.': 'Missing or multiple receipts; check source.',
+    'Multiple matching bill products.': 'Multiple matches; check bill.',
+    'PO lifting quantities are missing or invalid.': 'Missing/invalid lifting qty.',
+    'Same invoice found on another entry.': 'Possible duplicate; review entry.',
+    'Same firm/vendor/invoice on another PO or receipt is held for review.': 'Possible duplicate; review entry.',
+    'Tally Entry must include voucher number, date and uploaded proof.': 'Add voucher no., date and proof.',
+    'Tally voucher number, date, company, invoice, vendor, gross total and every product quantity/rate must match.': 'Details differ; check uploaded voucher.',
+  };
+  const detail = englishCheckDetail(check.detail);
+  const legacyIssues: Record<string, string> = {
+    'Bill and app company names differ.': 'Company mismatch.',
+    'Bill, app and PO vendors differ.': 'Vendor mismatch.',
+    'Bill and app invoice numbers differ.': 'Bill no. mismatch.',
+    'Bill and app totals differ.': 'Amount mismatch.',
+    'Bill product missing or ambiguous.': 'Bill product missing / unclear.',
+    'PO product missing or ambiguous.': 'PO product missing / unclear.',
+    'Bill, app and received quantities differ.': 'Qty mismatch.',
+    'Bill quantity exceeds PO or cannot be verified.': 'PO qty exceeded / unverified.',
+    'Bill, app and PO rates differ.': 'Rate mismatch.',
+    'Quantity, physical or price check pending.': 'Store checks pending.',
+  };
+  if (legacyIssues[detail]) return legacyIssues[detail];
+  if (check.name === 'Store checks') {
+    const flags = /^Qty check (.*); physical (.*); price (.*)\.$/.exec(detail);
+    if (flags) {
+      const pending = ['Qty', 'Physical', 'Price'].filter((_, i) => norm(flags[i + 1]) !== 'yes');
+      if (pending.length) return `Store: ${pending.join(', ')} check needed.`;
+    }
+  }
+  const concise = messages[detail] || detail.replace(/; /g, ' / ').replace(/^HOD: /, 'HOD ');
+  return `${labels[check.name] || check.name}: ${concise}`;
 }
 export function remarkText(value: unknown, expectedStage?: AuditStage): string {
   const report = readReport(value);
@@ -140,10 +209,21 @@ export function remarkText(value: unknown, expectedStage?: AuditStage): string {
     if (expectedStage && (['RECTIFY', 'TALLY_ENTRY'].includes(expectedStage) || report.stage !== expectedStage)) return '';
     if (report.outcome === 'error' || report.outcome === 'processing') return englishSummary(report);
     const issues = report.checks.filter(check => !check.passed);
-    if (issues.length) return issues.map((check, index) => (index + 1) + '. ' + check.name + ': ' + englishCheckDetail(check.detail)).join('\n');
+    if (issues.length) return issues.map(shortCheckRemark).join(' | ');
     return englishSummary(report);
   }
   const voucher = readVoucher(value);
+  if (tallyConfirmed(value)) return 'Yes';
+  if (!voucher && expectedStage && ['AUDIT', 'REAUDIT', 'AGAIN_AUDIT'].includes(expectedStage)) {
+    // Older plain-text AI remarks can use the same presentation, without editing human text.
+    const lines = String(value ?? '').split('\n');
+    if (lines.length && lines.every(line => /^\d+\. [^:]+: .+/.test(line))) {
+      return lines.map(line => {
+        const match = /^(\d+)\. ([^:]+): (.+)$/.exec(line)!;
+        return shortCheckRemark({ name: match[2], detail: match[3], passed: false });
+      }).join(' | ');
+    }
+  }
   return voucher ? `Voucher ${voucher.voucherNo} | ${voucher.voucherDate}\n${voucher.remarks}\n${voucher.proofUrl}` : String(value ?? '');
 }
 export function validateDocument(value: unknown): DocumentData {
@@ -173,12 +253,12 @@ export function sourceChecks(row: AuditRow, po: AuditRow[], stores: AuditRow[], 
   const receipts = stores.filter(s => norm(s.firm_name_match) === norm(row.firm_name_match) && norm(s.po_number) === norm(row.po_number) && norm(s.product_name) === norm(row.product_name) && norm(s.lift_number) === norm(row.lift_number) && norm(s.indent_no) === norm(row.indent_number));
   const line = lines.length === 1 ? lines[0] : null;
   const receipt = receipts.length === 1 ? receipts[0] : null;
-  const invoiceItems = bill.items.filter(i => norm(i.product) === norm(row.product_name));
+  const invoiceItems = bill.items.filter(i => nameMatches(i.product, row.product_name));
   const item = invoiceItems.length === 1 ? invoiceItems[0] : null;
-  add('Firm', present(row.firm_name_match) && norm(bill.firmName) === norm(row.firm_name_match), `Bill ${value(bill.firmName)}; app ${value(row.firm_name_match)}.`);
+  add('Firm', present(row.firm_name_match) && nameMatches(bill.firmName, row.firm_name_match), `Bill ${value(bill.firmName)}; app ${value(row.firm_name_match)}.`);
   add('PO line', !!line, lines.length ? 'Multiple matching PO lines.' : `PO product missing: ${value(row.product_name)}.`);
   add('Receipt', !!receipt && norm(receipt.hod_status) === 'approved', !receipt ? 'Matching approved receipt missing/ambiguous.' : `HOD: ${value(receipt.hod_status)}.`);
-  add('Vendor', !!line && norm(row.party_name) === norm(line.party_name) && norm(bill.partyName) === norm(line.party_name), `Bill ${value(bill.partyName)}; PO ${value(line?.party_name)}; app ${value(row.party_name)}.`);
+  add('Vendor', !!line && nameMatches(row.party_name, line.party_name) && nameMatches(bill.partyName, line.party_name), `Bill ${value(bill.partyName)}; PO ${value(line?.party_name)}; app ${value(row.party_name)}.`);
   add('Invoice number', present(row.bill_no) && norm(bill.billNo) === norm(row.bill_no), `Bill ${value(bill.billNo)}; app ${value(row.bill_no)}.`);
   add('Lifting bill', !!receipt && present(receipt.bill_no) && norm(receipt.bill_no) === norm(bill.billNo), `Invoice ${value(bill.billNo)}; lifting bill ${value(receipt?.bill_no)}.`);
   add('Invoice total', numberValue(row.bill_amt) > 0 && moneyMatches(row.bill_amt, bill.total), `Bill ${value(bill.total)}; app ${value(row.bill_amt)}.`);

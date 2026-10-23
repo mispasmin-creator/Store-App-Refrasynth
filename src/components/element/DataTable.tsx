@@ -8,6 +8,8 @@ import {
     getSortedRowModel,
     useReactTable,
     type SortingState,
+    type VisibilityState,
+    type OnChangeFn,
 } from '@tanstack/react-table';
 
 import {
@@ -25,6 +27,8 @@ import { Skeleton } from '../ui/skeleton';
 import { ClipLoader } from 'react-spinners';
 import { ScrollArea } from '../ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { Button } from '../ui/button';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from '../ui/dropdown-menu';
 
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[];
@@ -38,6 +42,9 @@ interface DataTableProps<TData, TValue> {
     onRowSelectionChange?: (updater: any) => void;
     getRowId?: (row: TData) => string;
     meta?: any;
+    enableColumnVisibility?: boolean;
+    columnVisibility?: VisibilityState;
+    onColumnVisibilityChange?: OnChangeFn<VisibilityState>;
 }
 
 function globalFilterFn<TData>(row: TData, columnIds: string[], filterValue: string) {
@@ -61,9 +68,13 @@ export default function DataTable<TData, TValue>({
     onRowSelectionChange,
     getRowId,
     meta,
+    enableColumnVisibility = false,
+    columnVisibility,
+    onColumnVisibilityChange,
 }: DataTableProps<TData, TValue>) {
     const [globalFilter, setGlobalFilter] = useState('');
     const [sorting, setSorting] = useState<SortingState>([]);
+    const [localColumnVisibility, setLocalColumnVisibility] = useState<VisibilityState>({});
     const table = useReactTable({
         data,
         columns,
@@ -75,10 +86,12 @@ export default function DataTable<TData, TValue>({
         getRowId,
         meta,
         onSortingChange: setSorting,
+        onColumnVisibilityChange: onColumnVisibilityChange ?? setLocalColumnVisibility,
         state: {
             globalFilter,
             rowSelection: rowSelection || {},
             sorting,
+            columnVisibility: columnVisibility ?? localColumnVisibility,
         },
         onGlobalFilterChange: setGlobalFilter,
         onRowSelectionChange: onRowSelectionChange,
@@ -86,7 +99,7 @@ export default function DataTable<TData, TValue>({
 
     return (
         <div className="p-5 grid gap-4">
-            <div className="flex items-center w-full gap-3">
+            <div className="flex flex-wrap items-center w-full gap-3">
                 {searchFields.length !== 0 && (
                     <Input
                         placeholder={`Search...`}
@@ -95,8 +108,31 @@ export default function DataTable<TData, TValue>({
                         className="max-w-xs w-full"
                     />
                 )}
-                {(extraActions || _children) && (
+                {(extraActions || _children || enableColumnVisibility) && (
                     <div className="flex items-center gap-2 ml-auto shrink-0">
+                        {enableColumnVisibility && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button type="button" variant="outline">Columns</Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="max-h-80 w-64 overflow-y-auto">
+                                    <DropdownMenuLabel>Show / hide columns</DropdownMenuLabel>
+                                    <DropdownMenuItem onSelect={() => table.resetColumnVisibility(true)}>Show all</DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    {table.getAllLeafColumns().filter(column => column.getCanHide()).map(column => (
+                                        <DropdownMenuCheckboxItem
+                                            key={column.id}
+                                            checked={column.getIsVisible()}
+                                            disabled={column.getIsVisible() && table.getVisibleLeafColumns().length === 1}
+                                            onSelect={event => event.preventDefault()}
+                                            onCheckedChange={value => column.toggleVisibility(value === true)}
+                                        >
+                                            {typeof column.columnDef.header === 'string' ? column.columnDef.header : column.id}
+                                        </DropdownMenuCheckboxItem>
+                                    ))}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
                         {extraActions}
                         {_children}
                     </div>
@@ -152,7 +188,7 @@ export default function DataTable<TData, TValue>({
                             {dataLoading ? (
                                 <TableRow className="hover:bg-transparent">
                                     <TableCell
-                                        colSpan={columns?.length || 0}
+                                        colSpan={table.getVisibleLeafColumns().length}
                                         className="h-50 text-center"
                                     >
                                         <div className="flex justify-center items-center w-full py-20">
@@ -184,7 +220,7 @@ export default function DataTable<TData, TValue>({
                             ) : (
                                 <TableRow className="hover:bg-transparent">
                                     <TableCell
-                                        colSpan={columns?.length || 0}
+                                        colSpan={table.getVisibleLeafColumns().length}
                                         className="h-50 text-center text-xl"
                                     >
                                         <div className="flex flex-col justify-center items-center w-full gap-1">

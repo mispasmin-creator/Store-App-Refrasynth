@@ -1,5 +1,17 @@
 # Audit Data automation
 
+## Again Audit is human-only — 23 October 2026
+
+Current flow: AI Audit → Human Rectify → AI Reaudit → Human Tally Entry → Human Again Audit → Completed. The worker (version 13) skips Again Audit without inference or writes. Each final-review record has a Yes/No form: Yes completes the entry with reviewer remarks; No returns it to Tally Entry for correction. Existing completed history is preserved. This supersedes the automated final verification described below.
+
+## Current schedule — 23 October 2026
+
+AI automation runs once daily at 12:00 PM Asia/Kolkata (IST), per user request. The existing cron job ID 1 uses `30 6 * * *` in the database's GMT timezone; its historical job name still contains `every-minute`. This replaces the once-per-minute schedule described in the original activation instructions below. UI data refreshes and health checks do not invoke AI. The worker retains its existing limit of one eligible record per invocation.
+
+## Tally Entry Yes/No update — 23 October 2026
+
+The current Tally Entry form asks only whether the entry is completed. Yes saves a timestamped manual confirmation and submits that individual row to Again Audit; No leaves the row pending. Voucher number, posting date, proof upload and remarks are no longer required for this form. Again Audit still checks source documents. A manual Yes is not independent verification of a Tally voucher. Previously uploaded voucher proofs retain their existing verification path. Worker version 12 supports the new confirmation format.
+
 Rectify and Tally Entry are manual on the Audit Data page. The server worker handles Audit, Reaudit and the existing final Again Audit. The other application pages are outside this change.
 
 ## Backend configuration

@@ -88,7 +88,7 @@ export async function updateIssueApproval(
                 given_qty: updateData.status === 'Yes' ? updateData.given_qty : null,
             })
             .eq('id', id)
-            .or('actual1.is.null,actual1.eq.')
+            .is('actual1', null)
             .select('id');
 
         if (error) throw error;

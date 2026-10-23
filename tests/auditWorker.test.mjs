@@ -74,6 +74,17 @@ test('live worker claims and commits passed Audit to manual Tally Entry', async 
   assert.equal(backend.saved.actual4, null);
   assert.equal(backend.saved.actual5, null);
 });
+
+test('Again Audit is human-only and never calls AI or writes', async () => {
+  const now = new Date().toISOString();
+  const backend = mockBackend({ customRow: { actual1: now, status1: 'Done', actual4: now, status4: 'Done' } });
+  const result = await (await handler(post({ id: 1, dryRun: false }))).json();
+  assert.equal(result.results[0].skipped, 'AGAIN_AUDIT');
+  assert.equal(backend.providerCalls, 0);
+  assert.equal(backend.writes.length, 0);
+});
+
+
 test('conflicting claim does not call AI or advance workflow', async () => {
   const backend = mockBackend({ conflict: true });
   const result = await (await handler(post({ dryRun: false }))).json();

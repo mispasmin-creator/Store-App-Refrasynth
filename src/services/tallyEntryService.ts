@@ -177,14 +177,15 @@ export async function updateTallyEntryRecord(
     id: number,
     updates: Record<string, unknown>,
     expected?: Record<string, string>,
-    expectedSnapshot?: AuditSnapshot
+    expectedSnapshot?: AuditSnapshot,
+    expectedStage: 'TALLY_ENTRY' | 'AGAIN_AUDIT' = 'TALLY_ENTRY'
 ) {
     try {
         let snapshot: Record<string, unknown> | undefined;
         if (expected) {
             const { data, error } = await supabase.from('tally_entry').select('*').eq('id', id).single();
             if (error) throw error;
-            if (!data || auditStage(data) !== 'TALLY_ENTRY') throw new Error('Record is no longer awaiting Tally Entry. Refresh and try again.');
+            if (!data || auditStage(data) !== expectedStage) throw new Error('Record stage changed. Refresh and try again.');
             snapshot = data;
             if (expectedSnapshot && !sameAuditSnapshot(data, expectedSnapshot)) throw new Error('Bill changed while this form was open. Refresh before saving the voucher.');
             for (const [field, value] of Object.entries(expected)) {

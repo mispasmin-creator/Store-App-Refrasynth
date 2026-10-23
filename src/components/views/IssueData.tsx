@@ -270,7 +270,8 @@ export default function IssueData() {
             fetchData();
         } catch (err) {
             console.error('Error updating approval', err);
-            toast.error('Failed to update issue');
+            toast.error(err && typeof err === 'object' && 'message' in err && typeof err.message === 'string'
+                ? err.message : 'Could not update issue. Please try again.');
         }
     }
 

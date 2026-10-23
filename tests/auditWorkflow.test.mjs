@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { auditStage, sourceChecks, transition, validateDocument, readVoucher, remarkText, englishReport, liftingProgress } from '../src/lib/auditWorkflow.ts';
+import { auditStage, sourceChecks, transition, validateDocument, readVoucher, remarkText, englishReport, liftingProgress, nameMatches } from '../src/lib/auditWorkflow.ts';
 
 const row = { id: 1, firm_name_match: 'Factory', party_name: 'Supplier', po_number: 'PO-1', lift_number: 'L-1', indent_number: 'I-1', product_name: 'Brick', bill_no: 'INV-1', bill_amt: '1180', qty: '10', rate: '100' };
 const po = [{ id: 1, product: 'Brick', party_name: 'Supplier', quantity: '100', rate: '100' }];
@@ -8,6 +8,35 @@ const stores = [{ id: 1, firm_name_match: 'Factory', po_number: 'PO-1', lift_num
 const bill = { billNo: 'INV-1', partyName: 'Supplier', firmName: 'Factory', total: 1180, voucherNo: '', voucherDate: '', items: [{ product: 'Brick', quantity: 10, rate: 100 }] };
 const now = '2026-10-20T08:00:00.000Z';
 const report = (stage, outcome) => ({ kind: 'ai-audit', version: 1, stage, outcome, at: now, summary: 'Checked', checks: [], corrections: [], fingerprint: 'test', attempts: 1 });
+
+test('name tolerance accepts common abbreviations and one minor typo but protects identities and grades', () => {
+  assert.equal(nameMatches('ABC Pvt. Ltd.', 'ABC Private Limited'), true);
+  assert.equal(nameMatches('Ultra Tech Cement', 'UltraTech Cement'), true);
+  assert.equal(nameMatches('Cemant', 'Cement'), true);
+  assert.equal(nameMatches('Cement 43', 'Cement 53'), false);
+  assert.equal(nameMatches('ABC', 'ABD'), false);
+  assert.equal(nameMatches('ABC Limited', 'XYZ Limited'), false);
+  assert.equal(nameMatches('', ''), false);
+  const checks = sourceChecks(row, po, stores, false, { ...bill, partyName: 'Supplizr', total: 1181 });
+  assert.equal(checks.find(check => check.name === 'Vendor').passed, true);
+  assert.equal(checks.find(check => check.name === 'Invoice total').passed, false);
+});
+
+test('old numbered AI remarks are shortened while manual remarks stay intact', () => {
+  const old = '1. Quantity: Bill 100; received 90.\n2. Store checks: Qty check Yes; physical No; price Yes.';
+  assert.equal(remarkText(old, 'AUDIT'), 'Qty: Bill 100 / received 90. | Store: Physical check needed.');
+  assert.equal(remarkText(old, 'RECTIFY'), old);
+});
+
+test('legacy generic reports show short issues without inventing missing values', () => {
+  const input = { ...report('AUDIT', 'exception'), checks: [
+    { name: 'Firm', passed: false, detail: 'Invoice buyer must match the record firm.' },
+    { name: 'Invoice total', passed: false, detail: 'Bill and app totals differ.' },
+    { name: 'Quantity', passed: false, detail: 'Bill, app and received quantities differ.' },
+    { name: 'Rate', passed: false, detail: 'Bill, app and PO rates differ.' },
+  ] };
+  assert.equal(remarkText(JSON.stringify(input), 'AUDIT'), 'Company mismatch. | Amount mismatch. | Qty mismatch. | Rate mismatch.');
+});
 
 test('happy path requires a passed reaudit and a passed final audit', () => {
   assert.equal(auditStage(row), 'AUDIT');
@@ -114,8 +143,8 @@ test('system errors remain visible instead of displaying stale discarded checks'
 });
 test('legacy Hindi AI reports render in English without changing human remarks', () => {
   const localized = englishReport({ ...report('AUDIT', 'exception'), checks: [{ name: 'Quantity', passed: false, detail: 'बिल 100; प्राप्त 90; ऐप 100।' }] });
-  assert.equal(remarkText(JSON.stringify(localized)), '1. Quantity: Bill 100; received 90; app 100.');
-  assert.equal(localized.summary, '1 issues found. Correction required.');
+  assert.equal(remarkText(JSON.stringify(localized)), 'Qty: Bill 100 / received 90 / app 100.');
+  assert.equal(localized.summary, '1 issue. Correction needed.');
   assert.equal(remarkText('Human correction: INV-123'), 'Human correction: INV-123');
   assert.equal(remarkText(JSON.stringify(report('AUDIT', 'passed'))), 'All checks passed.');
 });
@@ -130,7 +159,7 @@ test('AI remarks list every failed check briefly, without successful checks', ()
     { name: 'Vendor', passed: true, detail: 'Matches' },
     { name: 'Rate', passed: false, detail: 'Bill 50; PO 45.' },
   ] }));
-  assert.equal(text, '1. Quantity: Bill 100; received 90.\n2. Rate: Bill 50; PO 45.');
+  assert.equal(text, 'Qty: Bill 100 / received 90. | Rate: Bill 50 / PO 45.');
 });
 test('voucher mismatch routes back to human Tally Entry without completing', () => {
   const input = { ...row, actual1: now, status1: 'Done', actual4: now };

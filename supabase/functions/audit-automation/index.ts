@@ -1,6 +1,6 @@
 import {
-  auditStage, stageNumber, readReport, readVoucher, sourceChecks,
-  transition, validateDocument, norm, present, moneyMatches, quantityMatches, englishReport, liftingProgress,
+  auditStage, stageNumber, readReport, sourceChecks,
+  transition, validateDocument, norm, present, englishReport, liftingProgress,
   type AuditRow, type AuditReport, type DocumentData,
 } from '../../../src/lib/auditWorkflow.ts';
 
@@ -109,7 +109,7 @@ function snapshotFilter(row: AuditRow): Record<string, string> {
 
 async function processRow(row: AuditRow, dryRun: boolean, model: string) {
   const stage = auditStage(row);
-  if (stage === 'RECTIFY' || stage === 'TALLY_ENTRY' || stage === 'COMPLETED') return { id: row.id, skipped: stage };
+  if (stage === 'RECTIFY' || stage === 'TALLY_ENTRY' || stage === 'AGAIN_AUDIT' || stage === 'COMPLETED') return { id: row.id, skipped: stage };
   const n = stageNumber(stage);
   const previous = readReport(row[`remarks${n}`]);
   if (previous?.outcome === 'processing' && Date.now() - Date.parse(previous.at) < 4 * 60000) return { id: row.id, skipped: 'Processing' };
@@ -153,14 +153,6 @@ async function processRow(row: AuditRow, dryRun: boolean, model: string) {
     const working = row;
     report.checks = sourceChecks(working, po, stores, duplicate, bill);
     report.lifting = liftingProgress(working, po, stores);
-    if (stage === 'AGAIN_AUDIT') {
-      const proof = readVoucher(row.remarks4);
-      if (!proof) report.checks.push({ name: 'Voucher proof', passed: false, detail: 'Tally Entry must include voucher number, date and uploaded proof.' });
-      else {
-        const voucher = await extract(proof.proofUrl, model);
-        report.checks.push({ name: 'Voucher details', passed: norm(voucher.voucherNo) === norm(proof.voucherNo) && voucher.voucherDate === proof.voucherDate && norm(voucher.billNo) === norm(working.bill_no) && norm(voucher.partyName) === norm(working.party_name) && norm(voucher.firmName) === norm(firm) && moneyMatches(voucher.total, working.bill_amt) && voucher.items.length === bill.items.length && bill.items.every(i => voucher.items.some(v => norm(v.product) === norm(i.product) && quantityMatches(v.quantity, i.quantity) && moneyMatches(v.rate, i.rate))), detail: 'Tally voucher number, date, company, invoice, vendor, gross total and every product quantity/rate must match.' });
-      }
-    }
     // Rectification can advance to a fresh reaudit only after every check passes.
     report.outcome = report.checks.every(c => c.passed) ? 'passed' : 'exception';
     report.summary = report.outcome === 'passed' ? `${stage}: all source checks passed.` : `${stage}: ${report.checks.filter(c => !c.passed).length} checks need source correction.`;
@@ -208,7 +200,7 @@ Deno.serve(async (request: Request) => {
       for (const row of rows) {
         const result = await processRow(row, dryRun, config.model);
         // Avoid returning the entire completed/manual queue on every cron call.
-        if (!('skipped' in result) || body.id || !['RECTIFY', 'TALLY_ENTRY', 'COMPLETED'].includes(result.skipped)) results.push(result);
+        if (!('skipped' in result) || body.id || !['RECTIFY', 'TALLY_ENTRY', 'AGAIN_AUDIT', 'COMPLETED'].includes(result.skipped)) results.push(result);
         if ('report' in result) { processed = true; break; }
       }
       if (body.id || rows.length < 100) break;
