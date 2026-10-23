@@ -6,7 +6,7 @@ Current flow: AI Audit → Human Rectify → AI Reaudit → Human Tally Entry �
 
 ## Current schedule — 23 October 2026
 
-AI automation runs once daily at 12:00 PM Asia/Kolkata (IST), per user request. The existing cron job ID 1 uses `30 6 * * *` in the database's GMT timezone; its historical job name still contains `every-minute`. This replaces the once-per-minute schedule described in the original activation instructions below. UI data refreshes and health checks do not invoke AI. The worker retains its existing limit of one eligible record per invocation.
+AI automation runs once daily at 12:00 PM Asia/Kolkata (IST), per user request. The existing cron job ID 1 uses `30 6 * * *` in the database's GMT timezone; its historical job name still contains `every-minute`. This replaces the once-per-minute schedule described in the original activation instructions below. UI data refreshes and health checks do not invoke AI. The daily job sends one authenticated request per eligible Audit/Reaudit entry; each request processes its specified ID. Human Rectify, Tally Entry, Again Audit and completed records are excluded. The worker retains its single-record limit per request without restricting the daily run to one bill.
 
 ## Tally Entry Yes/No update — 23 October 2026
 

@@ -4,6 +4,11 @@ import {
   type AuditRow, type AuditReport, type DocumentData,
 } from '../../../src/lib/auditWorkflow.ts';
 
+declare const Deno: {
+  env: { get(name: string): string | undefined };
+  serve(handler: (request: Request) => Response | Promise<Response>): void;
+};
+
 const env = (name: string) => Deno.env.get(name) || '';
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' } });
 type WorkerConfig = { enabled: boolean; model: string; worker_secret_hash: string };
@@ -129,7 +134,7 @@ async function processRow(row: AuditRow, dryRun: boolean, model: string) {
   identity.voucher = row.remarks4;
   // A human resubmission must trigger a fresh Reaudit, even if only source documents were reviewed.
   identity.rectifiedAt = row.actual2;
-  const fingerprint = await digest(JSON.stringify({ identity, po, stores, invoiceRows, model, credentialRevision: await digest(env('OPENAI_API_KEY')) }));
+  const fingerprint = await digest(JSON.stringify({ rulesRevision: 2, identity, po, stores, invoiceRows, model, credentialRevision: await digest(env('OPENAI_API_KEY')) }));
   if (previous?.fingerprint === fingerprint && previous.outcome === 'exception') return { id: row.id, skipped: 'Waiting for corrected source or document' };
   const cooldownExpired = previous?.outcome === 'error' && Date.now() - Date.parse(previous.at) >= 60 * 60000;
   const attempts = previous?.fingerprint === fingerprint && !cooldownExpired ? previous.attempts + 1 : 1;
@@ -200,7 +205,7 @@ Deno.serve(async (request: Request) => {
       for (const row of rows) {
         const result = await processRow(row, dryRun, config.model);
         // Avoid returning the entire completed/manual queue on every cron call.
-        if (!('skipped' in result) || body.id || !['RECTIFY', 'TALLY_ENTRY', 'AGAIN_AUDIT', 'COMPLETED'].includes(result.skipped)) results.push(result);
+        if (!('skipped' in result) || body.id || !['RECTIFY', 'TALLY_ENTRY', 'AGAIN_AUDIT', 'COMPLETED'].includes(result.skipped ?? '')) results.push(result);
         if ('report' in result) { processed = true; break; }
       }
       if (body.id || rows.length < 100) break;

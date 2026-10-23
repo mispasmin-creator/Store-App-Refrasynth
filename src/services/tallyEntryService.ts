@@ -187,7 +187,7 @@ export async function updateTallyEntryRecord(
             if (error) throw error;
             if (!data || auditStage(data) !== expectedStage) throw new Error('Record stage changed. Refresh and try again.');
             snapshot = data;
-            if (expectedSnapshot && !sameAuditSnapshot(data, expectedSnapshot)) throw new Error('Bill changed while this form was open. Refresh before saving the voucher.');
+            if (expectedSnapshot && !sameAuditSnapshot(data, expectedSnapshot)) throw new Error('Bill details changed. Refresh and reopen this entry before saving.');
             for (const [field, value] of Object.entries(expected)) {
                 if (field === 'bill_amt' ? !moneyMatches(data[field], value) : String(data[field] ?? '') !== value) throw new Error('Bill changed since this form was opened. Refresh and try again.');
             }

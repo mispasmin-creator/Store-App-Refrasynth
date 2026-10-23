@@ -701,7 +701,7 @@ export default function ApproveIndent() {
 
                                     <div className="flex gap-2">
                                         <DialogClose asChild>
-                                            <Button variant="outline">Close</Button>
+                                            <Button type="button" variant="outline">Close</Button>
                                         </DialogClose>
 
                                         <Button

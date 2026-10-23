@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { auditStage, sourceChecks, transition, validateDocument, readVoucher, remarkText, englishReport, liftingProgress, nameMatches } from '../src/lib/auditWorkflow.ts';
+import { auditStage, sourceChecks, transition, validateDocument, readVoucher, remarkText, englishReport, liftingProgress, nameMatches, humanReviewUpdate } from '../src/lib/auditWorkflow.ts';
 
 const row = { id: 1, firm_name_match: 'Factory', party_name: 'Supplier', po_number: 'PO-1', lift_number: 'L-1', indent_number: 'I-1', product_name: 'Brick', bill_no: 'INV-1', bill_amt: '1180', qty: '10', rate: '100' };
 const po = [{ id: 1, product: 'Brick', party_name: 'Supplier', quantity: '100', rate: '100' }];
@@ -44,7 +44,7 @@ test('happy path requires a passed reaudit and a passed final audit', () => {
   assert.equal(auditStage(audited), 'TALLY_ENTRY');
   const entered = { ...audited, actual4: now, status4: 'Done' };
   assert.equal(auditStage(entered), 'AGAIN_AUDIT');
-  assert.equal(auditStage({ ...entered, ...transition(entered, 'AGAIN_AUDIT', report('AGAIN_AUDIT', 'passed'), now) }), 'COMPLETED');
+  assert.equal(auditStage({ ...entered, ...humanReviewUpdate('AGAIN_AUDIT', 'Yes', 'admin', now) }), 'COMPLETED');
 });
 test('failed reaudit never releases to Tally and failed final timestamp never completes', () => {
   assert.equal(auditStage({ ...row, actual1: now, status1: 'Not Done', actual2: now, actual3: now, status3: 'Not Done' }), 'RECTIFY');
@@ -127,7 +127,7 @@ test('AI cannot process the human Rectify stage', () => {
   assert.throws(() => transition(row, 'RECTIFY', report('RECTIFY', 'error'), now), /human-only/);
 });
 test('AI stages write only their own remarks and reject a mismatched report', () => {
-  for (const [stage, field] of [['AUDIT', 'remarks1'], ['REAUDIT', 'remarks3'], ['AGAIN_AUDIT', 'remarks5']]) {
+  for (const [stage, field] of [['AUDIT', 'remarks1'], ['REAUDIT', 'remarks3']]) {
     const patch = transition(row, stage, report(stage, 'exception'), now);
     assert.deepEqual(Object.keys(patch).filter(k => k.startsWith('remarks')), [field]);
     assert.equal(patch.remarks2, undefined);
@@ -161,21 +161,27 @@ test('AI remarks list every failed check briefly, without successful checks', ()
   ] }));
   assert.equal(text, 'Qty: Bill 100 / received 90. | Rate: Bill 50 / PO 45.');
 });
-test('voucher mismatch routes back to human Tally Entry without completing', () => {
-  const input = { ...row, actual1: now, status1: 'Done', actual4: now };
-  const updates = transition(input, 'AGAIN_AUDIT', { ...report('AGAIN_AUDIT', 'exception'), checks: [{ name: 'Voucher details', passed: false, detail: 'Mismatch' }] }, now);
-  assert.equal(auditStage({ ...input, ...updates }), 'TALLY_ENTRY');
-  assert.equal(updates.actual5, null);
+test('human final rejection returns to Tally and confirmation resubmits for human review', () => {
+  const input = { ...row, actual1: now, status1: 'Done', actual4: now, status4: 'Done' };
+  const rejected = { ...input, ...humanReviewUpdate('AGAIN_AUDIT', 'No', 'admin', now) };
+  assert.equal(auditStage(rejected), 'TALLY_ENTRY');
+  assert.equal(rejected.actual5, null);
+  const resubmitted = { ...rejected, ...humanReviewUpdate('TALLY_ENTRY', 'Yes', 'admin', now) };
+  assert.equal(auditStage(resubmitted), 'AGAIN_AUDIT');
+  assert.equal(resubmitted.remarks5, '');
+  assert.deepEqual(humanReviewUpdate('TALLY_ENTRY', 'No', 'admin', now), {});
 });
 test('provider errors never move workflow or correct business data', () => {
   const updates = transition(row, 'AUDIT', report('AUDIT', 'error'), now);
   assert.equal(updates.actual1, undefined);
   assert.equal(updates.status1, 'AI Error');
 });
-test('legacy Tally records without voucher proof return to the human entry form', () => {
-  const input = { ...row, actual1: now, status1: 'Done', actual4: now };
-  const updates = transition(input, 'AGAIN_AUDIT', { ...report('AGAIN_AUDIT', 'exception'), checks: [{ name: 'Voucher proof', passed: false, detail: 'Missing proof' }] }, now);
-  assert.equal(auditStage({ ...input, ...updates }), 'TALLY_ENTRY');
+test('AI cannot approve or reject the human Again Audit stage', () => {
+  for (const outcome of ['passed', 'exception', 'error']) {
+    assert.throws(() => transition(row, 'AGAIN_AUDIT', report('AGAIN_AUDIT', outcome), now), /human-only/);
+  }
+  assert.throws(() => humanReviewUpdate('AGAIN_AUDIT', 'Maybe', 'admin', now));
+  assert.throws(() => humanReviewUpdate('AGAIN_AUDIT', 'Yes', '', now));
 });
 test('invalid and incomplete model results are rejected', () => {
   assert.throws(() => validateDocument({ total: 1180 }));

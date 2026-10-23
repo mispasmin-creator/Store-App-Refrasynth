@@ -636,7 +636,7 @@ export default () => {
 
                                 <DialogFooter>
                                     <DialogClose asChild>
-                                        <Button variant="outline">Close</Button>
+                                        <Button type="button" variant="outline">Close</Button>
                                     </DialogClose>
 
                                     <Button

@@ -155,6 +155,7 @@ export default function IssueData() {
                                 <Button
                                     variant="outline"
                                     onClick={() => {
+                                        form.reset({ status: undefined, givenQty: undefined });
                                         setSelectedIssue(indent);
                                         setOpenDialog(true);
                                     }}
@@ -401,7 +402,7 @@ export default function IssueData() {
                                 </div>
                                 <DialogFooter>
                                     <DialogClose asChild>
-                                        <Button variant="outline">Close</Button>
+                                        <Button type="button" variant="outline">Close</Button>
                                     </DialogClose>
 
                                     <Button

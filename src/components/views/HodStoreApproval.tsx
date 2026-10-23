@@ -558,7 +558,7 @@ export default () => {
 
                                 <DialogFooter className="border-t pt-4">
                                     <DialogClose asChild>
-                                        <Button variant="ghost" className="h-10 text-slate-500 font-semibold" disabled={isSubmitting}>Cancel</Button>
+                                        <Button type="button" variant="ghost" className="h-10 text-slate-500 font-semibold" disabled={isSubmitting}>Cancel</Button>
                                     </DialogClose>
                                     <Button
                                         type="submit"

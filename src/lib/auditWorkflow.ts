@@ -273,8 +273,20 @@ export function sourceChecks(row: AuditRow, po: AuditRow[], stores: AuditRow[], 
   add('Duplicate invoice', !duplicate, 'Same invoice found on another entry.');
   return checks;
 }
+export function humanReviewUpdate(stage: 'TALLY_ENTRY' | 'AGAIN_AUDIT', answer: string, reviewer: string, now: string): Record<string, unknown> {
+  if (!['Yes', 'No'].includes(answer) || !reviewer.trim() || !Number.isFinite(Date.parse(now))) throw new Error('Valid Yes/No answer, reviewer and date are required.');
+  if (stage === 'TALLY_ENTRY') {
+    if (answer === 'No') return {};
+    return { status4: 'Done', actual4: now, planned5: now,
+      remarks4: JSON.stringify({ kind: 'tally-confirmation', answer, at: now, enteredBy: reviewer }),
+      status5: '', actual5: null, remarks5: '' };
+  }
+  return { status5: answer === 'Yes' ? 'Done' : 'Not Done', actual5: answer === 'Yes' ? now : null,
+    remarks5: `Human final audit: ${answer}. Reviewed by ${reviewer}.`,
+    ...(answer === 'No' ? { status4: 'Correction Needed', actual4: null, planned4: now } : {}) };
+}
 export function transition(row: AuditRow, stage: AuditStage, report: AuditReport, now: string): Record<string, unknown> {
-  if (stage === 'RECTIFY' || stage === 'TALLY_ENTRY' || stage === 'COMPLETED') throw new Error('This is a human-only or completed stage.');
+  if (stage === 'RECTIFY' || stage === 'TALLY_ENTRY' || stage === 'AGAIN_AUDIT' || stage === 'COMPLETED') throw new Error('This is a human-only or completed stage.');
   if (report.stage !== stage) throw new Error('Audit report stage mismatch.');
   if (report.outcome === 'processing') throw new Error('An incomplete AI report cannot advance a stage.');
   if (report.outcome === 'passed' && report.checks.some(check => !check.passed)) throw new Error('A failed check cannot be marked passed.');
@@ -291,11 +303,6 @@ export function transition(row: AuditRow, stage: AuditStage, report: AuditReport
   } else if (stage === 'REAUDIT' && report.outcome === 'exception') {
     updates.actual2 = null; updates.status2 = 'Correction Needed'; updates.planned2 = now;
     updates.actual3 = null; updates.status3 = 'Not Done';
-  } else if (stage === 'AGAIN_AUDIT' && report.outcome === 'passed') {
-    updates.actual5 = now;
-  } else if (stage === 'AGAIN_AUDIT' && report.outcome === 'exception' && report.checks.some(c => ['Voucher details', 'Voucher proof'].includes(c.name) && !c.passed)) {
-    updates.actual4 = null; updates.status4 = 'Correction Needed'; updates.planned4 = now;
-    updates.actual5 = null;
   }
   void row;
   return updates;

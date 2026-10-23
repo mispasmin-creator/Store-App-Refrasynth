@@ -22,4 +22,7 @@ test('stale forms detect amount, quantity, document and identity changes', () =>
   const row = { ...source, indent_number: 'I-1', bill_no: 'B1', bill_amt: '100.00', qty: '10', rate: '10', bill_image: 'bill.pdf', party_name: 'Vendor' };
   assert.equal(sameAuditSnapshot(row, expected), true);
   for (const patch of [{ qty: '9.995' }, { bill_amt: '100.01' }, { bill_image: 'new.pdf' }, { product_name: 'Other' }, { party_name: 'Other' }]) assert.equal(sameAuditSnapshot({ ...row, ...patch }, expected), false);
+  // Legacy blank rates display as zero; unchanged records must remain saveable.
+  assert.equal(sameAuditSnapshot({ ...row, rate: null }, { ...expected, rate: 0 }), true);
+  assert.equal(sameAuditSnapshot({ ...row, rate: '1' }, { ...expected, rate: 0 }), false);
 });

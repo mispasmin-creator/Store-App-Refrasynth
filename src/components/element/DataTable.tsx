@@ -10,6 +10,8 @@ import {
     type SortingState,
     type VisibilityState,
     type OnChangeFn,
+    type RowSelectionState,
+    type TableMeta,
 } from '@tanstack/react-table';
 
 import {
@@ -23,7 +25,6 @@ import {
 import { useState, type ReactNode } from 'react';
 import { Input } from '../ui/input';
 import { ArrowDown, ArrowUp, ArrowUpDown, Package } from 'lucide-react';
-import { Skeleton } from '../ui/skeleton';
 import { ClipLoader } from 'react-spinners';
 import { ScrollArea } from '../ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -39,9 +40,9 @@ interface DataTableProps<TData, TValue> {
     className?: string;
     extraActions?: ReactNode;
     rowSelection?: Record<string, boolean>;
-    onRowSelectionChange?: (updater: any) => void;
+    onRowSelectionChange?: OnChangeFn<RowSelectionState>;
     getRowId?: (row: TData) => string;
-    meta?: any;
+    meta?: TableMeta<TData>;
     enableColumnVisibility?: boolean;
     columnVisibility?: VisibilityState;
     onColumnVisibilityChange?: OnChangeFn<VisibilityState>;
@@ -49,7 +50,7 @@ interface DataTableProps<TData, TValue> {
 
 function globalFilterFn<TData>(row: TData, columnIds: string[], filterValue: string) {
     return columnIds.some((columnId) => {
-        const value = (row as any)[columnId];
+        const value = (row as Record<string, unknown>)[columnId];
         return String(value ?? '')
             .toLowerCase()
             .includes(filterValue.toLowerCase());

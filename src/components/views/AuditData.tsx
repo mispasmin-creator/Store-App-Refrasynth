@@ -27,7 +27,7 @@ import { toast } from 'sonner';
 import { PuffLoader as Loader } from 'react-spinners';
 import { Textarea } from '../ui/textarea';
 import { Input } from '../ui/input';
-import { auditStage, readReport, remarkText, stageNumber, norm } from '@/lib/auditWorkflow';
+import { auditStage, readReport, remarkText, stageNumber, norm, humanReviewUpdate } from '@/lib/auditWorkflow';
 import { auditAutomationHealth, uploadTallyVoucher, submitHumanRectification } from '@/services/auditAutomationService';
 import {
   updateTallyEntryRecord,
@@ -465,11 +465,9 @@ export default function PcReportTable() {
       try {
         const now = new Date().toISOString();
         const approved = tallyAnswer === 'Yes';
-        await updateTallyEntryRecord(selectedRow.id, {
-          status5: approved ? 'Done' : 'Not Done', actual5: approved ? now : null,
-          remarks5: `Human final audit: ${tallyAnswer}. Reviewed by ${user.username || user.name}.`,
-          ...(!approved ? { status4: 'Correction Needed', actual4: null, planned4: now } : {}),
-        }, { firm_name_match: selectedRow.firmNameMatch }, selectedRow, 'AGAIN_AUDIT');
+        await updateTallyEntryRecord(selectedRow.id,
+          humanReviewUpdate('AGAIN_AUDIT', tallyAnswer, user.username || user.name || '', now),
+          { firm_name_match: selectedRow.firmNameMatch }, selectedRow, 'AGAIN_AUDIT');
         toast.success(approved ? 'Final audit approved. Entry completed.' : 'Returned to Tally Entry for correction.');
         setOpenDialog(false);
         updateAll();
@@ -494,12 +492,9 @@ export default function PcReportTable() {
       if (items.length !== 1) throw new Error('Open an individual Tally entry before submitting.');
       const now = new Date().toISOString();
       const item = items[0];
-      await updateTallyEntryRecord(item.id, {
-        status4: 'Done', actual4: now, planned5: now,
-        remarks4: JSON.stringify({ kind: 'tally-confirmation', answer: 'Yes', at: now,
-          enteredBy: user.username || user.name || '' }),
-        status5: '', actual5: null,
-      }, { ...(item.status1 ? { status1: item.status1 } : {}), ...(item.status3 ? { status3: item.status3 } : {}),
+      await updateTallyEntryRecord(item.id,
+        humanReviewUpdate('TALLY_ENTRY', tallyAnswer, user.username || user.name || '', now),
+        { ...(item.status1 ? { status1: item.status1 } : {}), ...(item.status3 ? { status3: item.status3 } : {}),
         bill_no: item.billNo, bill_amt: String(item.billAmt), firm_name_match: item.firmNameMatch }, item);
       toast.success('Tally entry confirmed. Submitted for final audit.');
       setOpenDialog(false);
@@ -964,7 +959,7 @@ export default function PcReportTable() {
                 {!readReport((item as unknown as Record<string, unknown>)['remarks' + stageNumber(item.currentStage as Parameters<typeof stageNumber>[0])]) && <p className="text-sm text-muted-foreground">Waiting for the AI worker. {workerStatus}</p>}
               </div>
             ))}
-            <DialogFooter><DialogClose asChild><Button variant="outline">Close</Button></DialogClose></DialogFooter>
+            <DialogFooter><DialogClose asChild><Button type="button" variant="outline">Close</Button></DialogClose></DialogFooter>
           </DialogContent>
         )}
         {selectedRow && ['RECTIFY', 'TALLY_ENTRY', 'AGAIN_AUDIT'].includes(selectedRow.currentStage) && (
@@ -1209,7 +1204,7 @@ export default function PcReportTable() {
 
                 <DialogFooter>
                   <DialogClose asChild>
-                    <Button variant="outline">Close</Button>
+                    <Button type="button" variant="outline">Close</Button>
                   </DialogClose>
 
                   <Button type="submit" disabled={form.formState.isSubmitting}>
