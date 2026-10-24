@@ -868,6 +868,16 @@ export default function PIApprovals() {
         }
     };
 
+    // payments.delivery_date is a Postgres `date`; anything unparsable must go as null
+    function toIsoDate(value?: string | null): string | null {
+        if (!value) return null;
+        if (/^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10);
+        const dmy = value.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+        if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+        const d = new Date(value);
+        return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+    }
+
     function generateUniqueNo(): string {
         const existingCount = Array.isArray(paymentsSheet) ? paymentsSheet.length : 0;
         return `PAY-${(existingCount + 1).toString().padStart(4, '0')}`;
@@ -901,7 +911,7 @@ export default function PIApprovals() {
                 total_po_amount: String(selectedItem.totalPoAmount || ''),
                 internal_code: selectedItem.internalCode,
                 product: selectedItem.product,
-                delivery_date: selectedItem.deliveryDate || null,
+                delivery_date: toIsoDate(selectedItem.deliveryDate),
                 payment_terms: selectedItem.paymentTerms || '',
                 number_of_days: String(selectedItem.numberOfDays || '0'),
                 pdf: selectedItem.pdf || '',
@@ -927,8 +937,8 @@ export default function PIApprovals() {
             setOpenDialog(false);
             setTimeout(() => updateAll(), 1000);
         } catch (error) {
-            toast.error('Failed to process payment');
-            console.error('Payment error:', error);
+            toast.error(`Failed to process payment: ${(error as any)?.message || 'unknown error'}`);
+            console.error('Payment error:', JSON.stringify(error), error);
         }
     }
 

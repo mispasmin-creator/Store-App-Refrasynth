@@ -554,6 +554,42 @@ export default function MakePayment() {
         }
     };
 
+    // Pre-filled Google Form: Payment No., Store FMS, Yes, Party Name, Pay Amount, and every table heading as one text block
+    const PAYMENT_FORM_BASE =
+        'https://docs.google.com/forms/d/e/1FAIpQLSdHF5shP_liUbm1tsyOS3nrEmNUY9Y5zl4y2odXK0weaDjcpA/viewform';
+
+    const buildPaymentFormUrl = (item: DisplayPayment): string => {
+        const rupee = (n?: number) => `₹${(n ?? 0).toLocaleString('en-IN')}`;
+        const allRowData = [
+            ['Planned Date', formatDate(item.planned) || '-'],
+            ['Payment No.', item.uniqueNo || '-'],
+            ['PO Number', item.poNumber || '-'],
+            ['Party Name', item.partyName || '-'],
+            ['Payment Terms', item.paymentTerms || '-'],
+            ['Indent No.', item.internalCode || '-'],
+            ['Product', item.product || '-'],
+            ['Total PO Amount', rupee(item.totalPoAmount)],
+            ['Pay Amount', rupee(item.payAmount)],
+            ['Outstanding', rupee(item.outstandingAmount)],
+            ['Status', item.status || 'Pending'],
+            ['Bill Image', item.file || item.billImageStatus || '-'],
+            ['PO Image', item.pdf || '-'],
+        ]
+            .map(([heading, value]) => `${heading}: ${value}`)
+            .join('\n');
+
+        const params = new URLSearchParams({
+            usp: 'pp_url',
+            'entry.1200639812': item.uniqueNo || '',
+            'entry.604194301': 'Store FMS',
+            'entry.1358288895': 'Yes',
+            'entry.1091308719': item.partyName || '',
+            'entry.1486176123': String(item.payAmount ?? ''),
+            'entry.2102057582': allRowData,
+        });
+        return `${PAYMENT_FORM_BASE}?${params.toString()}`;
+    };
+
     const pendingColumns: ColumnDef<DisplayPayment>[] = [
         {
             id: 'select',
@@ -583,30 +619,18 @@ export default function MakePayment() {
             header: 'Action',
             cell: ({ row }: { row: Row<DisplayPayment> }) => {
                 const item = row.original;
-                const hasPaymentForm = item.paymentForm?.trim() !== '';
 
                 return (
                     <div className="flex gap-2">
-                        {hasPaymentForm ? (
-                            <Button
-                                variant="default"
-                                size="sm"
-                                onClick={() => window.open(item.paymentForm, '_blank')}
-                                className="bg-green-600 hover:bg-green-700 shadow-sm"
-                            >
-                                <ExternalLink className="mr-2 h-3 w-3" />
-                                Make Payment
-                            </Button>
-                        ) : (
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                disabled
-                                className="text-gray-400"
-                            >
-                                No Form Link
-                            </Button>
-                        )}
+                        <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => window.open(buildPaymentFormUrl(item), '_blank')}
+                            className="bg-green-600 hover:bg-green-700 shadow-sm"
+                        >
+                            <ExternalLink className="mr-2 h-3 w-3" />
+                            Make Payment
+                        </Button>
                     </div>
                 );
             },
