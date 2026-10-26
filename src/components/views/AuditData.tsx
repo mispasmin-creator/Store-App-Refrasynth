@@ -523,11 +523,6 @@ export default function PcReportTable() {
   const sourceColumns: ColumnDef<ProcessedTallyData>[] = [
     ...([
       ['indentNumber', 'Indent No.'], ['liftNumber', 'Lift No.'],
-      ['productName', 'Product'], ['firmNameMatch', 'Company'],
-      ['receivedQuantity', 'Received Qty'], ['hodStatus', 'HOD Status'],
-      ['hodRemark', 'HOD Remark'], ['receivingStatus', 'Receiving Status'],
-      ['quantityAsPerBill', 'Store Quantity Check'], ['damageOrder', 'Physical Check'],
-      ['priceAsPerPoCheck', 'Store Price Check'],
     ] as const).map(([key, header]): ColumnDef<ProcessedTallyData> => ({
       id: 'source-' + key, header,
       cell: ({ row }) => evidenceCell(row.original, item => {
@@ -537,9 +532,7 @@ export default function PcReportTable() {
     })),
     ...[
       ['indentProduct', 'Indent Product'], ['indentQuantity', 'Indent Quantity'],
-      ['indentApprovedQuantity', 'Indent Approved Qty'], ['indentRate', 'Indent Approved Rate'],
-      ['indentVendor', 'Indent Vendor'], ['poProduct', 'PO Product'],
-      ['poQuantity', 'PO Quantity'], ['poRate', 'PO Rate'], ['poVendor', 'PO Vendor'],
+      ['indentApprovedQuantity', 'Indent Approved Qty'], ['poRate', 'PO Rate'],
       ['liftingQty', 'Lifting Qty'], ['liftingBill', 'Lifting Bill No.'],
       ['liftingVendor', 'Lifting Vendor'], ['liftingBillAmount', 'Lifting Bill Amount'],
     ].map(([key, header]): ColumnDef<ProcessedTallyData> => ({
@@ -639,32 +632,7 @@ export default function PcReportTable() {
         ) : null;
       },
     },
-    { accessorKey: 'billReceivedLater', header: 'Bill Received Later' },
-
-    { accessorKey: 'location', header: 'Location' },
-    { accessorKey: 'typeOfBills', header: 'Type Of Bills' },
-    {
-      accessorKey: 'productImage',
-      header: 'Product Image',
-      cell: ({ row }) => {
-        const image = row.original.productImage;
-        return image ? (
-          <a href={image} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline">
-            View
-          </a>
-        ) : null;
-      },
-    },
-    { accessorKey: 'area', header: 'Area' },
-    { accessorKey: 'indentedFor', header: 'Indented For' },
-    { accessorKey: 'approvedPartyName', header: 'Approved Party Name' },
     { accessorKey: 'rate', header: 'Bill Rate (Entered)', cell: ({ row }) => evidenceCell(row.original, item => item.rate) },
-    { 
-      accessorKey: 'indentQty', 
-      header: 'Indent Qty',
-      cell: ({ row }) => evidenceCell(row.original, item => item.indentQty ?? '-')
-    },
-    { accessorKey: 'totalRate', header: 'Total Rate' },
 
     ...sourceColumns,
     // Add status and remarks columns for each stage

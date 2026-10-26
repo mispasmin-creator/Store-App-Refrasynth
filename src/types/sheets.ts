@@ -262,6 +262,8 @@ export type UserPermissions = {
     password: string;
     name: string;
     firmNameMatch: string;
+    /** Department user: sees only permitted pages, and only their department's items. '' = not a department user. */
+    department?: string;
 
     administrate: boolean;
     createIndent: boolean;

@@ -31,7 +31,7 @@ import { toast } from 'sonner';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '../ui/hover-card';
 import { Pill } from '../ui/pill';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { fetchUsers, createUser, updateUser, deleteUser, type UserRecord } from '@/services/userService';
+import { fetchUsers, createUser, updateUser, deleteUser, fetchDepartments, type UserRecord } from '@/services/userService';
 import { fetchMasterOptions } from '@/services/masterService';
 
 interface UsersTableData {
@@ -40,6 +40,7 @@ interface UsersTableData {
     name: string;
     password: string;
     firmNameMatch: string;
+    department: string;
     permissions: string[];
 }
 
@@ -98,6 +99,7 @@ export default () => {
     const [selectedUser, setSelectedUser] = useState<UsersTableData | null>(null);
     const [showPassword, setShowPassword] = useState(false);
     const [firms, setFirms] = useState<string[]>([]);
+    const [departments, setDepartments] = useState<string[]>([]);
 
     useEffect(() => {
         if (!openDialog) {
@@ -122,6 +124,7 @@ export default () => {
                         name: user.name,
                         password: user.password,
                         firmNameMatch: user.firmNameMatch,
+                        department: user.department || '',
                         permissions: permissionKeys,
                     };
                 })
@@ -137,6 +140,7 @@ export default () => {
     async function loadMasterData() {
         const options = await fetchMasterOptions();
         setFirms(options.firms);
+        setDepartments(await fetchDepartments());
     }
 
     useEffect(() => {
@@ -170,6 +174,15 @@ export default () => {
                         {row.original.firmNameMatch || "Not Assigned"}
                     </span>
                 </div>
+            )
+        },
+        {
+            accessorKey: 'department',
+            header: 'Department',
+            cell: ({ row }) => (
+                <span className={row.original.department ? "font-semibold text-primary" : "text-muted-foreground"}>
+                    {row.original.department || '-'}
+                </span>
             )
         },
         {
@@ -266,6 +279,7 @@ export default () => {
         username: z.string().min(1, 'Username is required'),
         password: z.string().min(1, 'Password is required'),
         firmNameMatch: z.string().optional(),
+        department: z.string().optional(),
         permissions: z.array(z.string()),
     });
 
@@ -276,6 +290,7 @@ export default () => {
             username: '',
             password: '',
             firmNameMatch: '',
+            department: '',
             permissions: [],
         },
     });
@@ -287,6 +302,7 @@ export default () => {
                 name: selectedUser.name,
                 password: selectedUser.password,
                 firmNameMatch: selectedUser.firmNameMatch,
+                department: selectedUser.department,
                 permissions: selectedUser.permissions,
             });
             return;
@@ -296,6 +312,7 @@ export default () => {
             username: '',
             password: '',
             firmNameMatch: '',
+            department: '',
             permissions: [],
         });
     }, [selectedUser]);
@@ -314,6 +331,7 @@ export default () => {
             name: value.name,
             password: value.password,
             firmNameMatch: value.firmNameMatch || '',
+            department: value.department || '',
         };
 
         allPermissionKeys.forEach((perm) => {
@@ -354,7 +372,7 @@ export default () => {
                     <DataTable
                         data={tableData}
                         columns={columns}
-                        searchFields={['name', 'username', 'permissions', 'firmNameMatch']}
+                        searchFields={['name', 'username', 'permissions', 'firmNameMatch', 'department']}
                         dataLoading={dataLoading}
                         className="h-[calc(100dvh-180px)] overflow-hidden"
                         extraActions={
@@ -466,6 +484,36 @@ export default () => {
                                                     ))}
                                                 </SelectContent>
                                             </Select>
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="department"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Department (HOD login)</FormLabel>
+                                            <Select
+                                                onValueChange={(value) => field.onChange(value === 'none' ? '' : value)}
+                                                value={field.value || 'none'}
+                                            >
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select department" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="none">None (normal user)</SelectItem>
+                                                    {departments.map((department) => (
+                                                        <SelectItem key={department} value={department}>
+                                                            {department}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <p className="text-xs text-muted-foreground">
+                                                Department users see only the pages ticked below, and only their own department's items.
+                                            </p>
                                         </FormItem>
                                     )}
                                 />

@@ -18,8 +18,10 @@ test('name tolerance accepts common abbreviations and one minor typo but protect
   assert.equal(nameMatches('ABC Limited', 'XYZ Limited'), false);
   assert.equal(nameMatches('', ''), false);
   const checks = sourceChecks(row, po, stores, false, { ...bill, partyName: 'Supplizr', total: 1181 });
-  assert.equal(checks.find(check => check.name === 'Vendor').passed, true);
-  assert.equal(checks.find(check => check.name === 'Invoice total').passed, false);
+  assert.deepEqual(checks.map(check => check.name), ['Lift qty', 'Bill qty', 'Bill amount', 'Lift amount']);
+  assert.equal(checks.find(check => check.name === 'Bill amount').passed, false);
+  assert.equal(checks.find(check => check.name === 'Lift amount').passed, false);
+  assert.equal(checks.find(check => check.name === 'Bill qty').passed, true);
 });
 
 test('old numbered AI remarks are shortened while manual remarks stay intact', () => {
@@ -56,7 +58,7 @@ test('failed Rectify and failed Tally timestamps cannot advance the workflow', (
   assert.equal(auditStage({ ...row, actual1: now, status1: 'Not Done', actual2: now, status2: 'Done' }), 'REAUDIT');
 });
 test('small quantity differences are not treated as matching currency rounding', () => {
-  assert.equal(sourceChecks(row, po, [{ ...stores[0], received_quantity: '9.995' }], false, bill).find(c => c.name === 'Quantity').passed, false);
+  assert.equal(sourceChecks(row, po, [{ ...stores[0], qty: '9.995' }], false, bill).find(c => c.name === 'Lift qty').passed, false);
 });
 test('malformed reports cannot crash rendering or leak an AI report into human remarks', () => {
   assert.doesNotThrow(() => remarkText('{"kind":"ai-audit","version":1,"checks":[null]}'));
@@ -86,41 +88,56 @@ test('cumulative excess is detected even when each individual bill is below PO q
   const current = { ...row, qty: '20', bill_amt: '2360' };
   const receipts = [
     { ...stores[0], id: 9, lift_number: 'L-9', qty: '90', received_quantity: '90' },
-    { ...stores[0], qty: '20', received_quantity: '20' },
+    { ...stores[0], qty: '20', received_quantity: '20', bill_amount: '2360' },
   ];
   const invoice = { ...bill, total: 2360, items: [{ product: 'Brick', quantity: 20, rate: 100 }] };
-  const checks = sourceChecks(current, po, receipts, false, invoice);
-  assert.equal(checks.find(c => c.name === 'PO quantity').passed, true);
-  assert.equal(checks.find(c => c.name === 'PO lifting total').passed, false);
+  assert.equal(sourceChecks(current, po, receipts, false, invoice).every(c => c.passed), true);
   assert.equal(liftingProgress(current, po, receipts).pending, -10);
 });
-test('partial delivery does not hide a shortage in the current lifting', () => {
+test('partial delivery is tracked in lifting progress without failing the four audit checks', () => {
   const current = { ...row, qty: '30', bill_amt: '3540' };
-  const receipts = [{ ...stores[0], qty: '30', received_quantity: '28' }];
+  const receipts = [{ ...stores[0], qty: '30', received_quantity: '28', bill_amount: '3540' }];
   const invoice = { ...bill, total: 3540, items: [{ product: 'Brick', quantity: 30, rate: 100 }] };
-  assert.equal(sourceChecks(current, po, receipts, false, invoice).find(c => c.name === 'Quantity').passed, false);
+  assert.equal(sourceChecks(current, po, receipts, false, invoice).every(c => c.passed), true);
   assert.deepEqual(liftingProgress(current, po, receipts), { ordered: 100, current: 30, lifted: 30, received: 28, pending: 70, valid: true });
 });
 test('cancelled, unrelated and repeated copies do not inflate lifting totals', () => {
   const receipts = [stores[0], { ...stores[0] }, { ...stores[0], id: 2, qty: '90', lifting_status: 'Cancelled' }, { ...stores[0], id: 3, po_number: 'OTHER', qty: '999' }, { ...stores[0], id: 4, firm_name_match: 'OTHER', qty: '999' }];
   assert.equal(liftingProgress(row, po, receipts).lifted, 10);
 });
-test('a bill from another lifting cannot pass only because its quantity and rate match', () => {
-  const checks = sourceChecks(row, po, [{ ...stores[0], bill_no: 'OTHER-LIFT-BILL' }], false, bill);
-  assert.equal(checks.find(c => c.name === 'Lifting bill').passed, false);
+test('wrong bill qty, lift qty, bill amount or lift amount is blocked', () => {
+  for (const [inputRow, inputStores, failing] of [
+    [{ ...row, qty: '9' }, stores, 'Bill qty'],
+    [row, [{ ...stores[0], qty: '9' }], 'Lift qty'],
+    [{ ...row, bill_amt: '1000' }, stores, 'Bill amount'],
+    [row, [{ ...stores[0], bill_amount: '1000' }], 'Lift amount'],
+  ]) assert.equal(sourceChecks(inputRow, po, inputStores, false, bill).find(c => c.name === failing).passed, false);
 });
-test('partial quantity, wrong rate, duplicate, damaged receipt and missing approval are blocked', () => {
-  for (const [inputRow, inputPo, inputStores, duplicate] of [
-    [{ ...row, qty: '9' }, po, stores, false],
-    [row, [{ ...po[0], rate: '99' }], stores, false],
-    [row, po, stores, true],
-    [row, po, [{ ...stores[0], damage_order: 'No' }], false],
-    [row, po, [{ ...stores[0], hod_status: '' }], false],
-  ]) assert.equal(sourceChecks(inputRow, inputPo, inputStores, duplicate, bill).every(c => c.passed), false);
+test('only the four audit checks run; company, vendor, rate, damage, approval and duplicates are ignored', () => {
+  const lenient = { ...bill, firmName: 'Other firm', partyName: 'Someone else', billNo: 'OTHER' };
+  assert.equal(sourceChecks(row, [{ ...po[0], rate: '99', party_name: 'X' }], [{ ...stores[0], damage_order: 'No', hod_status: '', received_quantity: '0' }], true, lenient).every(c => c.passed), true);
 });
-test('ambiguous products and wrong company fail closed', () => {
-  assert.equal(sourceChecks(row, [...po, ...po], stores, false, bill).every(c => c.passed), false);
-  assert.equal(sourceChecks(row, po, stores, false, { ...bill, firmName: 'Other firm' }).every(c => c.passed), false);
+test('amount may match the bill total or the amount before tax', () => {
+  const taxed = { ...bill, total: 1180, taxableValue: 1000 };
+  const beforeTax = { ...row, bill_amt: '1000' };
+  const checks = sourceChecks(beforeTax, po, [{ ...stores[0], bill_amount: '1000' }], false, taxed);
+  assert.equal(checks.every(c => c.passed), true);
+  assert.equal(sourceChecks({ ...row, bill_amt: '1100' }, po, stores, false, taxed).find(c => c.name === 'Bill amount').passed, false);
+  assert.equal(sourceChecks(beforeTax, po, stores, false, { ...bill, taxableValue: -1 }).find(c => c.name === 'Bill amount').passed, false);
+});
+test('a handwritten single-line slip matches without the same product name', () => {
+  const slip = { ...bill, total: 19190, billNo: '', firmName: '', partyName: '', items: [{ product: 'सुखी लकड़ी', quantity: 2020, rate: 9.5 }] };
+  const wooden = { ...row, product_name: 'Wooden', qty: '2020', bill_amt: '19190' };
+  const receipt = [{ ...stores[0], product_name: 'Wooden', qty: '2020', bill_amount: '19190' }];
+  assert.equal(sourceChecks(wooden, po, receipt, false, slip).every(c => c.passed), true);
+  const two = { ...slip, items: [...slip.items, { product: 'दूसरा', quantity: 1, rate: 1 }] };
+  assert.equal(sourceChecks(wooden, po, receipt, false, two).find(c => c.name === 'Bill qty').passed, false);
+});
+test('ambiguous or missing bill products and missing lift receipt fail closed', () => {
+  const twice = { ...bill, items: [...bill.items, ...bill.items] };
+  assert.equal(sourceChecks(row, po, stores, false, twice).find(c => c.name === 'Bill qty').passed, false);
+  assert.equal(sourceChecks(row, po, [], false, bill).find(c => c.name === 'Lift qty').passed, false);
+  assert.equal(sourceChecks(row, po, [], false, bill).find(c => c.name === 'Lift amount').passed, false);
 });
 test('AI cannot process the human Rectify stage', () => {
   assert.throws(() => transition(row, 'RECTIFY', report('RECTIFY', 'passed'), now), /human-only/);

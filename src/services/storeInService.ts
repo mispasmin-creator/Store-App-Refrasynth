@@ -11,6 +11,8 @@ import { supabase } from '@/lib/supabase';
 
 export interface StoreInRecord {
     id: number;
+    /** Department of the indent this receipt belongs to (used to scope department users). */
+    department: string;
     liftNumber: string;
     indentNo: string;
     billNo: string;
@@ -106,8 +108,15 @@ export async function fetchStoreInRecords() {
 
         if (error) throw error;
 
+        // store_in has no department of its own; take it from the indent it was raised against.
+        const { data: indentRows } = await supabase.from('indent').select('indent_number, department');
+        const departmentByIndent = new Map<string, string>(
+            (indentRows || []).map((i: any) => [String(i.indent_number || ''), String(i.department || '')])
+        );
+
         return (data || []).map((r: any) => ({
             id: r.id || 0,
+            department: departmentByIndent.get(String(r.indent_no || '')) || '',
             liftNumber: r.lift_number || '',
             indentNo: r.indent_no || '',
             billNo: r.bill_no || '',

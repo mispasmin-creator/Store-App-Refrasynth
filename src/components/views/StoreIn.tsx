@@ -25,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Input } from '../ui/input';
 import { Tabs, TabsContent } from '../ui/tabs';
 import { useAuth } from '@/context/AuthContext';
+import { departmentMatches } from '@/lib/access';
 import Heading from '../element/Heading';
 import { formatDate, formatDateTime, parseCustomDate } from '@/lib/utils';
 import { Pill } from '../ui/pill';
@@ -61,6 +62,7 @@ interface StoreInPendingData {
     leadTimeToLiftMaterial: number;
     discountAmount: number;
     firmNameMatch: string;
+    department: string;
     planned6Date: string;
     timestamp: string;
     products?: string[];
@@ -107,6 +109,7 @@ interface StoreInHistoryData {
     billReceived: string;
     billImage: string;
     firmNameMatch: string;
+    department: string;
     planned6Date: string;
 }
 
@@ -158,7 +161,8 @@ export default () => {
 
     useEffect(() => {
         const filteredByFirm = storeInRecords.filter((item) =>
-            user.firmNameMatch.toLowerCase() === "all" || item.firmNameMatch === user.firmNameMatch
+            (user.firmNameMatch.toLowerCase() === "all" || item.firmNameMatch === user.firmNameMatch) &&
+            departmentMatches(user, item.department)
         );
 
         const latestRecords: any[] = [];
@@ -201,6 +205,7 @@ export default () => {
                     leadTimeToLiftMaterial: i.leadTimeToLiftMaterial || 0,
                     discountAmount: i.discountAmount || 0,
                     firmNameMatch: i.firmNameMatch || '',
+                    department: '',
                     planned6Date: i.planned6 || '',
                     timestamp: i.timestamp || '',
                     priceAsPerPo: i.priceAsPerPo || 0,
@@ -212,17 +217,22 @@ export default () => {
             }
             const group = groupedMap.get(key);
             group.qty += Number(i.qty) || 0;
+            // One bill can carry items from several departments; list each once.
+            if (i.department && !group.department.split(', ').includes(i.department)) {
+                group.department = group.department ? `${group.department}, ${i.department}` : i.department;
+            }
             group.products.push(i.productName);
             group.indentNumbers.push(i.indentNo);
             group.originalItems.push(i);
         });
 
         setTableData(Array.from(groupedMap.values()));
-    }, [storeInRecords, user.firmNameMatch]);
+    }, [storeInRecords, user.firmNameMatch, user.department]);
 
     useEffect(() => {
         const filteredByFirm = storeInRecords.filter((item) =>
-            user.firmNameMatch.toLowerCase() === "all" || item.firmNameMatch === user.firmNameMatch
+            (user.firmNameMatch.toLowerCase() === "all" || item.firmNameMatch === user.firmNameMatch) &&
+            departmentMatches(user, item.department)
         );
 
         const latestRecords: any[] = [];
@@ -275,10 +285,11 @@ export default () => {
                     billReceived: i.billStatus || '',
                     billImage: i.photoOfBill || '',
                     firmNameMatch: i.firmNameMatch || '',
+                    department: i.department || '',
                     planned6Date: i.planned6 || '',
                 }))
         );
-    }, [storeInRecords, user.firmNameMatch]);
+    }, [storeInRecords, user.firmNameMatch, user.department]);
 
     const textWrapCell = ({ getValue }: { getValue: () => any }) => {
         const value = getValue();
@@ -319,6 +330,7 @@ export default () => {
             }
         },
         { accessorKey: 'firmNameMatch', header: 'Firm Name', cell: textWrapCell },
+        { accessorKey: 'department', header: 'Department', cell: textWrapCell },
         {
             accessorKey: 'billStatus',
             header: 'Bill Status',
@@ -352,6 +364,7 @@ export default () => {
         { accessorKey: 'indentNo', header: 'Indent No.', cell: textWrapCell },
         { accessorKey: 'poNumber', header: 'PO Number', cell: textWrapCell },
         { accessorKey: 'firmNameMatch', header: 'Firm Name', cell: textWrapCell },
+        { accessorKey: 'department', header: 'Department', cell: textWrapCell },
         { accessorKey: 'vendorName', header: 'Vendor Name', cell: textWrapCell },
         { accessorKey: 'productName', header: 'Product Name', cell: textWrapCell },
         {

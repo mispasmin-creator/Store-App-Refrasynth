@@ -4,6 +4,8 @@ export type AuditRow = Record<string, unknown> & { id: number };
 export type AuditCheck = { name: string; passed: boolean; detail: string };
 export type DocumentData = {
   billNo: string; partyName: string; firmName: string; total: number;
+  /** Amount before tax, when the document shows one; -1/absent when it does not. */
+  taxableValue?: number;
   voucherNo: string; voucherDate: string;
   items: { product: string; quantity: number; rate: number }[];
 };
@@ -36,6 +38,14 @@ export function nameMatches(a: unknown, b: unknown): boolean {
     const differences = [...word].filter((letter, i) => letter !== other[i]).length;
     return differences === 1 && ++typos === 1;
   });
+}
+// The app stores a short firm name (e.g. "Refrasynth") while bills carry the full legal name
+// (e.g. "REFRASYNTH MINERALS INDIA PRIVATE LIMITED"), so the app name's words only need to appear in the bill's.
+export function firmMatches(bill: unknown, app: unknown): boolean {
+  if (nameMatches(bill, app)) return true;
+  const words = (value: unknown) => norm(value).replace(/&/g, ' and ').replace(/[.,]/g, ' ').split(/\s+/).filter(Boolean);
+  const billWords = new Set(words(bill)), appWords = words(app);
+  return appWords.length > 0 && appWords.every(word => billWords.has(word));
 }
 export function numberValue(v: unknown): number {
   if (!present(v)) return NaN;
@@ -228,7 +238,7 @@ export function remarkText(value: unknown, expectedStage?: AuditStage): string {
 }
 export function validateDocument(value: unknown): DocumentData {
   const v = value as DocumentData;
-  if (!v || !['billNo', 'partyName', 'firmName', 'voucherNo', 'voucherDate'].every(k => typeof (v as unknown as Record<string, unknown>)[k] === 'string') || typeof v.total !== 'number' || !Number.isFinite(v.total) || !Array.isArray(v.items) || v.items.length > 500 || !v.items.every(i => typeof i.product === 'string' && Number.isFinite(i.quantity) && Number.isFinite(i.rate))) throw new Error('Invalid AI document extraction');
+  if (!v || !['billNo', 'partyName', 'firmName', 'voucherNo', 'voucherDate'].every(k => typeof (v as unknown as Record<string, unknown>)[k] === 'string') || typeof v.total !== 'number' || !Number.isFinite(v.total) || (v.taxableValue !== undefined && !Number.isFinite(v.taxableValue)) || !Array.isArray(v.items) || v.items.length > 500 || !v.items.every(i => typeof i.product === 'string' && Number.isFinite(i.quantity) && Number.isFinite(i.rate))) throw new Error('Invalid AI document extraction');
   return v;
 }
 export function liftingProgress(row: AuditRow, po: AuditRow[], stores: AuditRow[]): LiftingProgress {
@@ -246,31 +256,31 @@ export function liftingProgress(row: AuditRow, po: AuditRow[], stores: AuditRow[
   return { ordered, current: numberValue(row.qty), lifted: round(lifted), received: round(received), pending: round(ordered - lifted), valid };
 }
 export function sourceChecks(row: AuditRow, po: AuditRow[], stores: AuditRow[], duplicate: boolean, bill: DocumentData): AuditCheck[] {
+  // Only four checks are audited: lift qty, bill qty, bill amount and lift amount.
+  // Company, vendor, PO, rate, received qty, store checks and duplicates are intentionally not checked.
+  void po; void duplicate;
   const checks: AuditCheck[] = [];
   const value = (v: unknown) => !present(v) || v === -1 ? 'missing' : String(v).slice(0, 60);
   const add = (name: string, passed: boolean, detail: string) => checks.push({ name, passed, detail });
-  const lines = po.filter(p => norm(p.product) === norm(row.product_name));
   const receipts = stores.filter(s => norm(s.firm_name_match) === norm(row.firm_name_match) && norm(s.po_number) === norm(row.po_number) && norm(s.product_name) === norm(row.product_name) && norm(s.lift_number) === norm(row.lift_number) && norm(s.indent_no) === norm(row.indent_number));
-  const line = lines.length === 1 ? lines[0] : null;
   const receipt = receipts.length === 1 ? receipts[0] : null;
-  const invoiceItems = bill.items.filter(i => nameMatches(i.product, row.product_name));
+  // A bill (or handwritten slip) with a single line may name the product differently, e.g. in Hindi.
+  const named = bill.items.filter(i => nameMatches(i.product, row.product_name));
+  const invoiceItems = named.length ? named : bill.items.length === 1 ? bill.items : [];
   const item = invoiceItems.length === 1 ? invoiceItems[0] : null;
-  add('Firm', present(row.firm_name_match) && nameMatches(bill.firmName, row.firm_name_match), `Bill ${value(bill.firmName)}; app ${value(row.firm_name_match)}.`);
-  add('PO line', !!line, lines.length ? 'Multiple matching PO lines.' : `PO product missing: ${value(row.product_name)}.`);
-  add('Receipt', !!receipt && norm(receipt.hod_status) === 'approved', !receipt ? 'Matching approved receipt missing/ambiguous.' : `HOD: ${value(receipt.hod_status)}.`);
-  add('Vendor', !!line && nameMatches(row.party_name, line.party_name) && nameMatches(bill.partyName, line.party_name), `Bill ${value(bill.partyName)}; PO ${value(line?.party_name)}; app ${value(row.party_name)}.`);
-  add('Invoice number', present(row.bill_no) && norm(bill.billNo) === norm(row.bill_no), `Bill ${value(bill.billNo)}; app ${value(row.bill_no)}.`);
-  add('Lifting bill', !!receipt && present(receipt.bill_no) && norm(receipt.bill_no) === norm(bill.billNo), `Invoice ${value(bill.billNo)}; lifting bill ${value(receipt?.bill_no)}.`);
-  add('Invoice total', numberValue(row.bill_amt) > 0 && moneyMatches(row.bill_amt, bill.total), `Bill ${value(bill.total)}; app ${value(row.bill_amt)}.`);
-  add('Invoice line', !!item, invoiceItems.length ? 'Multiple matching bill products.' : `Bill product missing: ${value(row.product_name)}.`);
-  add('Quantity', !!item && !!receipt && numberValue(item.quantity) > 0 && quantityMatches(item.quantity, row.qty) && quantityMatches(item.quantity, receipt.received_quantity), `Bill ${value(item?.quantity)}; received ${value(receipt?.received_quantity)}; app ${value(row.qty)}.`);
-  add('PO quantity', !!line && !!item && numberValue(line.quantity) >= item.quantity, `Bill ${value(item?.quantity)}; ordered ${value(line?.quantity)}.`);
-  const progress = liftingProgress(row, po, stores);
-  add('PO lifting total', progress.valid && progress.lifted <= progress.ordered + 0.000001, progress.valid ? progress.pending < -0.000001 ? `Lifted ${progress.lifted}; PO ${progress.ordered}; excess ${-progress.pending}.` : `Lifted ${progress.lifted}; PO ${progress.ordered}; pending ${progress.pending}.` : 'PO lifting quantities are missing or invalid.');
-  add('Rate', !!line && !!item && numberValue(item.rate) > 0 && moneyMatches(item.rate, line.rate) && moneyMatches(item.rate, row.rate), `Bill ${value(item?.rate)}; PO ${value(line?.rate)}; app ${value(row.rate)}.`);
-  // Despite its legacy column name, damage_order = Yes means physical check OK in this app.
-  add('Store checks', !!receipt && norm(receipt.quantity_as_per_bill) === 'yes' && norm(receipt.damage_order) === 'yes' && norm(receipt.price_as_per_po_check || receipt.bill_received2) === 'yes', `Qty check ${value(receipt?.quantity_as_per_bill)}; physical ${value(receipt?.damage_order)}; price ${value(receipt?.price_as_per_po_check || receipt?.bill_received2)}.`);
-  add('Duplicate invoice', !duplicate, 'Same invoice found on another entry.');
+  const itemIssue = invoiceItems.length ? 'Multiple matching bill products.' : `Bill product missing: ${value(row.product_name)}.`;
+  // App amounts are often entered before GST, while the bill total includes it; either may match.
+  const billAmounts = [bill.total, bill.taxableValue].filter(amount => numberValue(amount) > 0);
+  const amountMatches = (app: unknown) => numberValue(app) > 0 && billAmounts.some(amount => moneyMatches(app, amount));
+  const billAmountText = bill.taxableValue !== undefined && numberValue(bill.taxableValue) > 0 && !moneyMatches(bill.taxableValue, bill.total)
+    ? `${value(bill.total)} (before tax ${value(bill.taxableValue)})` : value(bill.total);
+  add('Lift qty', !!item && !!receipt && numberValue(item.quantity) > 0 && quantityMatches(item.quantity, receipt.qty),
+    !item ? itemIssue : !receipt ? 'Matching lift receipt missing/ambiguous.' : `Bill ${value(item.quantity)}; lift ${value(receipt.qty)}.`);
+  add('Bill qty', !!item && numberValue(item.quantity) > 0 && quantityMatches(item.quantity, row.qty),
+    !item ? itemIssue : `Bill ${value(item.quantity)}; app ${value(row.qty)}.`);
+  add('Bill amount', amountMatches(row.bill_amt), `Bill ${billAmountText}; app ${value(row.bill_amt)}.`);
+  add('Lift amount', !!receipt && amountMatches(receipt.bill_amount),
+    !receipt ? 'Matching lift receipt missing/ambiguous.' : `Bill ${billAmountText}; lift ${value(receipt.bill_amount)}.`);
   return checks;
 }
 export function humanReviewUpdate(stage: 'TALLY_ENTRY' | 'AGAIN_AUDIT', answer: string, reviewer: string, now: string): Record<string, unknown> {
