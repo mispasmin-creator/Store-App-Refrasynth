@@ -76,6 +76,7 @@ interface ProcessedRecord {
 interface AuthUser {
     firmNameMatch?: string;
     receiveItemAction?: boolean;
+    ordersView?: boolean;
     receiveItemView?: boolean;
     administrate?: boolean;
 }
@@ -799,7 +800,7 @@ export default function GetPurchase() {
 
     // ── Pending table columns ───────────────────────────────────────────
     const pendingColumns: ColumnDef<GetPurchaseData>[] = [
-        ...(user?.receiveItemAction ? [{
+        ...((user?.ordersView || user?.receiveItemAction) ? [{
             header: 'Action', cell: ({ row }: { row: Row<GetPurchaseData> }) => (
                 <DialogTrigger asChild>
                     <Button variant="outline" size="sm" onClick={() => { setSelectedIndent(row.original); setShowCancelQty(false); setCancelQtyValue(''); }}>
@@ -937,7 +938,7 @@ export default function GetPurchase() {
             header: 'Action',
             cell: ({ row }) => {
                 const r = row.original;
-                if (r.rowType === 'lift' && user?.receiveItemAction && r.liftData) {
+                if (r.rowType === 'lift' && (user?.ordersView || user?.receiveItemAction) && r.liftData) {
                     return (
                         <DialogTrigger asChild>
                             <Button variant="outline" size="sm"
