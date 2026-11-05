@@ -34,6 +34,7 @@ import {
 } from '@/services/issueService';
 import { fetchStoreInRecords } from '@/services/storeInService';
 import { issuedStockByProduct, stockProductKey } from '@/lib/issueStock';
+import { afterCutoff, fetchOpeningStock } from '@/lib/openingStock';
 
 export default function IssueData() {
     const { user } = useAuth();
@@ -86,17 +87,19 @@ export default function IssueData() {
                         latestRecords.push(item);
                     }
                 }
+                const opening = await fetchOpeningStock();
                 const historyRecords = latestRecords.filter(
-                    r => r.actual6 !== '' && r.receivingStatus !== 'Not Received'
+                    r => r.actual6 !== '' && r.receivingStatus !== 'Not Received' && afterCutoff(r.actual6, opening.cutoff)
                 );
 
                 const qtyByProduct = new Map<string, number>();
+                for (const [key, o] of opening.items) qtyByProduct.set(key, o.qty);
                 for (const r of historyRecords) {
                     const key = stockProductKey(r.productName || '');
                     qtyByProduct.set(key, (qtyByProduct.get(key) || 0) + (Number(r.qty) || 0));
                 }
 
-                for (const [key, quantity] of issuedStockByProduct(issueRecords)) {
+                for (const [key, quantity] of issuedStockByProduct(issueRecords, opening.cutoff)) {
                     qtyByProduct.set(key, (qtyByProduct.get(key) || 0) - quantity);
                 }
 

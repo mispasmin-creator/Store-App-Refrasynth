@@ -25,6 +25,7 @@ import { fetchIssueRecords } from '@/services/issueService';
 import { supabase } from '@/lib/supabase';
 import { fetchMasterRecords } from '@/services/masterService';
 import { issuedStockByProduct, stockProductKey } from '@/lib/issueStock';
+import { afterCutoff, fetchOpeningStock } from '@/lib/openingStock';
 
 interface InventoryRecord {
     itemName: string;
@@ -34,6 +35,7 @@ interface InventoryRecord {
     loc: string;
     rate: number;
     current: number;
+    openingQty: number;
     indentedQty: number;
     issuedQty: number;
     minStock: number;
@@ -76,15 +78,17 @@ export default function Inventory() {
     // skipping rows whose Rec. Status is Rejected (Not Received) — only Received counts.
     // Then the Issue Data page's history (Given Qty, matched by product name) is
     // subtracted, since that quantity has already gone out of stock.
-    const fetchData = async () => {
+    // Background refreshes are silent so the table doesn't flash/reset while it is being used.
+    const fetchData = async (silent = false) => {
         try {
-            setDataLoading(true);
-            const [records, issueRecords, masterRows, indentRows, inventoryResult] = await Promise.all([
+            if (!silent) setDataLoading(true);
+            const [records, issueRecords, masterRows, indentRows, inventoryResult, opening] = await Promise.all([
                 fetchStoreInRecords(),
                 fetchIssueRecords(),
                 fetchMasterRecords(),
                 fetchInventoryIndents(),
                 supabase.from('inventory').select('item_name, min_qty_req'),
+                fetchOpeningStock(),
             ]);
             if (inventoryResult.error) throw inventoryResult.error;
             const invRows = inventoryResult.data;
@@ -138,12 +142,31 @@ export default function Inventory() {
                 }
             }
 
+            // Physical-count (opening) stock already includes anything received before the count,
+            // so only receipts/issues on or after the count date are applied on top of it.
             const historyRecords = latestRecords.filter(
-                r => r.actual6 !== '' && r.receivingStatus !== 'Not Received'
+                r => r.actual6 !== '' && r.receivingStatus !== 'Not Received' && afterCutoff(r.actual6, opening.cutoff)
             );
 
             const grouped = new Map<string, InventoryRecord>();
-            // Only actual receipt history creates stock rows. Master supplies metadata.
+            for (const [productKey, o] of opening.items) {
+                grouped.set(`stock||${productKey}`, {
+                    itemName: o.itemName,
+                    department: departmentByName.get(productKey) || o.groupHead,
+                    groupMaster: groupMasterByName.get(productKey) || o.groupMaster,
+                    uom: masterUomByName.get(productKey) || o.uom,
+                    loc: o.loc,
+                    rate: 0,
+                    openingQty: o.qty,
+                    current: o.qty,
+                    indentedQty: indentedQtyByProduct.get(productKey) || 0,
+                    issuedQty: 0,
+                    minStock: minQtyByName.get(productKey) || 0,
+                    totalPrice: 0,
+                    firmName: '',
+                });
+            }
+            // Receipt history and the physical-count opening stock create stock rows. Master supplies metadata.
             for (const r of historyRecords) {
                 const key = `stock||${stockProductKey(r.productName || '')}`;
                 if (!grouped.has(key)) {
@@ -155,6 +178,7 @@ export default function Inventory() {
                         uom: masterUomByName.get(nameKey) || uomByName.get(nameKey) || r.uom || '',
                         loc: r.location || '',
                         rate: Number(r.priceAsPerPo) || 0,
+                        openingQty: 0,
                         current: 0,
                         indentedQty: indentedQtyByProduct.get(stockProductKey(r.productName || '')) || 0,
                         issuedQty: 0,
@@ -165,12 +189,14 @@ export default function Inventory() {
                 }
 
                 const row = grouped.get(key)!;
-                if (row.firmName !== (r.firmNameMatch || '')) row.firmName = 'Shared stock';
+                if (!row.rate) row.rate = Number(r.priceAsPerPo) || 0;
+                if (!row.firmName) row.firmName = r.firmNameMatch || '';
+                else if (row.firmName !== (r.firmNameMatch || '')) row.firmName = 'Shared stock';
                 row.current += Number(r.qty) || 0;
                 row.totalPrice = row.current * row.rate;
             }
 
-            const issuedQtyByProduct = issuedStockByProduct(issueRecords);
+            const issuedQtyByProduct = issuedStockByProduct(issueRecords, opening.cutoff);
 
             for (const row of grouped.values()) {
                 const issuedQty = issuedQtyByProduct.get(stockProductKey(row.itemName)) || 0;
@@ -190,9 +216,9 @@ export default function Inventory() {
 
     useEffect(() => {
         fetchData();
-        const refresh = () => { void fetchData(); };
+        const refresh = () => { void fetchData(true); };
         window.addEventListener('focus', refresh);
-        const timer = window.setInterval(refresh, 30000);
+        const timer = window.setInterval(refresh, 120000);
         return () => { window.removeEventListener('focus', refresh); window.clearInterval(timer); };
     }, []);
 
@@ -247,7 +273,7 @@ export default function Inventory() {
             toast.success(`Min Qty Req updated for ${values.itemName}`);
             setOpenDialog(false);
             minQtyForm.reset({ itemName: '', uom: '', minQtyReq: 0 });
-            fetchData();
+            fetchData(true);
         } catch (error) {
             console.error('Error saving min qty req:', error);
             toast.error('Failed to save Min Qty Req');
@@ -279,6 +305,7 @@ export default function Inventory() {
         { accessorKey: 'uom', header: 'UOM' },
         { accessorKey: 'loc', header: 'LOC' },
         { accessorKey: 'groupMaster', header: 'Department' },
+        { accessorKey: 'openingQty', header: 'Opening Qty' },
         { accessorKey: 'indentedQty', header: 'Total Indented Qty' },
         { accessorKey: 'issuedQty', header: 'Total Issued Qty' },
         { accessorKey: 'department', header: 'Group' },
