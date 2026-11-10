@@ -27,6 +27,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { PuffLoader as Loader } from 'react-spinners';
 import { toast } from 'sonner';
+import { useSheets } from '@/context/SheetsContext';
 
 interface MasterRecord {
     id: number;
@@ -71,6 +72,7 @@ const emptyValues: FormValues = {
 };
 
 export default () => {
+    const { updateMasterSheet } = useSheets();
     const [tableData, setTableData] = useState<MasterRecord[]>([]);
     const [dataLoading, setDataLoading] = useState(true);
     const [openDialog, setOpenDialog] = useState(false);
@@ -180,6 +182,7 @@ export default () => {
             }
             setOpenDialog(false);
             fetchData();
+            updateMasterSheet();
         } catch (error) {
             console.error('Error saving master item:', error);
             toast.error('Failed to save master item');
@@ -193,6 +196,7 @@ export default () => {
             if (error) throw error;
             toast.success('Deleted master item');
             fetchData();
+            updateMasterSheet();
         } catch (error) {
             console.error('Error deleting master item:', error);
             toast.error('Failed to delete master item');

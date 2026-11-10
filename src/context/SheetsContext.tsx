@@ -56,6 +56,7 @@ interface SheetsState {
     updateReceivedSheet: () => void;
     updatePoMasterSheet: () => void;
     updateIndentSheet: () => void;
+    updateMasterSheet: () => void;
     updateAll: () => void;
 
     updateIssueSheet: () => void;
@@ -476,6 +477,7 @@ export const SheetsProvider = ({ children }: { children: React.ReactNode }) => {
                 updateIndentSheet,
                 updatePoMasterSheet,
                 updateReceivedSheet,
+                updateMasterSheet,
                 updateAll,
                 indentSheet,
                 sheets,

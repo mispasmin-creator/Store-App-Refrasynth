@@ -29,8 +29,12 @@ import { fetchStoreInRecords } from '@/services/storeInService';
 import { fetchIssueRecords } from '@/services/issueService';
 
 export default () => {
-    const { masterSheet: options } = useSheets();
+    const { masterSheet: options, updateMasterSheet } = useSheets();
     const { user } = useAuth();
+
+    useEffect(() => {
+        updateMasterSheet?.();
+    }, []);
     const [searchTerm, setSearchTerm] = useState('');
     const [searchTermGroupHead, setSearchTermGroupHead] = useState('');
     const [searchTermGroupMaster, setSearchTermGroupMaster] = useState('');
