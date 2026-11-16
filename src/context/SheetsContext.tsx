@@ -49,15 +49,19 @@ import type {
 } from '@/types';
 import type { PaymentsSheet } from '@/types/sheets';
 
-import { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import { createContext, useContext, useEffect, useState, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
 
 interface SheetsState {
     updateReceivedSheet: () => void;
     updatePoMasterSheet: () => void;
     updateIndentSheet: () => void;
+<<<<<<< HEAD
     updateMasterSheet: () => void;
     updateAll: () => void;
+=======
+    updateAll: () => Promise<void>;
+>>>>>>> 34b5d826ccf99c2fce9bbc75c50bd9e9aee9276c
 
     updateIssueSheet: () => void;
     issueSheet: IssueSheet[];
@@ -125,6 +129,7 @@ export const SheetsProvider = ({ children }: { children: React.ReactNode }) => {
     const [receivedLoading, setReceivedLoading] = useState(true);
     const [inventoryLoading, setInventoryLoading] = useState(true);
     const [allLoading, setAllLoading] = useState(true);
+    const refreshInFlight = useRef<Promise<void> | null>(null);
 
     const [storeInLoading, setStoreInLoading] = useState(true);
     const [paymentsSheet, setPaymentsSheet] = useState<PaymentsSheet[]>([]);
@@ -152,7 +157,7 @@ export const SheetsProvider = ({ children }: { children: React.ReactNode }) => {
 
     function updateStoreInSheet() {
         setStoreInLoading(true);
-        fetchStoreInRecords()
+        return fetchStoreInRecords()
             .then((res) => {
                 // Map to StoreInSheet format
                 const mapped = res.map((r: any) => ({
@@ -172,7 +177,7 @@ export const SheetsProvider = ({ children }: { children: React.ReactNode }) => {
 
     function updateIssueSheet() {
         setIssueLoading(true);
-        fetchIssueRecords()
+        return fetchIssueRecords()
             .then((res) => {
                 const mapped = res.map(r => ({
                     issueNo: r.issue_no,
@@ -200,7 +205,7 @@ export const SheetsProvider = ({ children }: { children: React.ReactNode }) => {
 
     function updateIndentSheet() {
         setIndentLoading(true);
-        fetchIndentRecords()
+        return fetchIndentRecords()
             .then((res) => {
                 const mapped = res.map(r => ({
                     indentNumber: r.indent_number,
@@ -224,7 +229,8 @@ export const SheetsProvider = ({ children }: { children: React.ReactNode }) => {
                     actual2: r.actual2,
                     planned3: r.planned3,
                     actual3: r.actual3,
-                    approvedVendorName: r.vendor_name || '',
+                    approvedVendorName: r.approved_vendor_name || r.vendor_name || '',
+                    approvedRate: r.approved_rate,
                     planned4: r.planned4,
                     actual4: r.actual4,
                     poNumber: r.po_number,
@@ -249,7 +255,7 @@ export const SheetsProvider = ({ children }: { children: React.ReactNode }) => {
     function updateReceivedSheet() {
         setReceivedLoading(true);
         // Using StoreIn service for received items as they are related
-        fetchStoreInRecords()
+        return fetchStoreInRecords()
             .then((res) => {
                 const mapped = res.filter(r => r.actual6 !== '').map(r => ({
                     timestamp: r.timestamp,
@@ -278,7 +284,7 @@ export const SheetsProvider = ({ children }: { children: React.ReactNode }) => {
 
     function updatePoMasterSheet() {
         setPoMasterLoading(true);
-        fetchPoMaster()
+        return fetchPoMaster()
             .then((res) => {
                 setPoMasterSheet(res as unknown as PoMasterSheet[]);
                 setPoMasterLoading(false);
@@ -291,7 +297,7 @@ export const SheetsProvider = ({ children }: { children: React.ReactNode }) => {
 
     function updateInventorySheet() {
         setInventoryLoading(true);
-        fetchInventoryRecords()
+        return fetchInventoryRecords()
             .then((res) => {
                 setInventorySheet(res as unknown as InventorySheet[]);
                 setInventoryLoading(false);
@@ -303,7 +309,7 @@ export const SheetsProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     function updateMasterSheet() {
-        fetchMasterOptions()
+        return fetchMasterOptions()
             .then((res) => {
                 setMasterSheet(res as unknown as MasterSheet);
             })
@@ -314,7 +320,7 @@ export const SheetsProvider = ({ children }: { children: React.ReactNode }) => {
 
     function updateFullkittingSheet() {
         setFullkittingLoading(true);
-        fetchFullkittingRecords()
+        return fetchFullkittingRecords()
             .then((res) => {
                 const mapped = res.map(r => ({
                     ...r,
@@ -331,7 +337,7 @@ export const SheetsProvider = ({ children }: { children: React.ReactNode }) => {
 
     function updatePaymentsSheet() {
         setPaymentsLoading(true);
-        fetchPayments()
+        return fetchPayments()
             .then((res) => {
                 setPaymentsSheet(res as unknown as PaymentsSheet[]);
                 setPaymentsLoading(false);
@@ -344,7 +350,7 @@ export const SheetsProvider = ({ children }: { children: React.ReactNode }) => {
 
     function updatePaymentHistorySheet() {
         setPaymentHistoryLoading(true);
-        fetchPaymentHistory()
+        return fetchPaymentHistory()
             .then((res) => {
                 setPaymentHistorySheet(res as unknown as PaymentHistory[]);
                 setPaymentHistoryLoading(false);
@@ -355,24 +361,22 @@ export const SheetsProvider = ({ children }: { children: React.ReactNode }) => {
             });
     }
 
-    function updateAll() {
+    function updateAll(): Promise<void> {
+        // Manual refresh after a save must fetch again, even if an older poll
+        // started before that save. Background polls never queue extra work.
+        if (refreshInFlight.current) return refreshInFlight.current.then(() => updateAll());
         setAllLoading(true);
-        updateMasterSheet();
-        updateReceivedSheet();
-        updateIndentSheet();
-        updatePoMasterSheet();
-        updateInventorySheet();
-
-        updateStoreInSheet();
-        updateIssueSheet();
-        updateTallyEntrySheet();
-        updatePcReportSheet();
-        updateFullkittingSheet();
-
-        updatePaymentHistorySheet();
-        updatePaymentsSheet();
-
-        setAllLoading(false);
+        const refresh = Promise.allSettled([
+            updateMasterSheet(), updateReceivedSheet(), updateIndentSheet(),
+            updatePoMasterSheet(), updateInventorySheet(), updateStoreInSheet(),
+            updateIssueSheet(), updateTallyEntrySheet(), updatePcReportSheet(),
+            updateFullkittingSheet(), updatePaymentHistorySheet(), updatePaymentsSheet(),
+        ]).then(() => undefined).finally(() => {
+            setAllLoading(false);
+            refreshInFlight.current = null;
+        });
+        refreshInFlight.current = refresh;
+        return refresh;
     }
 
     useEffect(() => {
@@ -383,7 +387,7 @@ export const SheetsProvider = ({ children }: { children: React.ReactNode }) => {
             // ✅ AUTO-REFRESH EVERY 30 SECONDS
             const intervalId = setInterval(() => {
                 console.log('🔄 Auto-refreshing data...');
-                updateAll();
+                if (!refreshInFlight.current) void updateAll();
             }, 30000); // 30,000 ms = 30 seconds
 
             return () => clearInterval(intervalId);
@@ -396,7 +400,7 @@ export const SheetsProvider = ({ children }: { children: React.ReactNode }) => {
     function updateTallyEntrySheet() {
         setTallyEntryLoading(true);
         console.log('🔄 Fetching Tally Entry records...');
-        fetchTallyEntryRecords()
+        return fetchTallyEntryRecords()
             .then((res) => {
                 console.log(`✅ Received ${res.length} Tally Entry records`);
                 const mapped = res.map(r => ({
@@ -447,6 +451,7 @@ export const SheetsProvider = ({ children }: { children: React.ReactNode }) => {
                     planned5: r.planned5,
                     actual5: r.actual5,
                     status5: r.status5,
+                    remarks5: r.remarks5,
                     firmNameMatch: r.firmNameMatch,
                     id: r.id,
                     // Additional fields from join

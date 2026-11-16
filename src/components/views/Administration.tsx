@@ -31,7 +31,7 @@ import { toast } from 'sonner';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '../ui/hover-card';
 import { Pill } from '../ui/pill';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { fetchUsers, createUser, updateUser, deleteUser, type UserRecord } from '@/services/userService';
+import { fetchUsers, createUser, updateUser, deleteUser, fetchDepartments, type UserRecord } from '@/services/userService';
 import { fetchMasterOptions } from '@/services/masterService';
 
 interface UsersTableData {
@@ -40,6 +40,7 @@ interface UsersTableData {
     name: string;
     password: string;
     firmNameMatch: string;
+    department: string;
     permissions: string[];
 }
 
@@ -52,43 +53,31 @@ function camelToTitleCase(str: string): string {
 }
 
 const STEP_PERMISSIONS: { step: string; group: string; view?: string; action: string }[] = [
-    // Core
-    { step: 'Administration',            group: 'Core Access',      action: 'administrate' },
+    // Only routes currently rendered in the sidebar belong in this editor.
+    { step: 'Administration', group: 'Core Access', action: 'administrate' },
 
-    // Procurement
-    { step: 'Create Indent',             group: 'Procurement & PO', action: 'createIndent' },
-    { step: 'Group Indent Approval',     group: 'Procurement & PO', view: 'indentApprovalView',      action: 'indentApprovalAction' },
-    { step: 'Pending Indents',           group: 'Procurement & PO', action: 'pendingIndentsView' },
-    { step: 'Vendor Rate Update',        group: 'Procurement & PO', view: 'updateVendorView',         action: 'updateVendorAction' },
-    { step: 'Technical / Mgmt Approval', group: 'Procurement & PO', view: 'threePartyApprovalView',   action: 'threePartyApprovalAction' },
-    { step: 'Create PO',                 group: 'Procurement & PO', action: 'createPo' },
-    { step: 'Pending PO to be Created',  group: 'Procurement & PO', action: 'pendingPo' },
-    { step: 'PO History',                group: 'Procurement & PO', action: 'poHistory' },
+    { step: 'Create Indent', group: 'Procurement & PO', action: 'createIndent' },
+    { step: 'Group Indent Approval', group: 'Procurement & PO', view: 'indentApprovalView', action: 'indentApprovalAction' },
+    { step: 'Vendor Rate Update', group: 'Procurement & PO', view: 'updateVendorView', action: 'updateVendorAction' },
+    { step: 'Technical Approval', group: 'Procurement & PO', view: 'threePartyApprovalView', action: 'threePartyApprovalAction' },
+    { step: 'Mgmt Approval', group: 'Procurement & PO', view: 'threePartyApprovalView', action: 'threePartyApprovalAction' },
+    { step: 'Pending PO to be Created', group: 'Procurement & PO', action: 'pendingPo' },
+    { step: 'Create PO', group: 'Procurement & PO', action: 'createPo' },
+    { step: 'PO History', group: 'Procurement & PO', action: 'poHistory' },
 
-    // Store
-    { step: 'Material Receipt / Store In', group: 'Store & Inventory', action: 'ordersView' },
-    { step: 'Receive Item',              group: 'Store & Inventory', view: 'receiveItemView',          action: 'receiveItemAction' },
-    { step: 'HOD Check',                 group: 'Store & Inventory', action: 'storeIn' },
-    { step: 'Transporting Update',       group: 'Store & Inventory', action: 'hodStoreApproval' },
-    { step: 'Freight Payment',           group: 'Store & Inventory', action: 'fullKiting' },
-    { step: 'Store Out Approval',        group: 'Store & Inventory', view: 'storeOutApprovalView',     action: 'storeOutApprovalAction' },
-    { step: 'Store Issue',               group: 'Store & Inventory', action: 'storeIssue' },
-    { step: 'Issue Data',                group: 'Store & Inventory', action: 'issueData' },
-    { step: 'Inventory',                 group: 'Store & Inventory', action: 'inventory' },
+    { step: 'Store Issue', group: 'Store & Inventory', action: 'storeIssue' },
+    { step: 'Issue Data', group: 'Store & Inventory', action: 'issueData' },
+    { step: 'Inventory', group: 'Store & Inventory', action: 'inventory' },
+    { step: 'Lifting', group: 'Store & Inventory', action: 'ordersView' },
+    { step: 'Store In', group: 'Store & Inventory', action: 'storeIn' },
+    { step: 'HOD Store Check', group: 'Store & Inventory', action: 'hodStoreApproval' },
+    { step: 'Freight Payment', group: 'Store & Inventory', action: 'fullKiting' },
 
-    // Audit & Finance
-    { step: 'Make Payment',              group: 'Audit & Finance',  action: 'makePayment' },
-    { step: 'Process for Payment / Debit Note', group: 'Audit & Finance', action: 'paymentStatus' },
-    { step: 'Again Auditing',            group: 'Audit & Finance',  action: 'againAuditing' },
-    { step: 'Take Entry By Telly',       group: 'Audit & Finance',  action: 'takeEntryByTelly' },
-    { step: 'Re-audit Data',             group: 'Audit & Finance',  action: 'reauditData' },
-    { step: 'Rectify Mistake',           group: 'Audit & Finance',  action: 'rectifyTheMistake' },
-    { step: 'Audit Data',                group: 'Audit & Finance',  action: 'auditData' },
-    { step: 'Send Debit Note',           group: 'Audit & Finance',  action: 'sendDebitNote' },
-    { step: 'Return Material to Party',  group: 'Audit & Finance',  action: 'returnMaterialToParty' },
-    { step: 'Exchange Materials',        group: 'Audit & Finance',  action: 'exchangeMaterials' },
-    { step: 'Reject For GRN',            group: 'Audit & Finance',  action: 'insteadOfQualityCheckInReceivedItem' },
-    { step: 'DB for PC',                 group: 'Audit & Finance',  action: 'dbForPc' },
+    { step: 'Payment Status', group: 'Audit & Finance', action: 'paymentStatus' },
+    { step: 'Make Payment', group: 'Audit & Finance', action: 'makePayment' },
+    { step: 'Reject For GRN', group: 'Audit & Finance', action: 'insteadOfQualityCheckInReceivedItem' },
+    { step: 'Send Debit Note', group: 'Audit & Finance', action: 'sendDebitNote' },
+    { step: 'Audit Data', group: 'Audit & Finance', action: 'auditData' },
 ];
 
 const STEP_GROUPS = STEP_PERMISSIONS.reduce((acc, item) => {
@@ -96,6 +85,10 @@ const STEP_GROUPS = STEP_PERMISSIONS.reduce((acc, item) => {
     acc[item.group].push(item);
     return acc;
 }, {} as Record<string, typeof STEP_PERMISSIONS>);
+
+const visiblePermissionKeys = new Set(
+    STEP_PERMISSIONS.flatMap(({ view, action }) => view ? [view, action] : [action])
+);
 
 export default () => {
     const { user: currentUser } = useAuth();
@@ -106,6 +99,7 @@ export default () => {
     const [selectedUser, setSelectedUser] = useState<UsersTableData | null>(null);
     const [showPassword, setShowPassword] = useState(false);
     const [firms, setFirms] = useState<string[]>([]);
+    const [departments, setDepartments] = useState<string[]>([]);
 
     useEffect(() => {
         if (!openDialog) {
@@ -121,7 +115,7 @@ export default () => {
             setTableData(
                 sortedUsers.map((user) => {
                     const permissionKeys = allPermissionKeys.filter(
-                        (key) => user[key as keyof UserPermissions] === true
+                        (key) => visiblePermissionKeys.has(key) && user[key as keyof UserPermissions] === true
                     );
 
                     return {
@@ -130,6 +124,7 @@ export default () => {
                         name: user.name,
                         password: user.password,
                         firmNameMatch: user.firmNameMatch,
+                        department: user.department || '',
                         permissions: permissionKeys,
                     };
                 })
@@ -145,6 +140,7 @@ export default () => {
     async function loadMasterData() {
         const options = await fetchMasterOptions();
         setFirms(options.firms);
+        setDepartments(await fetchDepartments());
     }
 
     useEffect(() => {
@@ -178,6 +174,15 @@ export default () => {
                         {row.original.firmNameMatch || "Not Assigned"}
                     </span>
                 </div>
+            )
+        },
+        {
+            accessorKey: 'department',
+            header: 'Department',
+            cell: ({ row }) => (
+                <span className={row.original.department ? "font-semibold text-primary" : "text-muted-foreground"}>
+                    {row.original.department || '-'}
+                </span>
             )
         },
         {
@@ -274,6 +279,7 @@ export default () => {
         username: z.string().min(1, 'Username is required'),
         password: z.string().min(1, 'Password is required'),
         firmNameMatch: z.string().optional(),
+        department: z.string().optional(),
         permissions: z.array(z.string()),
     });
 
@@ -284,6 +290,7 @@ export default () => {
             username: '',
             password: '',
             firmNameMatch: '',
+            department: '',
             permissions: [],
         },
     });
@@ -295,6 +302,7 @@ export default () => {
                 name: selectedUser.name,
                 password: selectedUser.password,
                 firmNameMatch: selectedUser.firmNameMatch,
+                department: selectedUser.department,
                 permissions: selectedUser.permissions,
             });
             return;
@@ -304,6 +312,7 @@ export default () => {
             username: '',
             password: '',
             firmNameMatch: '',
+            department: '',
             permissions: [],
         });
     }, [selectedUser]);
@@ -322,6 +331,7 @@ export default () => {
             name: value.name,
             password: value.password,
             firmNameMatch: value.firmNameMatch || '',
+            department: value.department || '',
         };
 
         allPermissionKeys.forEach((perm) => {
@@ -362,7 +372,7 @@ export default () => {
                     <DataTable
                         data={tableData}
                         columns={columns}
-                        searchFields={['name', 'username', 'permissions', 'firmNameMatch']}
+                        searchFields={['name', 'username', 'permissions', 'firmNameMatch', 'department']}
                         dataLoading={dataLoading}
                         className="h-[calc(100dvh-180px)] overflow-hidden"
                         extraActions={
@@ -477,6 +487,36 @@ export default () => {
                                         </FormItem>
                                     )}
                                 />
+                                <FormField
+                                    control={form.control}
+                                    name="department"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Department (HOD login)</FormLabel>
+                                            <Select
+                                                onValueChange={(value) => field.onChange(value === 'none' ? '' : value)}
+                                                value={field.value || 'none'}
+                                            >
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select department" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="none">None (normal user)</SelectItem>
+                                                    {departments.map((department) => (
+                                                        <SelectItem key={department} value={department}>
+                                                            {department}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <p className="text-xs text-muted-foreground">
+                                                Department users see only the pages ticked below, and only their own department's items.
+                                            </p>
+                                        </FormItem>
+                                    )}
+                                />
                             </div>
                             <FormField
                                 control={form.control}
@@ -546,7 +586,7 @@ export default () => {
                             />
                             <DialogFooter>
                                 <DialogClose asChild>
-                                    <Button variant="outline">Close</Button>
+                                    <Button type="button" variant="outline">Close</Button>
                                 </DialogClose>
 
                                 <Button type="submit" disabled={form.formState.isSubmitting}>

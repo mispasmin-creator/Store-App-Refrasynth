@@ -122,8 +122,21 @@ export async function fetchIndentRecords() {
             .order('indent_number', { ascending: false });
 
         if (error) throw error;
-        console.log("fetchIndentRecords", data);
-        return (data || []).map((r: any) => ({
+
+        // The GST entered on the PO lives in po_master.gst; indent.tax_value4 is often left at 0.
+        // PO rates are pre-tax with GST added on top, so a matching PO line wins and is treated as "not inclusive".
+        const { data: poRows } = await supabase.from('po_master').select('po_number, internal_code, product, gst');
+        const poKey = (po: unknown, indent: unknown, product: unknown) =>
+            [po, indent, product].map((v) => String(v ?? '').trim().toLowerCase()).join('|');
+        const poGst = new Map<string, number>();
+        (poRows || []).forEach((p: any) => {
+            const gst = parseFloat(String(p.gst ?? '').replace(/[^0-9.]/g, ''));
+            if (Number.isFinite(gst)) poGst.set(poKey(p.po_number, p.internal_code, p.product), gst);
+        });
+
+        return (data || []).map((r: any) => {
+            const poTax = poGst.get(poKey(r.po_number, r.indent_number, r.product_name));
+            return {
             indentNumber: r.indent_number || '',
             firmNameMatch: r.firm_name_match || r.firm_name || '',
             approvedVendorName: r.approved_vendor_name || '',
@@ -139,8 +152,8 @@ export async function fetchIndentRecords() {
             liftingStatus: r.lifting_status || '',
             cancelQty: Number(r.cancel_qty) || 0,
             approvedRate: r.approved_rate || '',
-            taxValue: Number(r.tax_value4) || 0,
-            withTax: r.with_tax_or_not4 || 'No',
+            taxValue: poTax ?? (Number(r.tax_value4) || 0),
+            withTax: poTax !== undefined ? 'No' : (r.with_tax_or_not4 || 'No'),
             department: r.category || '',
             areaOfUse: r.area_of_use || '',
             timestamp: r.timestamp || '',
@@ -157,7 +170,8 @@ export async function fetchIndentRecords() {
                 return r.transport_type1 || '';
             })(),
             poCopy: r.po_copy || '',
-        }));
+            };
+        });
     } catch (error) {
         console.error('Error fetching indent records:', error);
         throw error;

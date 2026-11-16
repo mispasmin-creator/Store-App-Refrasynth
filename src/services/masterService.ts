@@ -37,19 +37,32 @@ export interface MasterData {
     firmCompanyMap: Record<string, { companyName: string; companyAddress: string; destinationAddress: string; }>;
 }
 
+/** Fetch the full master table in ordered pages (PostgREST may cap each response). */
+export async function fetchMasterRecords() {
+    const pageSize = 1000;
+    const records = [];
+
+    for (let from = 0; ; from += pageSize) {
+        const { data, error } = await supabase
+            .from('master')
+            .select('*')
+            .order('id', { ascending: true })
+            .range(from, from + pageSize - 1);
+
+        if (error) throw error;
+
+        const page = data || [];
+        records.push(...page);
+        if (page.length < pageSize) return records;
+    }
+}
+
 /**
  * Fetch all master data options for dropdowns
  */
 export async function fetchMasterOptions(): Promise<MasterData> {
     try {
-        const { data, error } = await supabase
-            .from('master')
-            .select('*')
-            .order('id', { ascending: true });
-
-        if (error) throw error;
-
-        const records = data || [];
+        const records = await fetchMasterRecords();
 
         const departments = Array.from(new Set(records.map(r => r.category).filter(Boolean)));
         const uoms = Array.from(new Set(records.map(r => r.uom).filter(Boolean)));

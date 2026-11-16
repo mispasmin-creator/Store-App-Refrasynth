@@ -76,7 +76,9 @@ interface ProcessedRecord {
 interface AuthUser {
     firmNameMatch?: string;
     receiveItemAction?: boolean;
+    ordersView?: boolean;
     receiveItemView?: boolean;
+    storeIn?: boolean;
     administrate?: boolean;
 }
 
@@ -208,6 +210,10 @@ interface SIHistoryData {
 
 export default function GetPurchase() {
     const { user } = useAuth() as { user: AuthUser };
+    const isOn = (v: unknown) => v === true || v === 'true';
+    // Admin page grants 'Lifting' (ordersView) and 'Store In' (storeIn); receiveItem* are legacy keys.
+    const canLift = isOn(user?.ordersView) || isOn(user?.receiveItemAction);
+    const canStoreIn = isOn(user?.storeIn) || isOn(user?.receiveItemView);
 
     // ── Existing state ──────────────────────────────────────────────────
     const [selectedIndent, setSelectedIndent] = useState<GetPurchaseData | null>(null);
@@ -799,7 +805,7 @@ export default function GetPurchase() {
 
     // ── Pending table columns ───────────────────────────────────────────
     const pendingColumns: ColumnDef<GetPurchaseData>[] = [
-        ...(user?.receiveItemAction ? [{
+        ...(canLift ? [{
             header: 'Action', cell: ({ row }: { row: Row<GetPurchaseData> }) => (
                 <DialogTrigger asChild>
                     <Button variant="outline" size="sm" onClick={() => { setSelectedIndent(row.original); setShowCancelQty(false); setCancelQtyValue(''); }}>
@@ -844,7 +850,7 @@ export default function GetPurchase() {
 
     // ── StoreIn pending columns ──────────────────────────────────────────
     const siPendingColumns: ColumnDef<SIPendingData>[] = [
-        ...(user?.receiveItemView ? [{
+        ...(canStoreIn ? [{
             header: 'Action',
             cell: ({ row }: { row: Row<SIPendingData> }) => (
                 <Button variant="outline" size="sm" onClick={() => { setSelectedSI(row.original); setOpenSIDialog(true); }}>
@@ -937,7 +943,7 @@ export default function GetPurchase() {
             header: 'Action',
             cell: ({ row }) => {
                 const r = row.original;
-                if (r.rowType === 'lift' && user?.receiveItemAction && r.liftData) {
+                if (r.rowType === 'lift' && canLift && r.liftData) {
                     return (
                         <DialogTrigger asChild>
                             <Button variant="outline" size="sm"
@@ -947,7 +953,7 @@ export default function GetPurchase() {
                         </DialogTrigger>
                     );
                 }
-                if (r.rowType === 'storein' && user?.receiveItemView && r.siData) {
+                if (r.rowType === 'storein' && canStoreIn && r.siData) {
                     return (
                         <Button variant="outline" size="sm"
                             onClick={() => { setSelectedSI(r.siData!); setOpenSIDialog(true); }}>

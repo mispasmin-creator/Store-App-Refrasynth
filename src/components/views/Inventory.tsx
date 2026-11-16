@@ -23,6 +23,9 @@ import { toast } from 'sonner';
 import { fetchStoreInRecords } from '@/services/storeInService';
 import { fetchIssueRecords } from '@/services/issueService';
 import { supabase } from '@/lib/supabase';
+import { fetchMasterRecords } from '@/services/masterService';
+import { issuedStockByProduct, stockProductKey } from '@/lib/issueStock';
+import { afterCutoff, fetchOpeningStock } from '@/lib/openingStock';
 
 interface InventoryRecord {
     itemName: string;
@@ -32,6 +35,9 @@ interface InventoryRecord {
     loc: string;
     rate: number;
     current: number;
+    openingQty: number;
+    indentedQty: number;
+    issuedQty: number;
     minStock: number;
     totalPrice: number;
     firmName: string;
@@ -43,7 +49,18 @@ const minQtyReqSchema = z.object({
     minQtyReq: z.coerce.number().gt(0, 'Must be greater than 0'),
 });
 
-export default () => {
+async function fetchInventoryIndents() {
+    const rows: { product_name: string; uom: string; quantity: string | number | null }[] = [];
+    for (let offset = 0; ; offset += 500) {
+        const { data, error } = await supabase.from('indent')
+            .select('product_name, uom, quantity').order('id').range(offset, offset + 499);
+        if (error) throw error;
+        rows.push(...(data || []));
+        if (!data || data.length < 500) return rows;
+    }
+}
+
+export default function Inventory() {
     const [tableData, setTableData] = useState<InventoryRecord[]>([]);
     const [dataLoading, setDataLoading] = useState(true);
     const [selectedFirm, setSelectedFirm] = useState<string>('');
@@ -52,7 +69,7 @@ export default () => {
 
     const minQtyForm = useForm<z.infer<typeof minQtyReqSchema>>({
         resolver: zodResolver(minQtyReqSchema),
-        defaultValues: { itemName: '', uom: '', minQtyReq: '' as any },
+        defaultValues: { itemName: '', uom: '', minQtyReq: 0 },
     });
 
     // Same rows as the HOD Check page's history tab: latest record per
@@ -61,16 +78,20 @@ export default () => {
     // skipping rows whose Rec. Status is Rejected (Not Received) — only Received counts.
     // Then the Issue Data page's history (Given Qty, matched by product name) is
     // subtracted, since that quantity has already gone out of stock.
-    const fetchData = async () => {
+    // Background refreshes are silent so the table doesn't flash/reset while it is being used.
+    const fetchData = async (silent = false) => {
         try {
-            setDataLoading(true);
-            const [records, issueRecords, { data: masterRows }, { data: indentRows }, { data: invRows }] = await Promise.all([
+            if (!silent) setDataLoading(true);
+            const [records, issueRecords, masterRows, indentRows, inventoryResult, opening] = await Promise.all([
                 fetchStoreInRecords(),
                 fetchIssueRecords(),
-                supabase.from('master').select('item_name, group_name, department'),
-                supabase.from('indent').select('product_name, uom'),
+                fetchMasterRecords(),
+                fetchInventoryIndents(),
                 supabase.from('inventory').select('item_name, min_qty_req'),
+                fetchOpeningStock(),
             ]);
+            if (inventoryResult.error) throw inventoryResult.error;
+            const invRows = inventoryResult.data;
 
             // Item-level metadata isn't stored on store_in rows — look it up by product/item name.
             // Department is shown from the master table's group_name column,
@@ -79,16 +100,24 @@ export default () => {
             // Min Qty Req is shown from the inventory table's min_qty_req column.
             const departmentByName = new Map<string, string>();
             const groupMasterByName = new Map<string, string>();
+            const masterUomByName = new Map<string, string>();
             for (const m of masterRows || []) {
                 const key = (m.item_name || '').trim().toLowerCase();
                 if (key && !departmentByName.has(key)) {
                     departmentByName.set(key, m.group_name || '');
                     groupMasterByName.set(key, m.department || '');
+                    masterUomByName.set(key, m.uom || '');
                 }
             }
 
             const uomByName = new Map<string, string>();
+            const indentedQtyByProduct = new Map<string, number>();
             for (const i of indentRows || []) {
+                const productKey = stockProductKey(i.product_name || '');
+                const quantity = Number(i.quantity);
+                if (productKey && Number.isFinite(quantity) && quantity > 0) {
+                    indentedQtyByProduct.set(productKey, (indentedQtyByProduct.get(productKey) || 0) + quantity);
+                }
                 const key = (i.product_name || '').trim().toLowerCase();
                 if (key && !uomByName.has(key)) {
                     uomByName.set(key, i.uom || '');
@@ -113,23 +142,46 @@ export default () => {
                 }
             }
 
+            // Physical-count (opening) stock already includes anything received before the count,
+            // so only receipts/issues on or after the count date are applied on top of it.
             const historyRecords = latestRecords.filter(
-                r => r.actual6 !== '' && r.receivingStatus !== 'Not Received'
+                r => r.actual6 !== '' && r.receivingStatus !== 'Not Received' && afterCutoff(r.actual6, opening.cutoff)
             );
 
             const grouped = new Map<string, InventoryRecord>();
+            for (const [productKey, o] of opening.items) {
+                grouped.set(`stock||${productKey}`, {
+                    itemName: o.itemName,
+                    department: departmentByName.get(productKey) || o.groupHead,
+                    groupMaster: groupMasterByName.get(productKey) || o.groupMaster,
+                    uom: masterUomByName.get(productKey) || o.uom,
+                    loc: o.loc,
+                    rate: 0,
+                    openingQty: o.qty,
+                    current: o.qty,
+                    indentedQty: indentedQtyByProduct.get(productKey) || 0,
+                    issuedQty: 0,
+                    minStock: minQtyByName.get(productKey) || 0,
+                    totalPrice: 0,
+                    firmName: '',
+                });
+            }
+            // Receipt history and the physical-count opening stock create stock rows. Master supplies metadata.
             for (const r of historyRecords) {
-                const key = `${r.firmNameMatch || ''}||${r.productName || ''}`;
+                const key = `stock||${stockProductKey(r.productName || '')}`;
                 if (!grouped.has(key)) {
                     const nameKey = (r.productName || '').trim().toLowerCase();
                     grouped.set(key, {
                         itemName: r.productName || '',
                         department: departmentByName.get(nameKey) || '',
                         groupMaster: groupMasterByName.get(nameKey) || '',
-                        uom: uomByName.get(nameKey) || r.uom || '',
+                        uom: masterUomByName.get(nameKey) || uomByName.get(nameKey) || r.uom || '',
                         loc: r.location || '',
                         rate: Number(r.priceAsPerPo) || 0,
+                        openingQty: 0,
                         current: 0,
+                        indentedQty: indentedQtyByProduct.get(stockProductKey(r.productName || '')) || 0,
+                        issuedQty: 0,
                         minStock: minQtyByName.get(nameKey) || 0,
                         totalPrice: 0,
                         firmName: r.firmNameMatch || '',
@@ -137,19 +189,18 @@ export default () => {
                 }
 
                 const row = grouped.get(key)!;
+                if (!row.rate) row.rate = Number(r.priceAsPerPo) || 0;
+                if (!row.firmName) row.firmName = r.firmNameMatch || '';
+                else if (row.firmName !== (r.firmNameMatch || '')) row.firmName = 'Shared stock';
                 row.current += Number(r.qty) || 0;
                 row.totalPrice = row.current * row.rate;
             }
 
-            // Issue Data history: records that have been actioned (planned1 && actual1)
-            const issuedQtyByProduct = new Map<string, number>();
-            for (const i of issueRecords.filter(i => i.planned1 && i.actual1)) {
-                const key = `${i.firm_name_match || ''}||${i.product_name || ''}`;
-                issuedQtyByProduct.set(key, (issuedQtyByProduct.get(key) || 0) + (Number(i.given_qty) || 0));
-            }
+            const issuedQtyByProduct = issuedStockByProduct(issueRecords, opening.cutoff);
 
-            for (const [key, row] of grouped) {
-                const issuedQty = issuedQtyByProduct.get(key) || 0;
+            for (const row of grouped.values()) {
+                const issuedQty = issuedQtyByProduct.get(stockProductKey(row.itemName)) || 0;
+                row.issuedQty = issuedQty;
                 row.current -= issuedQty;
                 row.totalPrice = row.current * row.rate;
             }
@@ -157,6 +208,7 @@ export default () => {
             setTableData(Array.from(grouped.values()));
         } catch (error) {
             console.error('Error fetching inventory:', error);
+            toast.error('Inventory could not load. Please refresh and try again.');
         } finally {
             setDataLoading(false);
         }
@@ -164,6 +216,10 @@ export default () => {
 
     useEffect(() => {
         fetchData();
+        const refresh = () => { void fetchData(true); };
+        window.addEventListener('focus', refresh);
+        const timer = window.setInterval(refresh, 120000);
+        return () => { window.removeEventListener('focus', refresh); window.clearInterval(timer); };
     }, []);
 
     // Distinct firm names from fetched data
@@ -174,8 +230,9 @@ export default () => {
 
     // Filtered data based on selected firm
     const filteredData = useMemo(() => {
-        if (!selectedFirm || selectedFirm === '__all__') return tableData;
-        return tableData.filter(r => r.firmName === selectedFirm);
+        const allFirms = !selectedFirm || selectedFirm === '__all__';
+        return tableData.filter(row => allFirms || row.firmName === selectedFirm)
+            .sort((a, b) => a.itemName.localeCompare(b.itemName));
     }, [tableData, selectedFirm]);
 
     // Distinct item names currently shown in Inventory — used as options for the
@@ -215,8 +272,8 @@ export default () => {
 
             toast.success(`Min Qty Req updated for ${values.itemName}`);
             setOpenDialog(false);
-            minQtyForm.reset({ itemName: '', uom: '', minQtyReq: '' as any });
-            fetchData();
+            minQtyForm.reset({ itemName: '', uom: '', minQtyReq: 0 });
+            fetchData(true);
         } catch (error) {
             console.error('Error saving min qty req:', error);
             toast.error('Failed to save Min Qty Req');
@@ -248,6 +305,9 @@ export default () => {
         { accessorKey: 'uom', header: 'UOM' },
         { accessorKey: 'loc', header: 'LOC' },
         { accessorKey: 'groupMaster', header: 'Department' },
+        { accessorKey: 'openingQty', header: 'Opening Qty' },
+        { accessorKey: 'indentedQty', header: 'Total Indented Qty' },
+        { accessorKey: 'issuedQty', header: 'Total Issued Qty' },
         { accessorKey: 'department', header: 'Group' },
         {
             accessorKey: 'current',
@@ -329,7 +389,7 @@ export default () => {
                 data={filteredData}
                 columns={columns}
                 dataLoading={dataLoading}
-                searchFields={['itemName', 'department', 'uom', 'status']}
+                searchFields={['itemName', 'department', 'groupMaster', 'uom', 'loc']}
                 className="h-[80dvh]"
                 extraActions={extraActions}
             />

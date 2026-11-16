@@ -33,6 +33,8 @@ import {
     type IssueRecord
 } from '@/services/issueService';
 import { fetchStoreInRecords } from '@/services/storeInService';
+import { issuedStockByProduct, stockProductKey } from '@/lib/issueStock';
+import { afterCutoff, fetchOpeningStock } from '@/lib/openingStock';
 
 export default function IssueData() {
     const { user } = useAuth();
@@ -47,9 +49,11 @@ export default function IssueData() {
         setDataLoading(true);
         try {
             const records = await fetchIssueRecords();
-            // Filter by firm name
+            // Filter by firm name. The issue table has no firm column, so records
+            // without a firm are visible to every user (otherwise non-"all" users see nothing).
+            const userFirm = (user.firmNameMatch || '').toLowerCase();
             const filteredByFirm = records.filter(item => {
-                return user.firmNameMatch.toLowerCase() === "all" || item.firm_name_match === user.firmNameMatch;
+                return userFirm === "all" || !item.firm_name_match || item.firm_name_match === user.firmNameMatch;
             });
             setAllData(filteredByFirm);
         } catch (error) {
@@ -83,19 +87,20 @@ export default function IssueData() {
                         latestRecords.push(item);
                     }
                 }
+                const opening = await fetchOpeningStock();
                 const historyRecords = latestRecords.filter(
-                    r => r.actual6 !== '' && r.receivingStatus !== 'Not Received'
+                    r => r.actual6 !== '' && r.receivingStatus !== 'Not Received' && afterCutoff(r.actual6, opening.cutoff)
                 );
 
                 const qtyByProduct = new Map<string, number>();
+                for (const [key, o] of opening.items) qtyByProduct.set(key, o.qty);
                 for (const r of historyRecords) {
-                    const key = (r.productName || '').trim().toLowerCase();
+                    const key = stockProductKey(r.productName || '');
                     qtyByProduct.set(key, (qtyByProduct.get(key) || 0) + (Number(r.qty) || 0));
                 }
 
-                for (const i of issueRecords.filter(i => i.planned1 && i.actual1)) {
-                    const key = (i.product_name || '').trim().toLowerCase();
-                    qtyByProduct.set(key, (qtyByProduct.get(key) || 0) - (Number(i.given_qty) || 0));
+                for (const [key, quantity] of issuedStockByProduct(issueRecords, opening.cutoff)) {
+                    qtyByProduct.set(key, (qtyByProduct.get(key) || 0) - quantity);
                 }
 
                 setAvailableQtyByProduct(qtyByProduct);
@@ -105,7 +110,7 @@ export default function IssueData() {
         };
 
         fetchAvailableQty();
-    }, []);
+    }, [allData]);
 
     const pendingData = useMemo(() => {
         return allData.filter(i => i.planned1 && !i.actual1);
@@ -153,6 +158,7 @@ export default function IssueData() {
                                 <Button
                                     variant="outline"
                                     onClick={() => {
+                                        form.reset({ status: undefined, givenQty: undefined });
                                         setSelectedIssue(indent);
                                         setOpenDialog(true);
                                     }}
@@ -223,7 +229,7 @@ export default function IssueData() {
                 });
             }
 
-            const key = (selectedIssue.product_name || '').trim().toLowerCase();
+            const key = stockProductKey(selectedIssue.product_name || '');
             const availableQty = availableQtyByProduct.get(key) ?? 0;
             if (data.givenQty > availableQty) {
                 ctx.addIssue({
@@ -245,7 +251,7 @@ export default function IssueData() {
             if (!selectedIssue) return;
 
             if (values.status === 'Yes') {
-                const key = (selectedIssue.product_name || '').trim().toLowerCase();
+                const key = stockProductKey(selectedIssue.product_name || '');
                 const availableQty = availableQtyByProduct.get(key) ?? 0;
                 if (availableQty <= 0) {
                     toast.error(`No stock available for ${selectedIssue.product_name}`);
@@ -255,7 +261,7 @@ export default function IssueData() {
 
             const currentDateTime = new Date().toISOString();
 
-            await updateIssueApproval(selectedIssue.issue_no, {
+            await updateIssueApproval(selectedIssue.id, {
                 actual1: currentDateTime,
                 status: values.status,
                 given_qty: values.status === 'Yes' ? values.givenQty : null,
@@ -268,7 +274,8 @@ export default function IssueData() {
             fetchData();
         } catch (err) {
             console.error('Error updating approval', err);
-            toast.error('Failed to update issue');
+            toast.error(err && typeof err === 'object' && 'message' in err && typeof err.message === 'string'
+                ? err.message : 'Could not update issue. Please try again.');
         }
     }
 
@@ -398,7 +405,7 @@ export default function IssueData() {
                                 </div>
                                 <DialogFooter>
                                     <DialogClose asChild>
-                                        <Button variant="outline">Close</Button>
+                                        <Button type="button" variant="outline">Close</Button>
                                     </DialogClose>
 
                                     <Button

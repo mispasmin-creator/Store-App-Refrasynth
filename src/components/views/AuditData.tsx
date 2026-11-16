@@ -1,4 +1,5 @@
 import { Package2, Calculator, FileCheck, AlertTriangle, RotateCcw, ShieldCheck, CheckSquare, BarChart, ChevronDown, ChevronUp } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import Heading from '../element/Heading';
 import { useEffect, useState, useMemo } from 'react';
 import type { ColumnDef, Row } from '@tanstack/react-table';
@@ -18,24 +19,18 @@ import {
   DialogClose,
   DialogDescription,
 } from '../ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../ui/select';
 import { z } from 'zod';
-import { useForm } from 'react-hook-form';
+import { useForm, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel } from '../ui/form';
 import { toast } from 'sonner';
 import { PuffLoader as Loader } from 'react-spinners';
 import { Textarea } from '../ui/textarea';
+import { Input } from '../ui/input';
+import { auditStage, readReport, remarkText, stageNumber, norm, humanReviewUpdate } from '@/lib/auditWorkflow';
+import { auditAutomationHealth, uploadTallyVoucher, submitHumanRectification } from '@/services/auditAutomationService';
 import {
-  fetchTallyEntryRecords,
   updateTallyEntryRecord,
-  type TallyEntryRecord,
 } from '@/services/tallyEntryService';
 
 // Define Stage interface
@@ -48,7 +43,7 @@ interface StageConfig {
   statusField: string;
   remarksField: string;
   color: string;
-  icon: any;
+  icon: LucideIcon;
   description: string;
   formTitle: string;
   statusOptions: string[];
@@ -182,6 +177,7 @@ interface ProcessedTallyData {
   hodRemark?: string;
   receivingStatus?: string;
   receivedQuantity?: number;
+  sourceData?: Record<string, string | number | undefined>;
 
   // Grouping fields
   products?: string[];
@@ -191,18 +187,27 @@ interface ProcessedTallyData {
 }
 
 // Define form values type
-interface FormValues {
-  status: string | undefined;
-  remarks: string;
-}
-
 export default function PcReportTable() {
-  const { tallyEntrySheet, updateAll, allLoading: dataLoading } = useSheets();
+  const { tallyEntrySheet, indentSheet, poMasterSheet, storeInSheet, updateAll, tallyEntryLoading: dataLoading } = useSheets();
   const [selectedRow, setSelectedRow] = useState<ProcessedTallyData | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('ALL');
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({});
   const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
+  const [workerStatus, setWorkerStatus] = useState('Checking AI backend…');
+  const [tallyAnswer, setTallyAnswer] = useState('');
+  const [correction, setCorrection] = useState({ billNo: '', billAmt: 0, qty: 0, rate: 0 });
+  const [correctedBill, setCorrectedBill] = useState<File | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const check = () => auditAutomationHealth().then(health => {
+      if (!cancelled) setWorkerStatus(health.enabled ? 'AI automation enabled • runs daily at 12:00 PM IST' : health.configured ? 'AI backend ready • automation is paused' : 'AI setup pending • backend API key and model required');
+    }).catch(() => { if (!cancelled) setWorkerStatus('AI worker unavailable • backend setup required'); });
+    void check();
+    const timer = setInterval(check, 60000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, []);
 
   // Function to toggle product expansion in dialog
   const toggleProductExpand = (id: number) => {
@@ -228,44 +233,29 @@ export default function PcReportTable() {
     });
 
     return filteredByFirm.map((item): ProcessedTallyData | null => {
-      const hasValue = (value: any): boolean => {
-        return value !== undefined && value !== null && value !== '' && String(value).trim() !== '';
-      };
-
-      // Determine current stage
-      const isAuditDone = String(item.status1 || '').toLowerCase() === 'done';
-
-      let currentStage: keyof typeof STAGES = 'AUDIT';
-      let plannedDate = '';
-      let isCompleted = false;
-
-      const auditStatus = String(item.status1 || '').toLowerCase();
-      
-      if (!hasValue(item.actual1)) {
-        currentStage = 'AUDIT';
-        plannedDate = item.planned1 || item.timestamp;
-      } else if (auditStatus === 'not done' && !hasValue(item.actual2)) {
-        currentStage = 'RECTIFY';
-        plannedDate = item.planned2 || item.actual1;
-      } else if (auditStatus === 'not done' && hasValue(item.actual2) && !hasValue(item.actual3)) {
-        currentStage = 'REAUDIT';
-        plannedDate = item.planned3 || item.actual2;
-      } else if ((auditStatus === 'done' || hasValue(item.actual3)) && !hasValue(item.actual4)) {
-        currentStage = 'TALLY_ENTRY';
-        plannedDate = item.planned4 || item.actual1 || item.actual3;
-      } else if (hasValue(item.actual4) && !hasValue(item.actual5)) {
-        currentStage = 'AGAIN_AUDIT';
-        plannedDate = item.planned5 || item.actual4;
-      } else if (hasValue(item.actual5)) {
-        currentStage = 'COMPLETED';
-        isCompleted = true;
-        plannedDate = item.planned5 || item.planned4 || item.planned3 || item.planned2 || item.planned1 || item.timestamp;
-      } else {
-        return null;
-      }
+      // Require a unique source match; never borrow another firm's or product's data.
+      const same = (a: unknown, b: unknown) => norm(a) !== '' && norm(a) === norm(b);
+      const indents = indentSheet.filter(source => same(source.firmNameMatch, item.firmNameMatch) && same(source.indentNumber, item.indentNumber) && same(source.productName, item.productName));
+      const pos = (poMasterSheet as unknown as Record<string, string | number>[]).filter(source => same(source.firmNameMatch, item.firmNameMatch) && same(source.poNumber, item.poNumber) && same(source.product, item.productName));
+      const lifts = storeInSheet.filter(source => same(source.firmNameMatch, item.firmNameMatch) && same(source.poNumber, item.poNumber) && same(source.productName, item.productName) && same(source.liftNumber, item.liftNumber) && same(source.indentNo, item.indentNumber));
+      const indent = indents.length === 1 ? indents[0] : undefined;
+      const po = pos.length === 1 ? pos[0] : undefined;
+      const lift = lifts.length === 1 ? lifts[0] : undefined;
+      const currentStage = auditStage(item as unknown as Record<string, unknown>);
+      const isCompleted = currentStage === 'COMPLETED';
+      const stageConfig = STAGES[currentStage];
+      const plannedDate = String((item as unknown as Record<string, unknown>)[stageConfig.plannedField] || item.timestamp || '');
 
       return {
         id: item.id,
+        sourceData: {
+          indentProduct: indent?.productName, indentQuantity: indent?.quantity,
+          indentApprovedQuantity: indent?.approvedQuantity, indentRate: indent?.approvedRate,
+          indentVendor: indent?.approvedVendorName, poProduct: po?.product,
+          poQuantity: po?.quantity, poRate: po?.rate, poVendor: po?.partyName,
+          liftingQty: lift?.qty, liftingBill: lift?.billNo, liftingVendor: lift?.vendorName,
+          liftingBillAmount: lift?.billAmount,
+        },
         indentNumber: item.indentNumber,
         indentDate: '',
         purchaseDate: '',
@@ -313,7 +303,7 @@ export default function PcReportTable() {
         receivedQuantity: item.receivedQuantity,
       };
     }).filter((item): item is ProcessedTallyData => item !== null);
-  }, [tallyEntrySheet, user.firmNameMatch]);
+  }, [tallyEntrySheet, indentSheet, poMasterSheet, storeInSheet, user.firmNameMatch]);
 
   // Filter and GROUP data based on active tab
   const filteredData = useMemo(() => {
@@ -336,7 +326,7 @@ export default function PcReportTable() {
 
     filtered.forEach(item => {
       // Use PO Number and Stage for grouping
-      const key = `${item.poNumber || 'NO-PO'}-${item.currentStage}`;
+      const key = JSON.stringify([item.firmNameMatch, item.partyName, item.poNumber, item.billNo, item.liftNumber, item.currentStage, ['RECTIFY', 'TALLY_ENTRY', 'AGAIN_AUDIT'].includes(item.currentStage) ? item.id : '']);
 
       if (!groupedMap.has(key)) {
         groupedMap.set(key, {
@@ -372,7 +362,7 @@ export default function PcReportTable() {
     const groupedMap = new Map<string, ProcessedTallyData>();
 
     allData.forEach(item => {
-      const key = `${item.poNumber || 'NO-PO'}-${item.currentStage}-${item.isCompleted}`;
+      const key = JSON.stringify([item.firmNameMatch, item.partyName, item.poNumber, item.billNo, item.liftNumber, item.currentStage, ['RECTIFY', 'TALLY_ENTRY', 'AGAIN_AUDIT'].includes(item.currentStage) ? item.id : '']);
 
       if (!groupedMap.has(key)) {
         groupedMap.set(key, {
@@ -421,14 +411,12 @@ export default function PcReportTable() {
 
   // Get schema based on stage
   const formSchema = z.object({
-    status: z.string().min(1, 'Please select a status'),
-    remarks: z.string().min(1, 'Remarks are required'),
+    remarks: z.string().trim().max(1000, 'Keep remarks under 1,000 characters').refine(value => ['TALLY_ENTRY', 'AGAIN_AUDIT'].includes(selectedRow?.currentStage || '') || value.length > 0, 'Remarks are required'),
   });
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      status: '',
       remarks: '',
     },
   });
@@ -437,18 +425,19 @@ export default function PcReportTable() {
   useEffect(() => {
     if (!openDialog) {
       form.reset({
-        status: undefined,
         remarks: ''
       });
       setExpandedProducts(new Set());
+      setTallyAnswer('');
+      setCorrectedBill(null);
     }
   }, [openDialog, form]);
 
   // Handle item selection
   const handleItemSelect = (item: ProcessedTallyData) => {
     setSelectedRow(item);
+    setCorrection({ billNo: item.billNo, billAmt: item.billAmt, qty: item.qty, rate: item.rate });
     form.reset({
-      status: '',
       remarks: '',
     });
     setOpenDialog(true);
@@ -461,65 +450,96 @@ export default function PcReportTable() {
       return;
     }
 
+    if (selectedRow.currentStage === 'RECTIFY') {
+      try {
+        const billImage = correctedBill ? await uploadTallyVoucher(correctedBill, 'audit-bills') : undefined;
+        await submitHumanRectification(selectedRow.id, { ...correction, billImage }, values.remarks, selectedRow.firmNameMatch, selectedRow);
+        toast.success('Correction saved. AI Reaudit will check it next.');
+        setOpenDialog(false);
+        updateAll();
+      } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not save correction.'); }
+      return;
+    }
+    if (selectedRow.currentStage === 'AGAIN_AUDIT') {
+      if (!['Yes', 'No'].includes(tallyAnswer)) { toast.error('Select Yes or No.'); return; }
+      try {
+        const now = new Date().toISOString();
+        const approved = tallyAnswer === 'Yes';
+        await updateTallyEntryRecord(selectedRow.id,
+          humanReviewUpdate('AGAIN_AUDIT', tallyAnswer, user.username || user.name || '', now),
+          { firm_name_match: selectedRow.firmNameMatch }, selectedRow, 'AGAIN_AUDIT');
+        toast.success(approved ? 'Final audit approved. Entry completed.' : 'Returned to Tally Entry for correction.');
+        setOpenDialog(false);
+        updateAll();
+      } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not save final audit.'); }
+      return;
+    }
+    if (selectedRow.currentStage !== 'TALLY_ENTRY') {
+      toast.error('This stage is managed by the AI worker.');
+      return;
+    }
+    if (!['Yes', 'No'].includes(tallyAnswer)) {
+      toast.error('Select Yes or No.');
+      return;
+    }
+    if (tallyAnswer === 'No') {
+      toast.info('Tally entry remains pending.');
+      setOpenDialog(false);
+      return;
+    }
     try {
-      console.log('🔄 Starting form submission...');
-
-      const currentDateTime = new Date().toISOString();
-      const stageConfig = STAGES[selectedRow.currentStage];
-
-      const itemsToUpdate = selectedRow.originalItems || [selectedRow];
-
-      // Prepare updates for current stage
-      const updates: Record<string, any> = {
-        [stageConfig.statusField]: values.status || '',
-        [stageConfig.remarksField]: values.remarks
-      };
-
-      // Handle workflow logic: Set the actual completion date
-      if (values.status === 'Done' || values.status === 'Not Done') {
-        updates[stageConfig.actualField] = currentDateTime;
-      }
-
-      // Explicitly set the planned date for the next stage to ensure it advances properly
-      if (selectedRow.currentStage === 'AUDIT') {
-        if (values.status === 'Done') {
-            updates['planned4'] = currentDateTime;
-        } else if (values.status === 'Not Done') {
-            updates['planned2'] = currentDateTime;
-        }
-      } else if (selectedRow.currentStage === 'RECTIFY') {
-        updates['planned3'] = currentDateTime;
-      } else if (selectedRow.currentStage === 'REAUDIT') {
-        updates['planned4'] = currentDateTime;
-      } else if (selectedRow.currentStage === 'TALLY_ENTRY') {
-        updates['planned5'] = currentDateTime;
-      }
-
-      // Update all items in the group
-      const updatePromises = itemsToUpdate.map(item =>
-        updateTallyEntryRecord(item.id, updates)
-      );
-
-      await Promise.all(updatePromises);
-
-      console.log('✅ Group update successful');
-      toast.success(`Status updated for PO ${selectedRow.poNumber} (${itemsToUpdate.length} items)`);
-
+      const items = selectedRow.originalItems || [selectedRow];
+      if (items.length !== 1) throw new Error('Open an individual Tally entry before submitting.');
+      const now = new Date().toISOString();
+      const item = items[0];
+      await updateTallyEntryRecord(item.id,
+        humanReviewUpdate('TALLY_ENTRY', tallyAnswer, user.username || user.name || '', now),
+        { ...(item.status1 ? { status1: item.status1 } : {}), ...(item.status3 ? { status3: item.status3 } : {}),
+        bill_no: item.billNo, bill_amt: String(item.billAmt), firm_name_match: item.firmNameMatch }, item);
+      toast.success('Tally entry confirmed. Submitted for final audit.');
       setOpenDialog(false);
       updateAll();
-
     } catch (err) {
-      console.error('❌ Error in onSubmit:', err);
-      toast.error('Failed to update status. Please try again.');
+      toast.error(err instanceof Error ? err.message : 'Could not save Tally entry.');
+      updateAll();
     }
   }
 
-  function onError(errors: any) {
+  function onError(errors: FieldErrors<z.infer<typeof formSchema>>) {
     console.log(errors);
     toast.error('Please fill all required fields');
   }
 
-  // Columns for pending items (showing ALL columns like your Audit Data page)
+  // Keep each product's evidence separate even when the invoice row is grouped.
+  const evidenceCell = (item: ProcessedTallyData, render: (product: ProcessedTallyData) => React.ReactNode) => {
+    const products = item.originalItems || [item];
+    return <div className="min-w-[180px] max-w-[320px] whitespace-normal space-y-2 text-left">
+      {products.map(product => <div key={product.id}>
+        {products.length > 1 && <div className="font-semibold">{product.productName}</div>}
+        {render(product)}
+      </div>)}
+    </div>;
+  };
+  const sourceColumns: ColumnDef<ProcessedTallyData>[] = [
+    ...([
+      ['indentNumber', 'Indent No.'], ['liftNumber', 'Lift No.'],
+    ] as const).map(([key, header]): ColumnDef<ProcessedTallyData> => ({
+      id: 'source-' + key, header,
+      cell: ({ row }) => evidenceCell(row.original, item => {
+        const value = item[key];
+        return value === undefined || value === null || value === '' ? '-' : String(value);
+      }),
+    })),
+    ...[
+      ['indentProduct', 'Indent Product'], ['indentQuantity', 'Indent Quantity'],
+      ['indentApprovedQuantity', 'Indent Approved Qty'], ['poRate', 'PO Rate'],
+      ['liftingQty', 'Lifting Qty'], ['liftingBill', 'Lifting Bill No.'],
+      ['liftingVendor', 'Lifting Vendor'], ['liftingBillAmount', 'Lifting Bill Amount'],
+    ].map(([key, header]): ColumnDef<ProcessedTallyData> => ({
+      id: 'source-' + key, header,
+      cell: ({ row }) => evidenceCell(row.original, item => String(item.sourceData?.[key] ?? '-')),
+    })),
+  ];
   const pendingColumns: ColumnDef<ProcessedTallyData>[] = [
     {
       id: 'actions',
@@ -537,7 +557,7 @@ export default function PcReportTable() {
               className="flex items-center gap-2"
             >
               {IconComponent && <IconComponent className="w-4 h-4" />}
-              Process
+              {rowData.currentStage === 'TALLY_ENTRY' ? 'Update Tally Entry' : rowData.currentStage === 'RECTIFY' ? 'Rectify' : rowData.currentStage === 'AGAIN_AUDIT' ? 'Again Audit' : 'View AI Report'}
             </Button>
           </DialogTrigger>
         );
@@ -557,7 +577,7 @@ export default function PcReportTable() {
         </div>
       )
     },
-    { accessorKey: 'partyName', header: 'Party Name' },
+    { accessorKey: 'partyName', header: 'Bill Vendor (Entered)' },
     {
       accessorKey: 'products',
       header: 'Product Summary',
@@ -612,33 +632,9 @@ export default function PcReportTable() {
         ) : null;
       },
     },
-    { accessorKey: 'billReceivedLater', header: 'Bill Received Later' },
-    { accessorKey: 'notReceivedBillNo', header: 'Not Received Bill No.' },
-    { accessorKey: 'location', header: 'Location' },
-    { accessorKey: 'typeOfBills', header: 'Type Of Bills' },
-    {
-      accessorKey: 'productImage',
-      header: 'Product Image',
-      cell: ({ row }) => {
-        const image = row.original.productImage;
-        return image ? (
-          <a href={image} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline">
-            View
-          </a>
-        ) : null;
-      },
-    },
-    { accessorKey: 'area', header: 'Area' },
-    { accessorKey: 'indentedFor', header: 'Indented For' },
-    { accessorKey: 'approvedPartyName', header: 'Approved Party Name' },
-    { accessorKey: 'rate', header: 'Rate' },
-    { 
-      accessorKey: 'indentQty', 
-      header: 'Indent Qty',
-      cell: ({ row }) => row.original.indentQty || row.original.qtySummarized || row.original.qty
-    },
-    { accessorKey: 'totalRate', header: 'Total Rate' },
+    { accessorKey: 'rate', header: 'Bill Rate (Entered)', cell: ({ row }) => evidenceCell(row.original, item => item.rate) },
 
+    ...sourceColumns,
     // Add status and remarks columns for each stage
     {
       accessorKey: 'status1',
@@ -657,9 +653,9 @@ export default function PcReportTable() {
       accessorKey: 'remarks1',
       header: 'Audit Remarks',
       cell: ({ row }) => {
-        const remarks = row.original.remarks1;
+        const remarks = remarkText(row.original.remarks1, 'AUDIT');
         return remarks ? (
-          <div className="max-w-xs truncate" title={remarks}>
+          <div className="whitespace-nowrap text-left" title={remarks}>
             {remarks}
           </div>
         ) : null;
@@ -682,9 +678,9 @@ export default function PcReportTable() {
       accessorKey: 'remarks2',
       header: 'Rectify Remarks',
       cell: ({ row }) => {
-        const remarks = row.original.remarks2;
+        const remarks = remarkText(row.original.remarks2, 'RECTIFY');
         return remarks ? (
-          <div className="max-w-xs truncate" title={remarks}>
+          <div className="whitespace-nowrap text-left" title={remarks}>
             {remarks}
           </div>
         ) : null;
@@ -707,9 +703,9 @@ export default function PcReportTable() {
       accessorKey: 'remarks3',
       header: 'Reaudit Remarks',
       cell: ({ row }) => {
-        const remarks = row.original.remarks3;
+        const remarks = remarkText(row.original.remarks3, 'REAUDIT');
         return remarks ? (
-          <div className="max-w-xs truncate" title={remarks}>
+          <div className="whitespace-nowrap text-left" title={remarks}>
             {remarks}
           </div>
         ) : null;
@@ -732,9 +728,9 @@ export default function PcReportTable() {
       accessorKey: 'remarks4',
       header: 'Tally Remarks',
       cell: ({ row }) => {
-        const remarks = row.original.remarks4;
+        const remarks = remarkText(row.original.remarks4, 'TALLY_ENTRY');
         return remarks ? (
-          <div className="max-w-xs truncate" title={remarks}>
+          <div className="whitespace-nowrap text-left" title={remarks}>
             {remarks}
           </div>
         ) : null;
@@ -757,9 +753,9 @@ export default function PcReportTable() {
       accessorKey: 'remarks5',
       header: 'Again Audit Remarks',
       cell: ({ row }) => {
-        const remarks = row.original.remarks5;
+        const remarks = remarkText(row.original.remarks5, 'AGAIN_AUDIT');
         return remarks ? (
-          <div className="max-w-xs truncate" title={remarks}>
+          <div className="whitespace-nowrap text-left" title={remarks}>
             {remarks}
           </div>
         ) : null;
@@ -767,182 +763,7 @@ export default function PcReportTable() {
     },
   ];
 
-  // Update completedColumns to show all status and remarks
-  const completedColumns: ColumnDef<ProcessedTallyData>[] = [
-    {
-      accessorKey: 'poNumber',
-      header: 'PO Number',
-      cell: ({ row }) => <span className="font-bold">{row.original.poNumber}</span>
-    },
-    {
-      accessorKey: 'timestamp',
-      header: 'Timestamp',
-      cell: ({ getValue }) => <div>{getValue() ? formatDateTime(parseCustomDate(getValue())) : '-'}</div>,
-    },
-    { accessorKey: 'partyName', header: 'Party Name' },
-    {
-      accessorKey: 'products',
-      header: 'Product Summary',
-      cell: ({ row }) => {
-        const products = row.original.products || [];
-        return (
-          <div className="max-w-[200px] truncate font-medium text-green-700" title={products.join(', ')}>
-            {products.length > 1 ? `${products[0]} (+${products.length - 1})` : products[0]}
-          </div>
-        );
-      }
-    },
-    { accessorKey: 'billNo', header: 'Bill No' },
-    {
-      accessorKey: 'plannedDate',
-      header: 'Completed Date',
-      cell: ({ row }) => formatDate(row.original.plannedDate)
-    },
-    {
-      accessorKey: 'qtySummarized',
-      header: 'Total Qty',
-      cell: ({ row }) => row.original.qtySummarized || row.original.qty
-    },
-    {
-      accessorKey: 'billAmtSummarized',
-      header: 'Total Amount',
-      cell: ({ row }) => row.original.billAmtSummarized || row.original.billAmt
-    },
-    {
-      accessorKey: 'firmNameMatch',
-      header: 'Firm Name'
-    },
-    {
-      accessorKey: 'status1',
-      header: 'Audit Status',
-      cell: ({ row }) => {
-        const status = row.original.status1;
-        return status ? (
-          <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${status === 'Done' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }`}>
-            {status}
-          </span>
-        ) : null;
-      },
-    },
-    {
-      accessorKey: 'remarks1',
-      header: 'Audit Remarks',
-      cell: ({ row }) => {
-        const remarks = row.original.remarks1;
-        return remarks ? (
-          <div className="max-w-xs truncate" title={remarks}>
-            {remarks}
-          </div>
-        ) : null;
-      },
-    },
-    {
-      accessorKey: 'status2',
-      header: 'Rectify Status',
-      cell: ({ row }) => {
-        const status = row.original.status2;
-        return status ? (
-          <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${status === 'Done' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }`}>
-            {status}
-          </span>
-        ) : null;
-      },
-    },
-    {
-      accessorKey: 'remarks2',
-      header: 'Rectify Remarks',
-      cell: ({ row }) => {
-        const remarks = row.original.remarks2;
-        return remarks ? (
-          <div className="max-w-xs truncate" title={remarks}>
-            {remarks}
-          </div>
-        ) : null;
-      },
-    },
-    {
-      accessorKey: 'status3',
-      header: 'Reaudit Status',
-      cell: ({ row }) => {
-        const status = row.original.status3;
-        return status ? (
-          <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${status === 'Done' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }`}>
-            {status}
-          </span>
-        ) : null;
-      },
-    },
-    {
-      accessorKey: 'remarks3',
-      header: 'Reaudit Remarks',
-      cell: ({ row }) => {
-        const remarks = row.original.remarks3;
-        return remarks ? (
-          <div className="max-w-xs truncate" title={remarks}>
-            {remarks}
-          </div>
-        ) : null;
-      },
-    },
-    {
-      accessorKey: 'status4',
-      header: 'Tally Status',
-      cell: ({ row }) => {
-        const status = row.original.status4;
-        return status ? (
-          <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${status === 'Done' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }`}>
-            {status}
-          </span>
-        ) : null;
-      },
-    },
-    {
-      accessorKey: 'remarks4',
-      header: 'Tally Remarks',
-      cell: ({ row }) => {
-        const remarks = row.original.remarks4;
-        return remarks ? (
-          <div className="max-w-xs truncate" title={remarks}>
-            {remarks}
-          </div>
-        ) : null;
-      },
-    },
-    {
-      accessorKey: 'status5',
-      header: 'Again Audit Status',
-      cell: ({ row }) => {
-        const status = row.original.status5;
-        return status ? (
-          <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${status === 'Done' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }`}>
-            {status}
-          </span>
-        ) : null;
-      },
-    },
-    {
-      accessorKey: 'remarks5',
-      header: 'Again Audit Remarks',
-      cell: ({ row }) => {
-        const remarks = row.original.remarks5;
-        return remarks ? (
-          <div className="max-w-xs truncate" title={remarks}>
-            {remarks}
-          </div>
-        ) : null;
-      },
-    },
-    {
-      accessorKey: 'actual5',
-      header: 'Again Audit Completed On',
-      cell: ({ row }) => row.original.actual5 ? formatDateTime(parseCustomDate(row.original.actual5)) : '-',
-    },
-  ];
+  const completedColumns = pendingColumns.filter(column => column.id !== 'actions');
 
   // Stats data
   const statsData = [
@@ -957,9 +778,14 @@ export default function PcReportTable() {
   return (
     <div>
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-        <Heading heading="Audit Data" subtext="Track all stages of account processing">
+        <Heading heading="Audit Data" subtext="AI Audit & Reaudit • Human Rectify & Tally Entry">
           <BarChart size={50} className="text-primary" />
         </Heading>
+        <div className="mb-4 rounded-lg border bg-white p-4 space-y-2" role="status">
+          <p className="font-medium">{workerStatus}</p>
+
+          <p className="text-sm text-muted-foreground">AI Audit → Human Rectify → AI Reaudit → Human Tally Entry → Human Again Audit → Completed. Failed Reaudit returns to Human Rectify.</p>
+        </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
@@ -971,35 +797,33 @@ export default function PcReportTable() {
           ))}
         </div>
 
-        <Tabs defaultValue="all" className="w-full">
+        <Tabs defaultValue="all" className="w-full" onValueChange={value => setActiveTab(({ all: 'ALL', audit: 'AUDIT', rectify: 'RECTIFY', reaudit: 'REAUDIT', tally: 'TALLY_ENTRY', again_audit: 'AGAIN_AUDIT', completed: 'COMPLETED' } as Record<string, string>)[value] || 'ALL')}>
           {/* Tabs Navigation */}
           <TabsList className="grid grid-cols-2 md:grid-cols-7 mb-6 h-auto w-full gap-1">
-            <TabsTrigger value="all" onClick={() => setActiveTab('ALL')}>
-              All Pending
-            </TabsTrigger>
-            <TabsTrigger value="audit" onClick={() => setActiveTab('AUDIT')}>
-              Audit
-            </TabsTrigger>
-            <TabsTrigger value="rectify" onClick={() => setActiveTab('RECTIFY')}>
-              Rectify
-            </TabsTrigger>
-            <TabsTrigger value="reaudit" onClick={() => setActiveTab('REAUDIT')}>
-              Reaudit
-            </TabsTrigger>
-            <TabsTrigger value="tally" onClick={() => setActiveTab('TALLY_ENTRY')}>
-              Tally Entry
-            </TabsTrigger>
-            <TabsTrigger value="again_audit" onClick={() => setActiveTab('AGAIN_AUDIT')}>
-              Again Audit
-            </TabsTrigger>
-            <TabsTrigger value="completed" onClick={() => setActiveTab('COMPLETED')}>
-              Completed
-            </TabsTrigger>
+            {[
+              { value: 'all', stage: 'ALL', label: 'All Pending' },
+              { value: 'audit', stage: 'AUDIT', label: 'Audit' },
+              { value: 'rectify', stage: 'RECTIFY', label: 'Rectify' },
+              { value: 'reaudit', stage: 'REAUDIT', label: 'Reaudit' },
+              { value: 'tally', stage: 'TALLY_ENTRY', label: 'Tally Entry' },
+              { value: 'again_audit', stage: 'AGAIN_AUDIT', label: 'Again Audit' },
+              { value: 'completed', stage: 'COMPLETED', label: 'Completed' },
+            ].map(tab => (
+              <TabsTrigger key={tab.value} value={tab.value} className="gap-2">
+                {tab.label}
+                <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-primary/10 px-1.5 py-0.5 text-xs font-semibold tabular-nums text-primary">
+                  {stageCounts[tab.stage] ?? 0}
+                </span>
+              </TabsTrigger>
+            ))}
           </TabsList>
 
           {/* Tabs Content */}
           <TabsContent value="all">
             <DataTable
+              enableColumnVisibility
+              columnVisibility={columnVisibility}
+              onColumnVisibilityChange={setColumnVisibility}
               data={filteredData}
               columns={pendingColumns}
               searchFields={['indentNumber', 'productName', 'partyName', 'billNo', 'firmNameMatch']}
@@ -1010,6 +834,9 @@ export default function PcReportTable() {
 
           <TabsContent value="audit">
             <DataTable
+              enableColumnVisibility
+              columnVisibility={columnVisibility}
+              onColumnVisibilityChange={setColumnVisibility}
               data={filteredData}
               columns={pendingColumns}
               searchFields={['indentNumber', 'productName', 'partyName', 'billNo', 'firmNameMatch']}
@@ -1020,6 +847,9 @@ export default function PcReportTable() {
 
           <TabsContent value="rectify">
             <DataTable
+              enableColumnVisibility
+              columnVisibility={columnVisibility}
+              onColumnVisibilityChange={setColumnVisibility}
               data={filteredData}
               columns={pendingColumns}
               searchFields={['indentNumber', 'productName', 'partyName', 'billNo', 'firmNameMatch']}
@@ -1030,6 +860,9 @@ export default function PcReportTable() {
 
           <TabsContent value="reaudit">
             <DataTable
+              enableColumnVisibility
+              columnVisibility={columnVisibility}
+              onColumnVisibilityChange={setColumnVisibility}
               data={filteredData}
               columns={pendingColumns}
               searchFields={['indentNumber', 'productName', 'partyName', 'billNo', 'firmNameMatch']}
@@ -1040,6 +873,9 @@ export default function PcReportTable() {
 
           <TabsContent value="tally">
             <DataTable
+              enableColumnVisibility
+              columnVisibility={columnVisibility}
+              onColumnVisibilityChange={setColumnVisibility}
               data={filteredData}
               columns={pendingColumns}
               searchFields={['indentNumber', 'productName', 'partyName', 'billNo', 'firmNameMatch']}
@@ -1050,6 +886,9 @@ export default function PcReportTable() {
 
           <TabsContent value="again_audit">
             <DataTable
+              enableColumnVisibility
+              columnVisibility={columnVisibility}
+              onColumnVisibilityChange={setColumnVisibility}
               data={filteredData}
               columns={pendingColumns}
               searchFields={['indentNumber', 'productName', 'partyName', 'billNo', 'firmNameMatch']}
@@ -1060,6 +899,9 @@ export default function PcReportTable() {
 
           <TabsContent value="completed">
             <DataTable
+              enableColumnVisibility
+              columnVisibility={columnVisibility}
+              onColumnVisibilityChange={setColumnVisibility}
               data={filteredData}
               columns={completedColumns}
               searchFields={['indentNumber', 'productName', 'partyName', 'billNo', 'firmNameMatch']}
@@ -1069,8 +911,27 @@ export default function PcReportTable() {
           </TabsContent>
         </Tabs>
 
-        {selectedRow && (
-          <DialogContent className="sm:max-w-2xl">
+        {selectedRow && !['RECTIFY', 'TALLY_ENTRY', 'AGAIN_AUDIT'].includes(selectedRow.currentStage) && (
+          <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{STAGES[selectedRow.currentStage]?.name} - AI Report</DialogTitle>
+              <DialogDescription>PO {selectedRow.poNumber} | Bill {selectedRow.billNo}. This stage is processed automatically.</DialogDescription>
+            </DialogHeader>
+            {(selectedRow.originalItems || [selectedRow]).map(item => (
+              <div key={item.id} className="rounded-lg border p-4 space-y-3">
+                <p className="font-semibold">{item.productName} | {item.partyName}</p>
+                {[1, 2, 3, 4, 5].map(n => {
+                  const text = remarkText((item as unknown as Record<string, unknown>)['remarks' + n]);
+                  return text ? <div key={n}><p className="text-sm font-semibold">{['Audit', 'Rectify', 'Reaudit', 'Tally Entry', 'Again Audit'][n - 1]}</p><p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">{text}</p></div> : null;
+                })}
+                {!readReport((item as unknown as Record<string, unknown>)['remarks' + stageNumber(item.currentStage as Parameters<typeof stageNumber>[0])]) && <p className="text-sm text-muted-foreground">Waiting for the AI worker. {workerStatus}</p>}
+              </div>
+            ))}
+            <DialogFooter><DialogClose asChild><Button type="button" variant="outline">Close</Button></DialogClose></DialogFooter>
+          </DialogContent>
+        )}
+        {selectedRow && ['RECTIFY', 'TALLY_ENTRY', 'AGAIN_AUDIT'].includes(selectedRow.currentStage) && (
+          <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit(onSubmit, onError)}
@@ -1263,32 +1124,35 @@ export default function PcReportTable() {
                 </div>
 
                 <div className="grid gap-4">
-                  <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Status *</FormLabel>
-                        <FormControl>
-                          <Select
-                            onValueChange={field.onChange}
-                            value={field.value}
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {STAGES[selectedRow.currentStage]?.statusOptions.map((option) => (
-                                <SelectItem key={option} value={option}>{option}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
+                  {selectedRow.currentStage === 'RECTIFY' ? (
+                    <div className="space-y-3">
+                      <div className="rounded border bg-amber-50 p-3 text-sm whitespace-pre-wrap">{remarkText(selectedRow.remarks3 || selectedRow.remarks1)}</div>
+                      <p className="text-sm text-muted-foreground">Correct the bill fields below. Fix PO/receipt issues in their source screens before submitting for Reaudit.</p>
+                      <label htmlFor="rectify-bill-no" className="text-sm font-medium">Bill number</label>
+                      <Input id="rectify-bill-no" required value={correction.billNo} onChange={e => setCorrection({ ...correction, billNo: e.target.value })} />
+                      {(['billAmt', 'qty', 'rate'] as const).map(field => <div key={field} className="space-y-1">
+                        <label htmlFor={'rectify-' + field} className="text-sm font-medium">{{ billAmt: 'Bill amount', qty: 'Quantity', rate: 'Unit rate' }[field]}</label>
+                        <Input id={'rectify-' + field} type="number" required min="0.001" step="any" value={Number.isFinite(correction[field]) ? correction[field] : ''} onChange={e => setCorrection({ ...correction, [field]: e.target.valueAsNumber })} />
+                      </div>)}
+                      <label htmlFor="rectify-bill-file" className="text-sm font-medium">Replacement bill (optional, PDF/image up to 5 MB)</label>
+                      <Input id="rectify-bill-file" type="file" accept="application/pdf,image/png,image/jpeg,image/webp" onChange={e => setCorrectedBill(e.target.files?.[0] || null)} />
+                    </div>
+                  ) : (
+                  <div className="space-y-2">
+                    <fieldset className="space-y-3">
+                      <legend className="text-sm font-medium">{selectedRow.currentStage === 'AGAIN_AUDIT' ? 'Final audit approved?' : 'Tally entry completed?'} *</legend>
+                      <div className="flex gap-6">
+                        {['Yes', 'No'].map(answer => (
+                          <label key={answer} className="flex cursor-pointer items-center gap-2 rounded-md border px-5 py-3">
+                            <input type="radio" name="tally-answer" value={answer} required checked={tallyAnswer === answer} onChange={() => setTallyAnswer(answer)} className="accent-green-600" />
+                            {answer}
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                  </div>
+                  )}
+                  {selectedRow.currentStage === 'RECTIFY' && <FormField
                     control={form.control}
                     name="remarks"
                     render={({ field }) => (
@@ -1303,12 +1167,12 @@ export default function PcReportTable() {
                         </FormControl>
                       </FormItem>
                     )}
-                  />
+                  />}
                 </div>
 
                 <DialogFooter>
                   <DialogClose asChild>
-                    <Button variant="outline">Close</Button>
+                    <Button type="button" variant="outline">Close</Button>
                   </DialogClose>
 
                   <Button type="submit" disabled={form.formState.isSubmitting}>
@@ -1319,7 +1183,7 @@ export default function PcReportTable() {
                         aria-label="Loading Spinner"
                       />
                     )}
-                    Update Status
+                    {selectedRow.currentStage === 'RECTIFY' ? 'Submit for AI Reaudit' : 'Save'}
                   </Button>
                 </DialogFooter>
               </form>
