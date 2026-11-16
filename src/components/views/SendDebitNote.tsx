@@ -297,8 +297,12 @@ export default () => {
     }
 
 
+    const isOn = (v: unknown) => v === true || v === 'true';
+    // Page is gated by 'sendDebitNote'; receiveItemView kept as legacy fallback.
+    const canProcess = isOn(user?.sendDebitNote) || isOn(user?.receiveItemView);
+
     const pendingColumns: ColumnDef<StoreInPendingData>[] = [
-        ...(user.receiveItemView
+        ...(canProcess
             ? [
                 {
                     header: 'Action',
