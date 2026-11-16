@@ -56,12 +56,8 @@ interface SheetsState {
     updateReceivedSheet: () => void;
     updatePoMasterSheet: () => void;
     updateIndentSheet: () => void;
-<<<<<<< HEAD
     updateMasterSheet: () => void;
-    updateAll: () => void;
-=======
     updateAll: () => Promise<void>;
->>>>>>> 34b5d826ccf99c2fce9bbc75c50bd9e9aee9276c
 
     updateIssueSheet: () => void;
     issueSheet: IssueSheet[];

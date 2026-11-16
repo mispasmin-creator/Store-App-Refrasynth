@@ -30,12 +30,8 @@ import { fetchIssueRecords } from '@/services/issueService';
 import { fetchMasterOptions, type MasterData } from '@/services/masterService';
 
 export default () => {
-<<<<<<< HEAD
-    const { masterSheet: options, updateMasterSheet } = useSheets();
-=======
-    const { masterSheet } = useSheets();
+    const { masterSheet, updateMasterSheet } = useSheets();
     const [options, setOptions] = useState<MasterData | undefined>(masterSheet);
->>>>>>> 34b5d826ccf99c2fce9bbc75c50bd9e9aee9276c
     const { user } = useAuth();
 
     useEffect(() => {
