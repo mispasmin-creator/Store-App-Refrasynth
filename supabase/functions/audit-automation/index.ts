@@ -114,7 +114,8 @@ function snapshotFilter(row: AuditRow): Record<string, string> {
 
 async function processRow(row: AuditRow, dryRun: boolean, model: string) {
   const stage = auditStage(row);
-  if (stage === 'RECTIFY' || stage === 'TALLY_ENTRY' || stage === 'AGAIN_AUDIT' || stage === 'COMPLETED') return { id: row.id, skipped: stage };
+  // Every stage is human-handled now; the worker never infers or writes.
+  return { id: row.id, skipped: stage };
   const n = stageNumber(stage);
   const previous = readReport(row[`remarks${n}`]);
   if (previous?.outcome === 'processing' && Date.now() - Date.parse(previous.at) < 4 * 60000) return { id: row.id, skipped: 'Processing' };
@@ -205,7 +206,7 @@ Deno.serve(async (request: Request) => {
       for (const row of rows) {
         const result = await processRow(row, dryRun, config.model);
         // Avoid returning the entire completed/manual queue on every cron call.
-        if (!('skipped' in result) || body.id || !['RECTIFY', 'TALLY_ENTRY', 'AGAIN_AUDIT', 'COMPLETED'].includes(result.skipped ?? '')) results.push(result);
+        if (!('skipped' in result) || body.id || !['AUDIT', 'RECTIFY', 'REAUDIT', 'TALLY_ENTRY', 'AGAIN_AUDIT', 'COMPLETED'].includes(result.skipped ?? '')) results.push(result);
         if ('report' in result) { processed = true; break; }
       }
       if (body.id || rows.length < 100) break;

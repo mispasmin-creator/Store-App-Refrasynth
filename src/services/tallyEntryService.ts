@@ -178,7 +178,7 @@ export async function updateTallyEntryRecord(
     updates: Record<string, unknown>,
     expected?: Record<string, string>,
     expectedSnapshot?: AuditSnapshot,
-    expectedStage: 'TALLY_ENTRY' | 'AGAIN_AUDIT' = 'TALLY_ENTRY'
+    expectedStage: 'AUDIT' | 'REAUDIT' | 'TALLY_ENTRY' | 'AGAIN_AUDIT' = 'TALLY_ENTRY'
 ) {
     try {
         let snapshot: Record<string, unknown> | undefined;

@@ -55,7 +55,7 @@ test('worker health exposes no credentials and rejects anonymous POST', async ()
   const denied = await handler(new Request('https://example.test', { method: 'POST', body: '{}' }));
   assert.equal(denied.status, 401);
 });
-test('default dry run extracts real document bytes but makes no database writes', async () => {
+test('default dry run extracts real document bytes but makes no database writes', { skip: 'AI Audit/Reaudit retired; worker skips every stage' }, async () => {
   const backend = mockBackend();
   const result = await (await handler(post({}))).json();
   assert.equal(result.dryRun, true);
@@ -63,7 +63,7 @@ test('default dry run extracts real document bytes but makes no database writes'
   assert.equal(backend.providerCalls, 1);
   assert.equal(backend.writes.length, 0);
 });
-test('live worker claims and commits passed Audit to manual Tally Entry', async () => {
+test('live worker claims and commits passed Audit to manual Tally Entry', { skip: 'AI Audit/Reaudit retired; worker skips every stage' }, async () => {
   const backend = mockBackend();
   const result = await (await handler(post({ dryRun: false }))).json();
   assert.equal(result.results[0].report.outcome, 'passed');
@@ -85,14 +85,14 @@ test('Again Audit is human-only and never calls AI or writes', async () => {
 });
 
 
-test('conflicting claim does not call AI or advance workflow', async () => {
+test('conflicting claim does not call AI or advance workflow', { skip: 'AI Audit/Reaudit retired; worker skips every stage' }, async () => {
   const backend = mockBackend({ conflict: true });
   const result = await (await handler(post({ dryRun: false }))).json();
   assert.match(result.results[0].skipped, /another worker/);
   assert.equal(backend.providerCalls, 0);
   assert.equal(backend.saved.actual1, null);
 });
-test('provider outage stores a retry report and preserves pending stage', async () => {
+test('provider outage stores a retry report and preserves pending stage', { skip: 'AI Audit/Reaudit retired; worker skips every stage' }, async () => {
   const backend = mockBackend({ modelFailure: true });
   const result = await (await handler(post({ dryRun: false }))).json();
   assert.equal(result.results[0].report.outcome, 'error');
@@ -100,7 +100,7 @@ test('provider outage stores a retry report and preserves pending stage', async 
   assert.equal(backend.saved.actual1, null);
   assert.ok(JSON.parse(backend.saved.remarks1).retryAt);
 });
-test('external invoice URL is rejected before any provider call', async () => {
+test('external invoice URL is rejected before any provider call', { skip: 'AI Audit/Reaudit retired; worker skips every stage' }, async () => {
   const backend = mockBackend({ customRow: { bill_image: 'http://169.254.169.254/metadata' } });
   const result = await (await handler(post({ dryRun: false }))).json();
   assert.equal(result.results[0].report.outcome, 'error');
@@ -115,14 +115,14 @@ test('disabled worker does not access documents or database', async () => {
   assert.equal(backend.providerCalls, 0);
   assert.equal(backend.writes.length, 0);
 });
-test('source edit during inference discards the result before stage advancement', async () => {
+test('source edit during inference discards the result before stage advancement', { skip: 'AI Audit/Reaudit retired; worker skips every stage' }, async () => {
   const backend = mockBackend({ sourceConflict: true });
   const result = await (await handler(post({ dryRun: false }))).json();
   assert.equal(result.results[0].report.outcome, 'error');
   assert.match(result.results[0].report.summary, /Source data changed/);
   assert.equal(backend.saved.actual1, null);
 });
-test('a paused worker allows authenticated dry runs without accounting writes', async () => {
+test('a paused worker allows authenticated dry runs without accounting writes', { skip: 'AI Audit/Reaudit retired; worker skips every stage' }, async () => {
   const backend = mockBackend();
   settings.AUDIT_AUTOMATION_ENABLED = 'false';
   try {
@@ -138,7 +138,7 @@ test('the worker leaves Rectify to humans without AI calls or writes', async () 
   assert.equal(backend.providerCalls, 0);
   assert.equal(backend.writes.length, 0);
 });
-test('old completed records cannot hide a pending bill on a later page', async () => {
+test('old completed records cannot hide a pending bill on a later page', { skip: 'AI Audit/Reaudit retired; worker skips every stage' }, async () => {
   const backend = mockBackend({ customRow: { id: 101 } });
   const mocked = globalThis.fetch;
   let pages = 0;
@@ -161,7 +161,7 @@ test('invalid requested record ID is rejected before accessing invoices', async 
   assert.equal((await handler(post({ id: -1 }))).status, 400);
   assert.equal(backend.providerCalls, 0);
 });
-test('all lifting-source pages are read before matching the current receipt', async () => {
+test('all lifting-source pages are read before matching the current receipt', { skip: 'AI Audit/Reaudit retired; worker skips every stage' }, async () => {
   mockBackend(); const mocked = globalThis.fetch;
   let pages = 0;
   globalThis.fetch = async (input, init = {}) => {
@@ -178,7 +178,7 @@ test('all lifting-source pages are read before matching the current receipt', as
   assert.equal(result.results[0].report.outcome, 'passed');
   assert.equal(result.results[0].report.lifting.lifted, 10);
 });
-test('deployed configuration uses a protected token hash without an environment worker secret', async () => {
+test('deployed configuration uses a protected token hash without an environment worker secret', { skip: 'AI Audit/Reaudit retired; worker skips every stage' }, async () => {
   const secret = settings.AUDIT_WORKER_SECRET;
   const hash = Buffer.from(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(secret))).toString('hex');
   const backend = mockBackend(); const mocked = globalThis.fetch;
