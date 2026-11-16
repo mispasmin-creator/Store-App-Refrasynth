@@ -65,7 +65,12 @@ export function auditStage(row: Record<string, unknown>): AuditStage {
     return 'AGAIN_AUDIT';
   }
   if (!actual(1)) return 'AUDIT';
-  if (!actual(2) || status(2) !== 'done' || (actual(3) && status(3) !== 'done')) return 'RECTIFY';
+  if (!actual(2) || status(2) !== 'done' || (actual(3) && status(3) !== 'done')) {
+    // Audit is now done by humans. Rows the old AI audit sent to Rectify (AI report in remarks1, no human
+    // rectification yet) go one step back so a person audits them. A human "No" writes plain remarks1.
+    if (readReport(row.remarks1) && !present(row.remarks2)) return 'AUDIT';
+    return 'RECTIFY';
+  }
   return 'REAUDIT';
 }
 export const stageNumber = (stage: AuditStage) => ({ AUDIT: 1, RECTIFY: 2, REAUDIT: 3, TALLY_ENTRY: 4, AGAIN_AUDIT: 5, COMPLETED: 5 })[stage];
@@ -294,6 +299,20 @@ export function humanReviewUpdate(stage: 'TALLY_ENTRY' | 'AGAIN_AUDIT', answer: 
   return { status5: answer === 'Yes' ? 'Done' : 'Not Done', actual5: answer === 'Yes' ? now : null,
     remarks5: `Human final audit: ${answer}. Reviewed by ${reviewer}.`,
     ...(answer === 'No' ? { status4: 'Correction Needed', actual4: null, planned4: now } : {}) };
+}
+/** Human Audit / Reaudit. Yes advances to Tally Entry; No sends the bill to Rectify. */
+export function humanAuditUpdate(stage: 'AUDIT' | 'REAUDIT', answer: string, remarks: string, now: string): Record<string, unknown> {
+  if (!['Yes', 'No'].includes(answer) || !Number.isFinite(Date.parse(now))) throw new Error('Valid Yes/No answer and date are required.');
+  const text = remarks.trim();
+  if (answer === 'No' && !text) throw new Error('Remarks are required when sending a bill to Rectify.');
+  if (stage === 'AUDIT') {
+    return answer === 'Yes'
+      ? { status1: 'Done', actual1: now, remarks1: text, planned4: now }
+      : { status1: 'Not Done', actual1: now, remarks1: text, planned2: now };
+  }
+  return answer === 'Yes'
+    ? { status3: 'Done', actual3: now, remarks3: text, planned4: now }
+    : { status2: 'Correction Needed', actual2: null, planned2: now, status3: 'Not Done', actual3: null, remarks3: text };
 }
 export function transition(row: AuditRow, stage: AuditStage, report: AuditReport, now: string): Record<string, unknown> {
   if (stage === 'RECTIFY' || stage === 'TALLY_ENTRY' || stage === 'AGAIN_AUDIT' || stage === 'COMPLETED') throw new Error('This is a human-only or completed stage.');
