@@ -28,7 +28,7 @@ import { PuffLoader as Loader } from 'react-spinners';
 import { Textarea } from '../ui/textarea';
 import { Input } from '../ui/input';
 import { auditStage, readReport, remarkText, stageNumber, norm } from '@/lib/auditWorkflow';
-import { auditAutomationHealth, uploadTallyVoucher, submitHumanRectification } from '@/services/auditAutomationService';
+import { uploadTallyVoucher, submitHumanRectification } from '@/services/auditAutomationService';
 import {
   updateTallyEntryRecord,
 } from '@/services/tallyEntryService';
@@ -109,7 +109,7 @@ const STAGES: Record<string, StageConfig> = {
     icon: ShieldCheck,
     description: 'Final audit verification after tally',
     formTitle: 'Again Audit',
-    statusOptions: ['Done', 'Not Done']
+    statusOptions: ['Done']
   },
   COMPLETED: {
     name: 'Completed',
@@ -194,22 +194,11 @@ export default function PcReportTable() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('ALL');
   const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
-  const [workerStatus, setWorkerStatus] = useState('Checking AI backend…');
   const [voucherNo, setVoucherNo] = useState('');
   const [voucherDate, setVoucherDate] = useState('');
   const [voucherFile, setVoucherFile] = useState<File | null>(null);
   const [correction, setCorrection] = useState({ billNo: '', billAmt: 0, qty: 0, rate: 0 });
   const [correctedBill, setCorrectedBill] = useState<File | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    const check = () => auditAutomationHealth().then(health => {
-      if (!cancelled) setWorkerStatus(health.enabled ? 'AI automation enabled • records refresh every 30 seconds' : health.configured ? 'AI backend ready • automation is paused' : 'AI setup pending • backend API key and model required');
-    }).catch(() => { if (!cancelled) setWorkerStatus('AI worker unavailable • backend setup required'); });
-    void check();
-    const timer = setInterval(check, 60000);
-    return () => { cancelled = true; clearInterval(timer); };
-  }, []);
-
   // Function to toggle product expansion in dialog
   const toggleProductExpand = (id: number) => {
     setExpandedProducts((prev) => {
@@ -412,12 +401,14 @@ export default function PcReportTable() {
 
   // Get schema based on stage
   const formSchema = z.object({
+    status: z.enum(['Done', 'Not Done']),
     remarks: z.string().trim().max(1000, 'Keep remarks under 1,000 characters').min(1, 'Remarks are required'),
   });
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      status: 'Done',
       remarks: '',
     },
   });
@@ -426,6 +417,7 @@ export default function PcReportTable() {
   useEffect(() => {
     if (!openDialog) {
       form.reset({
+        status: 'Done',
         remarks: ''
       });
       setExpandedProducts(new Set());
@@ -441,6 +433,7 @@ export default function PcReportTable() {
     setSelectedRow(item);
     setCorrection({ billNo: item.billNo, billAmt: item.billAmt, qty: item.qty, rate: item.rate });
     form.reset({
+      status: 'Done',
       remarks: '',
     });
     setOpenDialog(true);
@@ -457,14 +450,62 @@ export default function PcReportTable() {
       try {
         const billImage = correctedBill ? await uploadTallyVoucher(correctedBill, 'audit-bills') : undefined;
         await submitHumanRectification(selectedRow.id, { ...correction, billImage }, values.remarks, selectedRow.firmNameMatch, selectedRow);
-        toast.success('Correction saved. AI Reaudit will check it next.');
+        toast.success('Correction saved. Reaudit is now pending for manual review.');
         setOpenDialog(false);
         updateAll();
       } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not save correction.'); }
       return;
     }
+    if (['AUDIT', 'REAUDIT', 'AGAIN_AUDIT'].includes(selectedRow.currentStage)) {
+      if (selectedRow.currentStage === 'AGAIN_AUDIT' && values.status !== 'Done') {
+        toast.error('Again Audit can only be completed with Done.');
+        return;
+      }
+      try {
+        const now = new Date().toISOString();
+        const items = selectedRow.originalItems || [selectedRow];
+        for (const item of items) {
+          const updates: Record<string, unknown> = {};
+          if (selectedRow.currentStage === 'AUDIT') {
+            updates.actual1 = now;
+            updates.status1 = values.status;
+            updates.remarks1 = values.remarks;
+            if (values.status === 'Done') updates.planned4 = now;
+            else updates.planned2 = now;
+          } else if (selectedRow.currentStage === 'REAUDIT') {
+            updates.remarks3 = values.remarks;
+            if (values.status === 'Done') {
+              updates.actual3 = now;
+              updates.status3 = 'Done';
+              updates.planned4 = now;
+            } else {
+              updates.actual2 = null;
+              updates.status2 = 'Correction Needed';
+              updates.planned2 = now;
+              updates.actual3 = null;
+              updates.status3 = 'Not Done';
+            }
+          } else {
+            updates.actual5 = now;
+            updates.status5 = 'Done';
+            updates.remarks5 = values.remarks;
+          }
+          await updateTallyEntryRecord(item.id, updates);
+        }
+        toast.success(selectedRow.currentStage === 'AUDIT'
+          ? (values.status === 'Done' ? 'Audit completed. Tally Entry is now pending.' : 'Audit failed. Rectify is now pending.')
+          : selectedRow.currentStage === 'REAUDIT'
+            ? (values.status === 'Done' ? 'Reaudit completed. Tally Entry is now pending.' : 'Reaudit failed. Rectify is now pending.')
+            : 'Again Audit completed. Record moved to Completed.');
+        setOpenDialog(false);
+        updateAll();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Could not save manual audit status.');
+      }
+      return;
+    }
     if (selectedRow.currentStage !== 'TALLY_ENTRY') {
-      toast.error('This stage is managed by the AI worker.');
+      toast.error('This stage cannot be updated from this form.');
       return;
     }
     if (!voucherNo.trim() || !voucherDate || !voucherFile) {
@@ -484,7 +525,7 @@ export default function PcReportTable() {
         status5: '', actual5: null,
       }, { ...(item.status1 ? { status1: item.status1 } : {}), ...(item.status3 ? { status3: item.status3 } : {}),
         bill_no: item.billNo, bill_amt: String(item.billAmt), firm_name_match: item.firmNameMatch }, item);
-      toast.success('Tally voucher saved. AI Again Audit will verify the uploaded proof.');
+      toast.success('Tally voucher saved. Again Audit is now pending for manual review.');
       setOpenDialog(false);
       updateAll();
     } catch (err) {
@@ -552,7 +593,13 @@ export default function PcReportTable() {
               className="flex items-center gap-2"
             >
               {IconComponent && <IconComponent className="w-4 h-4" />}
-              {rowData.currentStage === 'TALLY_ENTRY' ? 'Enter Tally Voucher' : rowData.currentStage === 'RECTIFY' ? 'Rectify' : 'View AI Report'}
+              {rowData.currentStage === 'TALLY_ENTRY'
+                ? 'Enter Tally Voucher'
+                : rowData.currentStage === 'RECTIFY'
+                  ? 'Rectify'
+                  : rowData.currentStage === 'AGAIN_AUDIT'
+                    ? 'Again Audit'
+                    : 'Manual Audit'}
             </Button>
           </DialogTrigger>
         );
@@ -798,13 +845,13 @@ export default function PcReportTable() {
   return (
     <div>
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-        <Heading heading="Audit Data" subtext="AI Audit & Reaudit • Human Rectify & Tally Entry">
+        <Heading heading="Audit Data" subtext="Manual Audit, Reaudit, Rectify, Tally Entry & Again Audit">
           <BarChart size={50} className="text-primary" />
         </Heading>
         <div className="mb-4 rounded-lg border bg-white p-4 space-y-2" role="status">
-          <p className="font-medium">{workerStatus}</p>
+          <p className="font-medium">Manual audit mode enabled. Audit, Reaudit and Again Audit are updated by human review.</p>
 
-          <p className="text-sm text-muted-foreground">AI Audit → Human Rectify → AI Reaudit → Human Tally Entry → AI Again Audit → Completed. Failed Reaudit returns to Human Rectify.</p>
+          <p className="text-sm text-muted-foreground">Manual Audit → Human Rectify → Manual Reaudit → Human Tally Entry → Manual Again Audit → Completed. Failed Audit/Reaudit returns to Rectify.</p>
         </div>
 
         {/* Stats Cards */}
@@ -915,11 +962,11 @@ export default function PcReportTable() {
           </TabsContent>
         </Tabs>
 
-        {selectedRow && !['RECTIFY', 'TALLY_ENTRY'].includes(selectedRow.currentStage) && (
+        {selectedRow && selectedRow.currentStage === 'COMPLETED' && (
           <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>{STAGES[selectedRow.currentStage]?.name} - AI Report</DialogTitle>
-              <DialogDescription>PO {selectedRow.poNumber} | Bill {selectedRow.billNo}. This stage is processed automatically.</DialogDescription>
+              <DialogTitle>{STAGES[selectedRow.currentStage]?.name} - Manual Review</DialogTitle>
+              <DialogDescription>PO {selectedRow.poNumber} | Bill {selectedRow.billNo}. This stage is handled manually.</DialogDescription>
             </DialogHeader>
             {(selectedRow.originalItems || [selectedRow]).map(item => (
               <div key={item.id} className="rounded-lg border p-4 space-y-3">
@@ -928,13 +975,13 @@ export default function PcReportTable() {
                   const text = remarkText((item as unknown as Record<string, unknown>)['remarks' + n]);
                   return text ? <div key={n}><p className="text-sm font-semibold">{['Audit', 'Rectify', 'Reaudit', 'Tally Entry', 'Again Audit'][n - 1]}</p><p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">{text}</p></div> : null;
                 })}
-                {!readReport((item as unknown as Record<string, unknown>)['remarks' + stageNumber(item.currentStage as Parameters<typeof stageNumber>[0])]) && <p className="text-sm text-muted-foreground">Waiting for the AI worker. {workerStatus}</p>}
+                {!readReport((item as unknown as Record<string, unknown>)['remarks' + stageNumber(item.currentStage as Parameters<typeof stageNumber>[0])]) && <p className="text-sm text-muted-foreground">No manual review has been saved yet.</p>}
               </div>
             ))}
             <DialogFooter><DialogClose asChild><Button variant="outline">Close</Button></DialogClose></DialogFooter>
           </DialogContent>
         )}
-        {selectedRow && ['RECTIFY', 'TALLY_ENTRY'].includes(selectedRow.currentStage) && (
+        {selectedRow && ['AUDIT', 'RECTIFY', 'REAUDIT', 'TALLY_ENTRY', 'AGAIN_AUDIT'].includes(selectedRow.currentStage) && (
           <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
             <Form {...form}>
               <form
@@ -1149,8 +1196,29 @@ export default function PcReportTable() {
                     <Input id="tally-voucher-date" required type="date" value={voucherDate} onChange={e => setVoucherDate(e.target.value)} />
                     <label htmlFor="tally-voucher-file" className="text-sm font-medium">Tally voucher proof (PDF/image, up to 5 MB) *</label>
                     <Input id="tally-voucher-file" required type="file" accept="application/pdf,image/png,image/jpeg,image/webp" onChange={e => setVoucherFile(e.target.files?.[0] || null)} />
-                    <p className="text-xs text-muted-foreground">Upload the actual Tally voucher showing company, supplier invoice, products, amounts and voucher number. AI verifies it after submission.</p>
+                    <p className="text-xs text-muted-foreground">Upload the actual Tally voucher showing company, supplier invoice, products, amounts and voucher number for manual Again Audit review.</p>
                   </div>
+                  )}
+                  {['AUDIT', 'REAUDIT', 'AGAIN_AUDIT'].includes(selectedRow.currentStage) && (
+                    <FormField
+                      control={form.control}
+                      name="status"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Status *</FormLabel>
+                          <FormControl>
+                            <select
+                              {...field}
+                              className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            >
+                              {(STAGES[selectedRow.currentStage]?.statusOptions || ['Done', 'Not Done']).map(option => (
+                                <option key={option} value={option}>{option}</option>
+                              ))}
+                            </select>
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
                   )}
                   <FormField
                     control={form.control}
@@ -1183,7 +1251,11 @@ export default function PcReportTable() {
                         aria-label="Loading Spinner"
                       />
                     )}
-                    {selectedRow.currentStage === 'RECTIFY' ? 'Submit for AI Reaudit' : 'Save Tally Voucher'}
+                    {selectedRow.currentStage === 'RECTIFY'
+                      ? 'Submit for Reaudit'
+                      : selectedRow.currentStage === 'TALLY_ENTRY'
+                        ? 'Save Tally Voucher'
+                        : 'Save Manual Audit'}
                   </Button>
                 </DialogFooter>
               </form>

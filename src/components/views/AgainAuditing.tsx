@@ -26,6 +26,7 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel } from '../ui/form';
+import { Textarea } from '../ui/textarea';
 import { toast } from 'sonner';
 import { PuffLoader as Loader } from 'react-spinners';
 import {
@@ -70,19 +71,21 @@ export default function AgainAuditingTable() {
 
   // Validation schema
   const schema = z.object({
-    status: z.enum(['okay', 'not okay']),
+    status: z.literal('okay'),
+    remarks: z.string().trim().max(1000).min(1, 'Remarks are required'),
   });
 
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: {
       status: 'okay',
+      remarks: '',
     },
   });
 
   useEffect(() => {
     if (!openDialog) {
-      form.reset({ status: 'okay' });
+      form.reset({ status: 'okay', remarks: '' });
     }
   }, [openDialog, form]);
 
@@ -99,7 +102,7 @@ export default function AgainAuditingTable() {
       await updateTallyEntryRecord(selectedRow.id, {
         actual5: currentDateTime,
         status5: values.status,
-        remarks5: '', // No remarks field in this UI
+        remarks5: values.remarks,
       });
 
       toast.success(`Status updated for Indent ${selectedRow.indentNumber}`);
@@ -282,10 +285,21 @@ export default function AgainAuditingTable() {
                               <SelectValue placeholder="Select status" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="okay">Okay</SelectItem>
-                              <SelectItem value="not okay">Not Okay</SelectItem>
+                              <SelectItem value="okay">Done</SelectItem>
                             </SelectContent>
                           </Select>
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="remarks"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Remarks *</FormLabel>
+                        <FormControl>
+                          <Textarea {...field} placeholder="Enter remarks..." rows={4} />
                         </FormControl>
                       </FormItem>
                     )}
