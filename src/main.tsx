@@ -19,6 +19,7 @@ import TrainnigVideo from './components/views/TrainingVideo';
 import Liecense from './components/views/License'
 import MakePayment from './components/views/MakePayment';
 import type { RouteAttributes } from './types';
+import { canOpenRoute, departmentMatches, isDepartmentUser } from '@/lib/access';
 import {
     LayoutDashboard,
     ClipboardList,
@@ -98,15 +99,16 @@ function GatedRoute({
     identifier?: keyof UserPermissions;
 }) {
     const { user } = useAuth();
-    if (!identifier) return children;
+    if (canOpenRoute(user, identifier)) return children;
 
-    // Check specific permission only — no blanket admin bypass
-    const hasPermission = user && ((user as any)[identifier] === true || (user as any)[identifier] === "true");
-
-    if (!hasPermission) {
-        return <Navigate to="/" replace />;
+    // Department users never see the open pages (Dashboard etc.); send them to their first permitted page.
+    // Everyone else falls back to the Dashboard. Check specific permission only — no blanket admin bypass.
+    if (isDepartmentUser(user)) {
+        const landing = routes.find(route => route.gateKey && !route.hidden && canOpenRoute(user, route.gateKey));
+        if (landing) return <Navigate to={`/${landing.path}`} replace />;
+        return <div className="p-8 text-center text-muted-foreground">No pages are assigned to this department user. Ask the administrator for access.</div>;
     }
-    return children;
+    return identifier ? <Navigate to="/" replace /> : children;
 }
 
 const routes: RouteAttributes[] = [
@@ -369,7 +371,8 @@ const routes: RouteAttributes[] = [
         notifications: (sheetsData: any[], user: any) => {
             const sheets = Array.isArray(sheetsData[0]) ? sheetsData[0] : sheetsData;
             const filteredByFirm = sheets.filter((item: any) =>
-                (!user || (user.firmNameMatch || '').toLowerCase() === "all" || (item.firmNameMatch || item.firm_name_match) === user.firmNameMatch)
+                (!user || (user.firmNameMatch || '').toLowerCase() === "all" || (item.firmNameMatch || item.firm_name_match) === user.firmNameMatch) &&
+                departmentMatches(user, item.department)
             );
 
             // Filter to keep only latest per indent+product (matching StoreIn.tsx line 228)

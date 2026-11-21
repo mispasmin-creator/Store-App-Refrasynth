@@ -31,6 +31,7 @@ export async function fetchUsers(): Promise<UserRecord[]> {
                 password: r.password || '',
                 name: r.name || '',
                 firmNameMatch: r.firm_name_match || '',
+                department: r.department || '',
                 rowIndex: r.id, // Using ID as a fallback for rowIndex since it's used in and out of tables
             };
 
@@ -62,6 +63,7 @@ export async function createUser(userData: Partial<UserPermissions>) {
             name: userData.name,
             password: userData.password,
             firm_name_match: userData.firmNameMatch || '',
+            department: (userData.department || '').trim(),
             timestamp: new Date().toISOString(),
         };
 
@@ -96,6 +98,7 @@ export async function updateUser(id: number, userData: Partial<UserPermissions>)
             name: userData.name,
             password: userData.password,
             firm_name_match: userData.firmNameMatch || '',
+            department: (userData.department || '').trim(),
         };
 
         // Map camelCase permissions to snake_case for DB
@@ -166,6 +169,7 @@ export async function authenticateUser(username: string, password: string): Prom
             password: r.password || '',
             name: r.name || '',
             firmNameMatch: r.firm_name_match || '',
+            department: r.department || '',
             rowIndex: r.id,
         };
 
@@ -209,6 +213,7 @@ export async function getUserByUsername(username: string): Promise<UserRecord | 
             password: r.password || '',
             name: r.name || '',
             firmNameMatch: r.firm_name_match || '',
+            department: r.department || '',
             rowIndex: r.id,
         };
 
@@ -224,5 +229,24 @@ export async function getUserByUsername(username: string): Promise<UserRecord | 
     } catch (error) {
         console.error('Error fetching user by username:', error);
         return null;
+    }
+}
+
+/**
+ * Departments a department user can be tied to (from indents and the master list).
+ */
+export async function fetchDepartments(): Promise<string[]> {
+    try {
+        const [indents, master] = await Promise.all([
+            supabase.from('indent').select('department'),
+            supabase.from('master').select('department'),
+        ]);
+        const names = [...(indents.data || []), ...(master.data || [])]
+            .map((r: any) => String(r.department || '').trim().toUpperCase())
+            .filter(Boolean);
+        return Array.from(new Set(names)).sort();
+    } catch (error) {
+        console.error('Error fetching departments:', error);
+        return [];
     }
 }

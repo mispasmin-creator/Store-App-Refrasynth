@@ -30,9 +30,13 @@ import { fetchIssueRecords } from '@/services/issueService';
 import { fetchMasterOptions, type MasterData } from '@/services/masterService';
 
 export default () => {
-    const { masterSheet } = useSheets();
+    const { masterSheet, updateMasterSheet } = useSheets();
     const [options, setOptions] = useState<MasterData | undefined>(masterSheet);
     const { user } = useAuth();
+
+    useEffect(() => {
+        updateMasterSheet?.();
+    }, []);
     const [searchTerm, setSearchTerm] = useState('');
     const [searchTermGroupHead, setSearchTermGroupHead] = useState('');
     const [searchTermGroupMaster, setSearchTermGroupMaster] = useState('');

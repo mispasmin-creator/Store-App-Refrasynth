@@ -297,8 +297,12 @@ export default () => {
     }
 
 
+    const isOn = (v: unknown) => v === true || v === 'true';
+    // Page is gated by 'sendDebitNote'; receiveItemView kept as legacy fallback.
+    const canProcess = isOn(user?.sendDebitNote) || isOn(user?.receiveItemView);
+
     const pendingColumns: ColumnDef<StoreInPendingData>[] = [
-        ...(user.receiveItemView
+        ...(canProcess
             ? [
                 {
                     header: 'Action',
@@ -608,7 +612,7 @@ export default () => {
 
                                 <DialogFooter>
                                     <DialogClose asChild>
-                                        <Button variant="outline">Close</Button>
+                                        <Button type="button" variant="outline">Close</Button>
                                     </DialogClose>
 
                                     <Button type="submit" disabled={form.formState.isSubmitting}>

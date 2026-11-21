@@ -27,7 +27,11 @@ import { toast } from 'sonner';
 import { PuffLoader as Loader } from 'react-spinners';
 import { Textarea } from '../ui/textarea';
 import { Input } from '../ui/input';
+<<<<<<< HEAD
 import { auditStage, readReport, remarkText, stageNumber, norm } from '@/lib/auditWorkflow';
+=======
+import { auditStage, remarkText, norm, humanReviewUpdate, humanAuditUpdate } from '@/lib/auditWorkflow';
+>>>>>>> 388304ff3abef68bed9ca821a1de1036f8b6b6ee
 import { uploadTallyVoucher, submitHumanRectification } from '@/services/auditAutomationService';
 import {
   updateTallyEntryRecord,
@@ -193,12 +197,20 @@ export default function PcReportTable() {
   const [openDialog, setOpenDialog] = useState(false);
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('ALL');
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({});
   const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
+<<<<<<< HEAD
   const [voucherNo, setVoucherNo] = useState('');
   const [voucherDate, setVoucherDate] = useState('');
   const [voucherFile, setVoucherFile] = useState<File | null>(null);
   const [correction, setCorrection] = useState({ billNo: '', billAmt: 0, qty: 0, rate: 0 });
   const [correctedBill, setCorrectedBill] = useState<File | null>(null);
+=======
+  const [tallyAnswer, setTallyAnswer] = useState('');
+  const [correction, setCorrection] = useState({ billNo: '', billAmt: 0, qty: 0, rate: 0 });
+  const [correctedBill, setCorrectedBill] = useState<File | null>(null);
+
+>>>>>>> 388304ff3abef68bed9ca821a1de1036f8b6b6ee
   // Function to toggle product expansion in dialog
   const toggleProductExpand = (id: number) => {
     setExpandedProducts((prev) => {
@@ -316,7 +328,7 @@ export default function PcReportTable() {
 
     filtered.forEach(item => {
       // Use PO Number and Stage for grouping
-      const key = JSON.stringify([item.firmNameMatch, item.partyName, item.poNumber, item.billNo, item.liftNumber, item.currentStage, ['RECTIFY', 'TALLY_ENTRY'].includes(item.currentStage) ? item.id : '']);
+      const key = JSON.stringify([item.firmNameMatch, item.partyName, item.poNumber, item.billNo, item.liftNumber, item.currentStage, ['RECTIFY', 'TALLY_ENTRY', 'AGAIN_AUDIT'].includes(item.currentStage) ? item.id : '']);
 
       if (!groupedMap.has(key)) {
         groupedMap.set(key, {
@@ -352,7 +364,7 @@ export default function PcReportTable() {
     const groupedMap = new Map<string, ProcessedTallyData>();
 
     allData.forEach(item => {
-      const key = JSON.stringify([item.firmNameMatch, item.partyName, item.poNumber, item.billNo, item.liftNumber, item.currentStage, ['RECTIFY', 'TALLY_ENTRY'].includes(item.currentStage) ? item.id : '']);
+      const key = JSON.stringify([item.firmNameMatch, item.partyName, item.poNumber, item.billNo, item.liftNumber, item.currentStage, ['RECTIFY', 'TALLY_ENTRY', 'AGAIN_AUDIT'].includes(item.currentStage) ? item.id : '']);
 
       if (!groupedMap.has(key)) {
         groupedMap.set(key, {
@@ -401,8 +413,12 @@ export default function PcReportTable() {
 
   // Get schema based on stage
   const formSchema = z.object({
+<<<<<<< HEAD
     status: z.enum(['Done', 'Not Done']),
     remarks: z.string().trim().max(1000, 'Keep remarks under 1,000 characters').min(1, 'Remarks are required'),
+=======
+    remarks: z.string().trim().max(1000, 'Keep remarks under 1,000 characters').refine(value => selectedRow?.currentStage !== 'RECTIFY' || value.length > 0, 'Remarks are required'),
+>>>>>>> 388304ff3abef68bed9ca821a1de1036f8b6b6ee
   });
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -421,9 +437,7 @@ export default function PcReportTable() {
         remarks: ''
       });
       setExpandedProducts(new Set());
-      setVoucherNo('');
-      setVoucherDate('');
-      setVoucherFile(null);
+      setTallyAnswer('');
       setCorrectedBill(null);
     }
   }, [openDialog, form]);
@@ -450,12 +464,17 @@ export default function PcReportTable() {
       try {
         const billImage = correctedBill ? await uploadTallyVoucher(correctedBill, 'audit-bills') : undefined;
         await submitHumanRectification(selectedRow.id, { ...correction, billImage }, values.remarks, selectedRow.firmNameMatch, selectedRow);
+<<<<<<< HEAD
         toast.success('Correction saved. Reaudit is now pending for manual review.');
+=======
+        toast.success('Correction saved. Sent to Reaudit.');
+>>>>>>> 388304ff3abef68bed9ca821a1de1036f8b6b6ee
         setOpenDialog(false);
         updateAll();
       } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not save correction.'); }
       return;
     }
+<<<<<<< HEAD
     if (['AUDIT', 'REAUDIT', 'AGAIN_AUDIT'].includes(selectedRow.currentStage)) {
       if (selectedRow.currentStage === 'AGAIN_AUDIT' && values.status !== 'Done') {
         toast.error('Again Audit can only be completed with Done.');
@@ -506,30 +525,69 @@ export default function PcReportTable() {
     }
     if (selectedRow.currentStage !== 'TALLY_ENTRY') {
       toast.error('This stage cannot be updated from this form.');
+=======
+    if (selectedRow.currentStage === 'AUDIT' || selectedRow.currentStage === 'REAUDIT') {
+      const stage = selectedRow.currentStage;
+      if (!['Yes', 'No'].includes(tallyAnswer)) { toast.error('Select Yes or No.'); return; }
+      if (tallyAnswer === 'No' && !values.remarks) { toast.error('Remarks are required when sending to Rectify.'); return; }
+      try {
+        const updates = humanAuditUpdate(stage, tallyAnswer, values.remarks, new Date().toISOString());
+        // Every product on this bill is reviewed together.
+        for (const item of selectedRow.originalItems || [selectedRow]) {
+          await updateTallyEntryRecord(item.id, updates, { firm_name_match: item.firmNameMatch }, item, stage);
+        }
+        toast.success(tallyAnswer === 'Yes' ? 'Approved. Sent to Tally Entry.' : 'Sent to Rectify.');
+        setOpenDialog(false);
+        updateAll();
+      } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not save review.'); updateAll(); }
+>>>>>>> 388304ff3abef68bed9ca821a1de1036f8b6b6ee
       return;
     }
-    if (!voucherNo.trim() || !voucherDate || !voucherFile) {
-      toast.error('Voucher number, date and PDF/image proof are required.');
+    if (selectedRow.currentStage === 'AGAIN_AUDIT') {
+      if (!['Yes', 'No'].includes(tallyAnswer)) { toast.error('Select Yes or No.'); return; }
+      try {
+        const now = new Date().toISOString();
+        const approved = tallyAnswer === 'Yes';
+        await updateTallyEntryRecord(selectedRow.id,
+          humanReviewUpdate('AGAIN_AUDIT', tallyAnswer, user.username || user.name || '', now),
+          { firm_name_match: selectedRow.firmNameMatch }, selectedRow, 'AGAIN_AUDIT');
+        toast.success(approved ? 'Final audit approved. Entry completed.' : 'Returned to Tally Entry for correction.');
+        setOpenDialog(false);
+        updateAll();
+      } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not save final audit.'); }
+      return;
+    }
+    if (selectedRow.currentStage !== 'TALLY_ENTRY') {
+      toast.error('This record has no action available.');
+      return;
+    }
+    if (!['Yes', 'No'].includes(tallyAnswer)) {
+      toast.error('Select Yes or No.');
+      return;
+    }
+    if (tallyAnswer === 'No') {
+      toast.info('Tally entry remains pending.');
+      setOpenDialog(false);
       return;
     }
     try {
       const items = selectedRow.originalItems || [selectedRow];
       if (items.length !== 1) throw new Error('Open an individual Tally entry before submitting.');
-      const proofUrl = await uploadTallyVoucher(voucherFile);
       const now = new Date().toISOString();
       const item = items[0];
-      await updateTallyEntryRecord(item.id, {
-        status4: 'Done', actual4: now, planned5: now,
-        remarks4: JSON.stringify({ kind: 'tally-voucher', voucherNo: voucherNo.trim(), voucherDate,
-          proofUrl, remarks: values.remarks, enteredBy: user.username || user.name || '' }),
-        status5: '', actual5: null,
-      }, { ...(item.status1 ? { status1: item.status1 } : {}), ...(item.status3 ? { status3: item.status3 } : {}),
+      await updateTallyEntryRecord(item.id,
+        humanReviewUpdate('TALLY_ENTRY', tallyAnswer, user.username || user.name || '', now),
+        { ...(item.status1 ? { status1: item.status1 } : {}), ...(item.status3 ? { status3: item.status3 } : {}),
         bill_no: item.billNo, bill_amt: String(item.billAmt), firm_name_match: item.firmNameMatch }, item);
+<<<<<<< HEAD
       toast.success('Tally voucher saved. Again Audit is now pending for manual review.');
+=======
+      toast.success('Tally entry confirmed. Submitted for final audit.');
+>>>>>>> 388304ff3abef68bed9ca821a1de1036f8b6b6ee
       setOpenDialog(false);
       updateAll();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not save Tally voucher.');
+      toast.error(err instanceof Error ? err.message : 'Could not save Tally entry.');
       updateAll();
     }
   }
@@ -552,11 +610,6 @@ export default function PcReportTable() {
   const sourceColumns: ColumnDef<ProcessedTallyData>[] = [
     ...([
       ['indentNumber', 'Indent No.'], ['liftNumber', 'Lift No.'],
-      ['productName', 'Product'], ['firmNameMatch', 'Company'],
-      ['receivedQuantity', 'Received Qty'], ['hodStatus', 'HOD Status'],
-      ['hodRemark', 'HOD Remark'], ['receivingStatus', 'Receiving Status'],
-      ['quantityAsPerBill', 'Store Quantity Check'], ['damageOrder', 'Physical Check'],
-      ['priceAsPerPoCheck', 'Store Price Check'],
     ] as const).map(([key, header]): ColumnDef<ProcessedTallyData> => ({
       id: 'source-' + key, header,
       cell: ({ row }) => evidenceCell(row.original, item => {
@@ -566,9 +619,7 @@ export default function PcReportTable() {
     })),
     ...[
       ['indentProduct', 'Indent Product'], ['indentQuantity', 'Indent Quantity'],
-      ['indentApprovedQuantity', 'Indent Approved Qty'], ['indentRate', 'Indent Approved Rate'],
-      ['indentVendor', 'Indent Vendor'], ['poProduct', 'PO Product'],
-      ['poQuantity', 'PO Quantity'], ['poRate', 'PO Rate'], ['poVendor', 'PO Vendor'],
+      ['indentApprovedQuantity', 'Indent Approved Qty'], ['poRate', 'PO Rate'],
       ['liftingQty', 'Lifting Qty'], ['liftingBill', 'Lifting Bill No.'],
       ['liftingVendor', 'Lifting Vendor'], ['liftingBillAmount', 'Lifting Bill Amount'],
     ].map(([key, header]): ColumnDef<ProcessedTallyData> => ({
@@ -593,6 +644,7 @@ export default function PcReportTable() {
               className="flex items-center gap-2"
             >
               {IconComponent && <IconComponent className="w-4 h-4" />}
+<<<<<<< HEAD
               {rowData.currentStage === 'TALLY_ENTRY'
                 ? 'Enter Tally Voucher'
                 : rowData.currentStage === 'RECTIFY'
@@ -600,6 +652,9 @@ export default function PcReportTable() {
                   : rowData.currentStage === 'AGAIN_AUDIT'
                     ? 'Again Audit'
                     : 'Manual Audit'}
+=======
+              {rowData.currentStage === 'TALLY_ENTRY' ? 'Update Tally Entry' : rowData.currentStage === 'RECTIFY' ? 'Rectify' : rowData.currentStage === 'AGAIN_AUDIT' ? 'Again Audit' : rowData.currentStage === 'REAUDIT' ? 'Reaudit' : 'Audit'}
+>>>>>>> 388304ff3abef68bed9ca821a1de1036f8b6b6ee
             </Button>
           </DialogTrigger>
         );
@@ -674,32 +729,7 @@ export default function PcReportTable() {
         ) : null;
       },
     },
-    { accessorKey: 'billReceivedLater', header: 'Bill Received Later' },
-
-    { accessorKey: 'location', header: 'Location' },
-    { accessorKey: 'typeOfBills', header: 'Type Of Bills' },
-    {
-      accessorKey: 'productImage',
-      header: 'Product Image',
-      cell: ({ row }) => {
-        const image = row.original.productImage;
-        return image ? (
-          <a href={image} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline">
-            View
-          </a>
-        ) : null;
-      },
-    },
-    { accessorKey: 'area', header: 'Area' },
-    { accessorKey: 'indentedFor', header: 'Indented For' },
-    { accessorKey: 'approvedPartyName', header: 'Approved Party Name' },
     { accessorKey: 'rate', header: 'Bill Rate (Entered)', cell: ({ row }) => evidenceCell(row.original, item => item.rate) },
-    { 
-      accessorKey: 'indentQty', 
-      header: 'Indent Qty',
-      cell: ({ row }) => evidenceCell(row.original, item => item.indentQty ?? '-')
-    },
-    { accessorKey: 'totalRate', header: 'Total Rate' },
 
     ...sourceColumns,
     // Add status and remarks columns for each stage
@@ -722,7 +752,7 @@ export default function PcReportTable() {
       cell: ({ row }) => {
         const remarks = remarkText(row.original.remarks1, 'AUDIT');
         return remarks ? (
-          <div className="max-w-xs whitespace-pre-line break-words text-left" title={remarks}>
+          <div className="whitespace-nowrap text-left" title={remarks}>
             {remarks}
           </div>
         ) : null;
@@ -747,7 +777,7 @@ export default function PcReportTable() {
       cell: ({ row }) => {
         const remarks = remarkText(row.original.remarks2, 'RECTIFY');
         return remarks ? (
-          <div className="max-w-xs whitespace-pre-line break-words text-left" title={remarks}>
+          <div className="whitespace-nowrap text-left" title={remarks}>
             {remarks}
           </div>
         ) : null;
@@ -772,7 +802,7 @@ export default function PcReportTable() {
       cell: ({ row }) => {
         const remarks = remarkText(row.original.remarks3, 'REAUDIT');
         return remarks ? (
-          <div className="max-w-xs whitespace-pre-line break-words text-left" title={remarks}>
+          <div className="whitespace-nowrap text-left" title={remarks}>
             {remarks}
           </div>
         ) : null;
@@ -797,7 +827,7 @@ export default function PcReportTable() {
       cell: ({ row }) => {
         const remarks = remarkText(row.original.remarks4, 'TALLY_ENTRY');
         return remarks ? (
-          <div className="max-w-xs whitespace-pre-line break-words text-left" title={remarks}>
+          <div className="whitespace-nowrap text-left" title={remarks}>
             {remarks}
           </div>
         ) : null;
@@ -822,7 +852,7 @@ export default function PcReportTable() {
       cell: ({ row }) => {
         const remarks = remarkText(row.original.remarks5, 'AGAIN_AUDIT');
         return remarks ? (
-          <div className="max-w-xs whitespace-pre-line break-words text-left" title={remarks}>
+          <div className="whitespace-nowrap text-left" title={remarks}>
             {remarks}
           </div>
         ) : null;
@@ -845,6 +875,7 @@ export default function PcReportTable() {
   return (
     <div>
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
+<<<<<<< HEAD
         <Heading heading="Audit Data" subtext="Manual Audit, Reaudit, Rectify, Tally Entry & Again Audit">
           <BarChart size={50} className="text-primary" />
         </Heading>
@@ -852,6 +883,13 @@ export default function PcReportTable() {
           <p className="font-medium">Manual audit mode enabled. Audit, Reaudit and Again Audit are updated by human review.</p>
 
           <p className="text-sm text-muted-foreground">Manual Audit → Human Rectify → Manual Reaudit → Human Tally Entry → Manual Again Audit → Completed. Failed Audit/Reaudit returns to Rectify.</p>
+=======
+        <Heading heading="Audit Data" subtext="Audit, Rectify, Reaudit, Tally Entry & Again Audit">
+          <BarChart size={50} className="text-primary" />
+        </Heading>
+        <div className="mb-4 rounded-lg border bg-white p-4 space-y-2" role="status">
+          <p className="text-sm text-muted-foreground">Audit → Tally Entry → Again Audit → Completed. A failed Audit goes to Rectify, then Reaudit; a failed Reaudit returns to Rectify. All stages are done manually.</p>
+>>>>>>> 388304ff3abef68bed9ca821a1de1036f8b6b6ee
         </div>
 
         {/* Stats Cards */}
@@ -867,32 +905,30 @@ export default function PcReportTable() {
         <Tabs defaultValue="all" className="w-full" onValueChange={value => setActiveTab(({ all: 'ALL', audit: 'AUDIT', rectify: 'RECTIFY', reaudit: 'REAUDIT', tally: 'TALLY_ENTRY', again_audit: 'AGAIN_AUDIT', completed: 'COMPLETED' } as Record<string, string>)[value] || 'ALL')}>
           {/* Tabs Navigation */}
           <TabsList className="grid grid-cols-2 md:grid-cols-7 mb-6 h-auto w-full gap-1">
-            <TabsTrigger value="all" onClick={() => setActiveTab('ALL')}>
-              All Pending
-            </TabsTrigger>
-            <TabsTrigger value="audit" onClick={() => setActiveTab('AUDIT')}>
-              Audit
-            </TabsTrigger>
-            <TabsTrigger value="rectify" onClick={() => setActiveTab('RECTIFY')}>
-              Rectify
-            </TabsTrigger>
-            <TabsTrigger value="reaudit" onClick={() => setActiveTab('REAUDIT')}>
-              Reaudit
-            </TabsTrigger>
-            <TabsTrigger value="tally" onClick={() => setActiveTab('TALLY_ENTRY')}>
-              Tally Entry
-            </TabsTrigger>
-            <TabsTrigger value="again_audit" onClick={() => setActiveTab('AGAIN_AUDIT')}>
-              Again Audit
-            </TabsTrigger>
-            <TabsTrigger value="completed" onClick={() => setActiveTab('COMPLETED')}>
-              Completed
-            </TabsTrigger>
+            {[
+              { value: 'all', stage: 'ALL', label: 'All Pending' },
+              { value: 'audit', stage: 'AUDIT', label: 'Audit' },
+              { value: 'rectify', stage: 'RECTIFY', label: 'Rectify' },
+              { value: 'reaudit', stage: 'REAUDIT', label: 'Reaudit' },
+              { value: 'tally', stage: 'TALLY_ENTRY', label: 'Tally Entry' },
+              { value: 'again_audit', stage: 'AGAIN_AUDIT', label: 'Again Audit' },
+              { value: 'completed', stage: 'COMPLETED', label: 'Completed' },
+            ].map(tab => (
+              <TabsTrigger key={tab.value} value={tab.value} className="gap-2">
+                {tab.label}
+                <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-primary/10 px-1.5 py-0.5 text-xs font-semibold tabular-nums text-primary">
+                  {stageCounts[tab.stage] ?? 0}
+                </span>
+              </TabsTrigger>
+            ))}
           </TabsList>
 
           {/* Tabs Content */}
           <TabsContent value="all">
             <DataTable
+              enableColumnVisibility
+              columnVisibility={columnVisibility}
+              onColumnVisibilityChange={setColumnVisibility}
               data={filteredData}
               columns={pendingColumns}
               searchFields={['indentNumber', 'productName', 'partyName', 'billNo', 'firmNameMatch']}
@@ -903,6 +939,9 @@ export default function PcReportTable() {
 
           <TabsContent value="audit">
             <DataTable
+              enableColumnVisibility
+              columnVisibility={columnVisibility}
+              onColumnVisibilityChange={setColumnVisibility}
               data={filteredData}
               columns={pendingColumns}
               searchFields={['indentNumber', 'productName', 'partyName', 'billNo', 'firmNameMatch']}
@@ -913,6 +952,9 @@ export default function PcReportTable() {
 
           <TabsContent value="rectify">
             <DataTable
+              enableColumnVisibility
+              columnVisibility={columnVisibility}
+              onColumnVisibilityChange={setColumnVisibility}
               data={filteredData}
               columns={pendingColumns}
               searchFields={['indentNumber', 'productName', 'partyName', 'billNo', 'firmNameMatch']}
@@ -923,6 +965,9 @@ export default function PcReportTable() {
 
           <TabsContent value="reaudit">
             <DataTable
+              enableColumnVisibility
+              columnVisibility={columnVisibility}
+              onColumnVisibilityChange={setColumnVisibility}
               data={filteredData}
               columns={pendingColumns}
               searchFields={['indentNumber', 'productName', 'partyName', 'billNo', 'firmNameMatch']}
@@ -933,6 +978,9 @@ export default function PcReportTable() {
 
           <TabsContent value="tally">
             <DataTable
+              enableColumnVisibility
+              columnVisibility={columnVisibility}
+              onColumnVisibilityChange={setColumnVisibility}
               data={filteredData}
               columns={pendingColumns}
               searchFields={['indentNumber', 'productName', 'partyName', 'billNo', 'firmNameMatch']}
@@ -943,6 +991,9 @@ export default function PcReportTable() {
 
           <TabsContent value="again_audit">
             <DataTable
+              enableColumnVisibility
+              columnVisibility={columnVisibility}
+              onColumnVisibilityChange={setColumnVisibility}
               data={filteredData}
               columns={pendingColumns}
               searchFields={['indentNumber', 'productName', 'partyName', 'billNo', 'firmNameMatch']}
@@ -953,6 +1004,9 @@ export default function PcReportTable() {
 
           <TabsContent value="completed">
             <DataTable
+              enableColumnVisibility
+              columnVisibility={columnVisibility}
+              onColumnVisibilityChange={setColumnVisibility}
               data={filteredData}
               columns={completedColumns}
               searchFields={['indentNumber', 'productName', 'partyName', 'billNo', 'firmNameMatch']}
@@ -962,6 +1016,7 @@ export default function PcReportTable() {
           </TabsContent>
         </Tabs>
 
+<<<<<<< HEAD
         {selectedRow && selectedRow.currentStage === 'COMPLETED' && (
           <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
@@ -981,6 +1036,8 @@ export default function PcReportTable() {
             <DialogFooter><DialogClose asChild><Button variant="outline">Close</Button></DialogClose></DialogFooter>
           </DialogContent>
         )}
+=======
+>>>>>>> 388304ff3abef68bed9ca821a1de1036f8b6b6ee
         {selectedRow && ['AUDIT', 'RECTIFY', 'REAUDIT', 'TALLY_ENTRY', 'AGAIN_AUDIT'].includes(selectedRow.currentStage) && (
           <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
             <Form {...form}>
@@ -1190,6 +1247,7 @@ export default function PcReportTable() {
                     </div>
                   ) : (
                   <div className="space-y-2">
+<<<<<<< HEAD
                     <label htmlFor="tally-voucher-no" className="text-sm font-medium">Tally voucher number *</label>
                     <Input id="tally-voucher-no" required value={voucherNo} onChange={e => setVoucherNo(e.target.value)} maxLength={100} />
                     <label htmlFor="tally-voucher-date" className="text-sm font-medium">Voucher posting date *</label>
@@ -1221,11 +1279,28 @@ export default function PcReportTable() {
                     />
                   )}
                   <FormField
+=======
+                    {selectedRow.currentStage === 'AUDIT' && remarkText(selectedRow.remarks1, 'AUDIT') && <div className="rounded border bg-amber-50 p-3 text-sm whitespace-pre-wrap">Earlier note: {remarkText(selectedRow.remarks1, 'AUDIT')}</div>}
+                    <fieldset className="space-y-3">
+                      <legend className="text-sm font-medium">{{ AUDIT: 'Audit approved?', REAUDIT: 'Reaudit approved?', AGAIN_AUDIT: 'Final audit approved?' }[selectedRow.currentStage as string] || 'Tally entry completed?'} *</legend>
+                      <div className="flex gap-6">
+                        {['Yes', 'No'].map(answer => (
+                          <label key={answer} className="flex cursor-pointer items-center gap-2 rounded-md border px-5 py-3">
+                            <input type="radio" name="tally-answer" value={answer} required checked={tallyAnswer === answer} onChange={() => setTallyAnswer(answer)} className="accent-green-600" />
+                            {answer}
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                  </div>
+                  )}
+                  {['RECTIFY', 'AUDIT', 'REAUDIT'].includes(selectedRow.currentStage) && <FormField
+>>>>>>> 388304ff3abef68bed9ca821a1de1036f8b6b6ee
                     control={form.control}
                     name="remarks"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Remarks *</FormLabel>
+                        <FormLabel>{selectedRow.currentStage === 'RECTIFY' ? 'Remarks *' : 'Remarks (required if No)'}</FormLabel>
                         <FormControl>
                           <Textarea
                             placeholder="Enter remarks..."
@@ -1235,12 +1310,12 @@ export default function PcReportTable() {
                         </FormControl>
                       </FormItem>
                     )}
-                  />
+                  />}
                 </div>
 
                 <DialogFooter>
                   <DialogClose asChild>
-                    <Button variant="outline">Close</Button>
+                    <Button type="button" variant="outline">Close</Button>
                   </DialogClose>
 
                   <Button type="submit" disabled={form.formState.isSubmitting}>
@@ -1251,11 +1326,15 @@ export default function PcReportTable() {
                         aria-label="Loading Spinner"
                       />
                     )}
+<<<<<<< HEAD
                     {selectedRow.currentStage === 'RECTIFY'
                       ? 'Submit for Reaudit'
                       : selectedRow.currentStage === 'TALLY_ENTRY'
                         ? 'Save Tally Voucher'
                         : 'Save Manual Audit'}
+=======
+                    {selectedRow.currentStage === 'RECTIFY' ? 'Submit for Reaudit' : 'Save'}
+>>>>>>> 388304ff3abef68bed9ca821a1de1036f8b6b6ee
                   </Button>
                 </DialogFooter>
               </form>

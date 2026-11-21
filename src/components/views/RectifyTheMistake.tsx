@@ -424,7 +424,7 @@ export default function RectifyTheMistake() {
 
                                 <DialogFooter>
                                     <DialogClose asChild>
-                                        <Button variant="outline">Close</Button>
+                                        <Button type="button" variant="outline">Close</Button>
                                     </DialogClose>
 
                                     <Button type="submit" disabled={form.formState.isSubmitting}>

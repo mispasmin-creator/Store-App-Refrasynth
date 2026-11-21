@@ -79,6 +79,7 @@ export async function updateIssueApproval(
 ) {
     try {
         if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Invalid issue record. Refresh and try again.');
+        if (!['Yes', 'No'].includes(updateData.status)) throw new Error('Select Yes or No.');
         if (updateData.status === 'Yes' && (!Number.isFinite(updateData.given_qty) || Number(updateData.given_qty) <= 0)) throw new Error('Given quantity must be greater than zero.');
         const { data, error } = await supabase
             .from('issue')
@@ -88,7 +89,7 @@ export async function updateIssueApproval(
                 given_qty: updateData.status === 'Yes' ? updateData.given_qty : null,
             })
             .eq('id', id)
-            .or('actual1.is.null,actual1.eq.')
+            .is('actual1', null)
             .select('id');
 
         if (error) throw error;

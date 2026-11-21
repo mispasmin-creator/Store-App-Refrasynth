@@ -1354,7 +1354,7 @@ export default () => {
                                 </div>
                                 <DialogFooter>
                                     <DialogClose asChild>
-                                        <Button variant="outline">Close</Button>
+                                        <Button type="button" variant="outline">Close</Button>
                                     </DialogClose>
                                     <Button
                                         onClick={() => setDialogStep(2)}
@@ -1953,7 +1953,7 @@ export default () => {
 
                                 <DialogFooter>
                                     <DialogClose asChild>
-                                        <Button variant="outline">Close</Button>
+                                        <Button type="button" variant="outline">Close</Button>
                                     </DialogClose>
                                     <Button type="submit" disabled={historyUpdateForm.formState.isSubmitting}>
                                         {historyUpdateForm.formState.isSubmitting && (

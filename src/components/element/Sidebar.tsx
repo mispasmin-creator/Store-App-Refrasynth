@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/sidebar';
 import { useAuth } from '@/context/AuthContext';
 import { useSheets } from '@/context/SheetsContext';
+import { canOpenRoute } from '@/lib/access';
 import type { RouteAttributes } from '@/types';
 import { LogOut, RotateCw, ShoppingCart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -78,11 +79,9 @@ export default ({ items }: SidebarProps) => {
                         {allItems
                             .filter((item) => {
                                 if (item.hidden) return false;
-                                // Show item only if user has explicit permission for this gateKey
-                                if (item.gateKey) {
-                                    return user[item.gateKey] === true || (user as any)[item.gateKey] === "true";
-                                }
-                                return true; // no gateKey = always visible (Dashboard, Training, License)
+                                // Gated items need explicit permission; open items (Dashboard, Training, License)
+                                // are visible to everyone except department users.
+                                return canOpenRoute(user, item.gateKey);
                             })
                             .map((item, i) => {
                                 // ✅ DETERMINE WHICH SHEET TO USE BASED ON ROUTE PATH
