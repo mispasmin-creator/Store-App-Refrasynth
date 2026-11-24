@@ -70,6 +70,7 @@ interface HodHistoryData {
     qty: number;
     hodStatus: string;
     hodDate: string;
+    plannedHod: string;
     firmNameMatch: string;
     transportationInclude: string;
     transporterName: string;
@@ -228,6 +229,7 @@ export default () => {
                     qty: Number(i.qty) || 0,
                     hodStatus: i.hodStatus || '',
                     hodDate: i.actualHod ? formatDateTime(new Date(i.actualHod)) : '',
+                    plannedHod: i.plannedHod || '',
                     firmNameMatch: i.firmNameMatch || '',
                     transportationInclude: i.transportationInclude || '',
                     transporterName: i.transporterName || '',
@@ -370,6 +372,14 @@ export default () => {
                 );
             }
         },
+        {
+            accessorKey: 'plannedHod',
+            header: 'Planned Date',
+            cell: ({ getValue }) => {
+                const v = getValue() as string;
+                return v ? formatDateTime(new Date(v)) : '-';
+            },
+        },
     ];
 
     const historyColumns: ColumnDef<HodHistoryData>[] = [
@@ -393,6 +403,14 @@ export default () => {
         { accessorKey: 'driverName', header: 'Driver Name' },
         { accessorKey: 'driverMobileNo', header: 'Driver Mobile' },
         { accessorKey: 'amount', header: 'Freight Amount' },
+        {
+            accessorKey: 'plannedHod',
+            header: 'Planned Date',
+            cell: ({ getValue }) => {
+                const v = getValue() as string;
+                return v ? formatDateTime(new Date(v)) : '-';
+            },
+        },
         { accessorKey: 'hodDate', header: 'Date' },
     ];
 

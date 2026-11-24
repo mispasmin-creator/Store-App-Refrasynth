@@ -875,6 +875,7 @@ export default function GetPurchase() {
         { accessorKey: 'typeOfBill', header: 'Type of Bill' },
         { accessorKey: 'paymentType', header: 'Payment Type' },
         { accessorKey: 'transporterName', header: 'Transporter' },
+        { accessorKey: 'planned6Date', header: 'Planned Date', cell: ({ getValue }) => { const v = getValue() as string; return v ? formatDateTime(parseCustomDate(v)) : '-'; } },
     ];
 
     // ── StoreIn history columns ──────────────────────────────────────────
@@ -899,6 +900,7 @@ export default function GetPurchase() {
         { accessorKey: 'photoOfBill', header: 'Bill Photo', cell: ({ getValue }) => { const url = getValue() as string; return url ? <Button variant="outline" size="sm" onClick={() => window.open(url, '_blank')}>View</Button> : <span className="text-muted-foreground text-xs">-</span>; } },
         { accessorKey: 'photoOfProduct', header: 'Product Photo', cell: ({ getValue }) => { const url = getValue() as string; return url ? <Button variant="outline" size="sm" onClick={() => window.open(url, '_blank')}>View</Button> : <span className="text-muted-foreground text-xs">-</span>; } },
         { accessorKey: 'remark', header: 'Remark' },
+        { accessorKey: 'planned6Date', header: 'Planned Date', cell: ({ getValue }) => { const v = getValue() as string; return v ? formatDateTime(parseCustomDate(v)) : '-'; } },
     ];
 
     // ── Combined pending rows (lift + storein in one table) ─────────────
