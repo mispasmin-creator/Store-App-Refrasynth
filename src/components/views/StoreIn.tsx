@@ -1,7 +1,7 @@
 import type { ColumnDef, Row } from '@tanstack/react-table';
 import { useEffect, useState } from 'react';
 import DataTable from '../element/DataTable';
-import { z } from 'zod';
+import { storeInDecisionSchema, submitStoreInSelection, type StoreInDecisions } from '@/lib/storeInDecision';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@/lib/supabase';
@@ -15,7 +15,7 @@ import {
 } from '../ui/dialog';
 import {
     Truck, Building, FileText, IndianRupee,
-    Package, CheckCircle2, X, AlertTriangle, TrendingUp,
+    Package, CheckCircle2, TrendingUp,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
@@ -67,7 +67,7 @@ interface StoreInPendingData {
     timestamp: string;
     products?: string[];
     indentNumbers?: string[];
-    originalItems?: any[];
+    originalItems?: StoreInRecord[];
 }
 
 interface StoreInHistoryData {
@@ -168,7 +168,7 @@ export default () => {
         const latestRecords: any[] = [];
         const seen = new Set<string>();
         for (const item of filteredByFirm) {
-            const key = `${item.indentNo}-${item.productName}`;
+            const key = String(item.id);
             if (!seen.has(key)) { seen.add(key); latestRecords.push(item); }
         }
 
@@ -177,7 +177,7 @@ export default () => {
 
         pendingItems.forEach((i) => {
             const billNo = String(i.billNo || '');
-            const key = `${i.vendorName}-${billNo}`;
+            const key = JSON.stringify([i.firmNameMatch, i.poNumber, i.vendorName, billNo || i.liftNumber]);
             if (!groupedMap.has(key)) {
                 groupedMap.set(key, {
                     liftNumber: i.liftNumber || '',
@@ -238,7 +238,7 @@ export default () => {
         const latestRecords: any[] = [];
         const seen = new Set<string>();
         for (const item of filteredByFirm) {
-            const key = `${item.indentNo}-${item.productName}`;
+            const key = String(item.id);
             if (!seen.has(key)) { seen.add(key); latestRecords.push(item); }
         }
 
@@ -448,60 +448,67 @@ export default () => {
     ];
 
     // ── Schema ──────────────────────────────────────────────
-    const schema = z.object({
-        status: z.enum(['Received', 'Not Received'], { required_error: 'Status is required' }),
-        remark: z.string().optional(),
-    });
-    type FormValues = z.infer<typeof schema>;
-
-    const form = useForm<FormValues>({
-        resolver: zodResolver(schema),
-        defaultValues: { status: undefined, remark: '' },
+    const form = useForm<StoreInDecisions>({
+        resolver: zodResolver(storeInDecisionSchema),
+        defaultValues: { items: [] },
     });
 
     useEffect(() => {
-        if (!openDialog) { form.reset({ status: undefined, remark: '' }); fetchAllData(); }
+        if (!openDialog) { form.reset({ items: [] }); fetchAllData(); }
     }, [openDialog]);
 
     useEffect(() => {
-        if (selectedIndent) { form.reset({ status: undefined, remark: '' }); }
-    }, [selectedIndent]);
+        form.reset({ status: undefined, items: [] });
+    }, [selectedIndent, form]);
 
-    async function onSubmit(values: FormValues) {
+    const selectedItems = form.watch('items') || [];
+    const decisionStatus = form.watch('status');
+    const selectedIds = new Set(selectedItems.map(item => item.id));
+    const availableItems = (selectedIndent?.originalItems || []).filter(item => !selectedIds.has(item.id));
+
+    function toggleItem(id: number, checked: boolean) {
+        const current = form.getValues('items');
+        form.setValue('items', checked
+            ? [...current, { id, remark: '' }]
+            : current.filter(item => item.id !== id), { shouldValidate: false });
+        form.clearErrors();
+    }
+
+    async function onSubmit(values: StoreInDecisions) {
         if (!selectedIndent) return;
+        const items = selectedIndent.originalItems || [];
+        const savedIds: number[] = [];
         try {
-            const currentDateTime = new Date().toISOString();
-            for (const item of (selectedIndent.originalItems || [])) {
-                const isRejected = values.status === 'Not Received';
-                // Rejected: go directly to Reject For GRN (planned7), skip Transporting Update (hod_planned)
-                // Received: go to Transporting Update (hod_planned), no planned7
-                const updatePayload: Record<string, any> = {
-                    actual6: currentDateTime,
-                    receiving_status: values.status,
-                    remark: values.remark || '',
-                };
-                if (isRejected) {
-                    updatePayload.planned7 = currentDateTime;
-                    updatePayload.hod_status = 'Rejected';
-                    updatePayload.hod_actual = currentDateTime;
-                } else {
-                    updatePayload.hod_planned = currentDateTime;
-                    updatePayload.hod_status = 'Pending';
-                }
-                const { error } = await supabase.from('store_in').update(updatePayload).eq('id', item.id);
+            await submitStoreInSelection(values, items.map(item => item.id), new Date().toISOString(), async (id, update) => {
+                const item = items.find(item => item.id === id)!;
+                const { error } = await supabase.from('store_in').update(update)
+                    .eq('id', item.id).eq('firm_name_match', item.firmNameMatch).select('id').single();
                 if (error) throw error;
-            }
-            toast.success(`Store In completed for ${(selectedIndent.originalItems || []).length} item(s)!`);
+                savedIds.push(id);
+            });
+            toast.success(`${savedIds.length} item(s) ${values.status === 'Received' ? 'received' : 'rejected'}.`);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : (error as { message?: string })?.message || 'Please try again.';
+            toast.error(`Saved ${savedIds.length} of ${values.items.length} selected items. ${message}`);
+        }
+        if (!savedIds.length) return;
+        // Keep the dialog open for a separate decision on the remaining items.
+        const remaining = items.filter(item => !savedIds.includes(item.id));
+        setStoreInRecords(records => records.filter(item => !savedIds.includes(item.id)));
+        if (remaining.length) {
+            setSelectedIndent({ ...selectedIndent, liftNumber: remaining[0].liftNumber,
+                originalItems: remaining, products: remaining.map(item => item.productName),
+                qty: remaining.reduce((sum, item) => sum + Number(item.qty || 0), 0) });
+        } else {
             setOpenDialog(false);
             setSelectedIndent(null);
-        } catch (error: any) {
-            toast.error('Failed to store in: ' + (error?.message || ''));
         }
+        await fetchAllData();
     }
 
     return (
         <div>
-            <Dialog open={openDialog} onOpenChange={(open) => { setOpenDialog(open); if (!open) setSelectedIndent(null); }}>
+            <Dialog open={openDialog} onOpenChange={(open) => { if (form.formState.isSubmitting) return; setOpenDialog(open); if (!open) setSelectedIndent(null); }}>
                 <Tabs defaultValue="pending">
                     <Heading
                         heading={"HOD Check"}
@@ -534,7 +541,7 @@ export default () => {
                 {selectedIndent && (
                     <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                         <Form {...form}>
-                            <form onSubmit={form.handleSubmit(onSubmit, () => toast.error('Please select a status'))} className="space-y-4">
+                            <form onSubmit={form.handleSubmit(onSubmit, () => toast.error('Select items, choose a decision and add remarks for rejected items'))} className="space-y-4">
                                 <DialogHeader className="border-b pb-4">
                                     <div className="flex items-center gap-3">
                                         <div className="p-2 bg-primary/10 rounded-lg">
@@ -574,138 +581,75 @@ export default () => {
                                         </div>
                                     </div>
 
-                                    {/* Products (read-only) */}
-                                    {(selectedIndent.originalItems?.length || 0) > 0 && (
-                                        <div className="border rounded-xl overflow-hidden">
-                                            <div className="bg-muted/50 px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-500 border-b">
-                                                Products in this shipment ({selectedIndent.originalItems!.length})
-                                            </div>
+                                    <div className="rounded-xl border overflow-hidden">
+                                        <div className="bg-muted/50 px-4 py-2 text-xs font-bold text-slate-600">Pending items ({availableItems.length})</div>
+                                        <p className="px-4 py-2 text-xs text-muted-foreground">Tick the items to receive or reject. Review your selection below before submitting.</p>
+                                        <div className="overflow-x-auto">
                                             <table className="w-full text-sm">
-                                                <thead className="bg-muted/30 border-b">
-                                                    <tr>
-                                                        <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500">#</th>
-                                                        <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500">Lift No.</th>
-                                                        <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500">Product</th>
-                                                        <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500">Indent No.</th>
-                                                        <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500">Qty</th>
-                                                    </tr>
-                                                </thead>
+                                                <thead className="bg-muted/30 border-y"><tr>
+                                                    <th className="p-3 text-left">Select</th><th className="p-3 text-left">Lift No.</th>
+                                                    <th className="p-3 text-left">Product</th><th className="p-3 text-left">Indent No.</th><th className="p-3 text-right">Qty</th>
+                                                </tr></thead>
                                                 <tbody className="divide-y">
-                                                    {selectedIndent.originalItems!.map((item: any, idx: number) => (
-                                                        <tr key={idx} className="hover:bg-muted/20">
-                                                            <td className="px-3 py-2 text-xs text-slate-400">{idx + 1}</td>
-                                                            <td className="px-3 py-2 text-xs text-muted-foreground">{item.liftNumber}</td>
-                                                            <td className="px-3 py-2 text-xs font-medium">{item.productName}</td>
-                                                            <td className="px-3 py-2 text-xs text-muted-foreground">{item.indentNo}</td>
-                                                            <td className="px-3 py-2 text-xs text-right font-semibold">{item.qty}</td>
-                                                        </tr>
-                                                    ))}
+                                                    {availableItems.map(item => <tr key={item.id}>
+                                                        <td className="p-3"><input type="checkbox" aria-label={`Select ${item.productName}, lift ${item.liftNumber}, indent ${item.indentNo}`} checked={false} disabled={form.formState.isSubmitting} onChange={event => toggleItem(item.id, event.target.checked)} className="h-4 w-4 accent-green-600" /></td>
+                                                        <td className="p-3 text-xs">{item.liftNumber}</td><td className="p-3 text-xs font-semibold">{item.productName}</td>
+                                                        <td className="p-3 text-xs">{item.indentNo}</td><td className="p-3 text-right">{item.qty}</td>
+                                                    </tr>)}
+                                                    {!availableItems.length && <tr><td colSpan={5} className="p-3 text-xs text-muted-foreground">All remaining items are selected below.</td></tr>}
                                                 </tbody>
                                             </table>
                                         </div>
-                                    )}
-
-                                    {/* Store Verification Results */}
-                                    <div className="space-y-3">
-                                        <div className="flex items-center gap-2 px-1">
-                                            <CheckCircle2 className="w-4 h-4 text-amber-500" />
-                                            <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Store Verification Results (from Lift)</h4>
-                                        </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                            {(() => {
-                                                const first = selectedIndent.originalItems?.[0] as any;
-                                                const damage = first?.damageOrder;
-                                                const qtyMatch = first?.quantityAsPerBill;
-                                                const priceMatch = first?.priceAsPerPoCheck;
-                                                return (<>
-                                                    <div className={`p-3 rounded-xl border flex flex-col gap-1 ${damage === 'No' ? 'bg-red-50 border-red-100' : 'bg-slate-50 border-slate-100'}`}>
-                                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Physical Check</span>
-                                                        <div className="flex items-center justify-between">
-                                                            <span className={`text-xs font-black ${damage === 'No' ? 'text-red-700' : 'text-slate-700'}`}>
-                                                                {damage === 'No' ? 'Damaged' : damage === 'Yes' ? 'Good' : '—'}
-                                                            </span>
-                                                            {damage === 'No' ? <X className="w-3 h-3 text-red-500" /> : damage === 'Yes' ? <CheckCircle2 className="w-3 h-3 text-emerald-500" /> : null}
-                                                        </div>
-                                                    </div>
-                                                    <div className={`p-3 rounded-xl border flex flex-col gap-1 ${qtyMatch === 'No' ? 'bg-red-50 border-red-100' : 'bg-slate-50 border-slate-100'}`}>
-                                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Qty Matching</span>
-                                                        <div className="flex items-center justify-between">
-                                                            <span className={`text-xs font-black ${qtyMatch === 'No' ? 'text-red-700' : 'text-slate-700'}`}>
-                                                                {qtyMatch === 'No' ? 'Mismatch' : qtyMatch === 'Yes' ? 'Matches' : '—'}
-                                                            </span>
-                                                            {qtyMatch === 'No' ? <X className="w-3 h-3 text-red-500" /> : qtyMatch === 'Yes' ? <CheckCircle2 className="w-3 h-3 text-emerald-500" /> : null}
-                                                        </div>
-                                                    </div>
-                                                    <div className={`p-3 rounded-xl border flex flex-col gap-1 ${priceMatch === 'No' ? 'bg-red-50 border-red-100' : 'bg-slate-50 border-slate-100'}`}>
-                                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Price Matching</span>
-                                                        <div className="flex items-center justify-between">
-                                                            <span className={`text-xs font-black ${priceMatch === 'No' ? 'text-red-700' : 'text-slate-700'}`}>
-                                                                {priceMatch === 'No' ? 'Mismatch' : priceMatch === 'Yes' ? 'Matches' : '—'}
-                                                            </span>
-                                                            {priceMatch === 'No' ? <X className="w-3 h-3 text-red-500" /> : priceMatch === 'Yes' ? <CheckCircle2 className="w-3 h-3 text-emerald-500" /> : null}
-                                                        </div>
-                                                    </div>
-                                                </>);
-                                            })()}
-                                        </div>
-                                        {(selectedIndent.originalItems?.[0] as any)?.remark && (
-                                            <div className="bg-amber-50/50 rounded-xl border border-amber-100/50 p-3">
-                                                <div className="flex items-start gap-3">
-                                                    <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
-                                                    <div className="space-y-1">
-                                                        <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Inspector Remarks</p>
-                                                        <p className="text-xs text-amber-900 font-medium italic">"{(selectedIndent.originalItems![0] as any).remark}"</p>
-                                                    </div>
+                                    </div>
+                                    {selectedItems.length > 0 && <div className="rounded-xl border border-primary/30 p-4 space-y-4">
+                                        <div className="flex items-center gap-2"><TrendingUp className="w-4 h-4 text-primary" /><h4 className="text-sm font-bold">Review selected items ({selectedItems.length})</h4></div>
+                                        <FormField control={form.control} name="status" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Decision for selected items *</FormLabel>
+                                                <Select onValueChange={field.onChange} value={field.value || ''} disabled={form.formState.isSubmitting}>
+                                                    <FormControl><SelectTrigger><SelectValue placeholder="Select Received or Rejected" /></SelectTrigger></FormControl>
+                                                    <SelectContent><SelectItem value="Received">Received</SelectItem><SelectItem value="Not Received">Rejected</SelectItem></SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )} />
+                                        {selectedItems.map((selection, index) => {
+                                            const item = selectedIndent.originalItems?.find(item => item.id === selection.id);
+                                            if (!item) return null;
+                                            return <div key={item.id} className="rounded-lg border p-3 space-y-3">
+                                                <label className="flex items-start gap-3 cursor-pointer">
+                                                    <input type="checkbox" checked disabled={form.formState.isSubmitting} onChange={() => toggleItem(item.id, false)} className="mt-1 h-4 w-4 accent-green-600" />
+                                                    <span><span className="block text-sm font-bold">{item.productName}</span><span className="text-xs text-muted-foreground">Lift: {item.liftNumber} | Indent: {item.indentNo} | Qty: {item.qty}</span></span>
+                                                </label>
+                                                <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                                                    <span>Physical: {item.damageOrder === 'No' ? 'Damaged' : item.damageOrder === 'Yes' ? 'Good' : 'Pending'}</span>
+                                                    <span>Quantity: {item.quantityAsPerBill === 'Yes' ? 'Matches' : item.quantityAsPerBill === 'No' ? 'Mismatch' : 'Pending'}</span>
+                                                    <span>Price: {item.priceAsPerPoCheck === 'Yes' ? 'Matches' : item.priceAsPerPoCheck === 'No' ? 'Mismatch' : 'Pending'}</span>
                                                 </div>
-                                            </div>
-                                        )}
-                                    </div>
+                                                {item.remark && <p className="text-xs text-amber-800">Inspector remarks: {item.remark}</p>}
+                                                <FormField control={form.control} name={`items.${index}.remark`} render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>{decisionStatus === 'Not Received' ? 'Remarks *' : 'Remarks'}</FormLabel>
+                                                        <FormControl><Input placeholder="Remarks for this item" {...field} disabled={form.formState.isSubmitting} maxLength={1000} /></FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )} />
+                                            </div>;
+                                        })}
+                                        <p className="text-xs font-medium" role="status">{decisionStatus ? `Only these ${selectedItems.length} selected item(s) will be ${decisionStatus === 'Received' ? 'received' : 'rejected'}.` : 'Choose a decision for the selected items.'} {availableItems.length} unselected item(s) will remain pending.</p>
+                                    </div>}
 
-                                    {/* Decision */}
-                                    <div className="bg-white rounded-xl border p-4 space-y-4">
-                                        <div className="flex items-center gap-2">
-                                            <TrendingUp className="w-4 h-4 text-primary" />
-                                            <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Store In Decision</h4>
-                                        </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <FormField control={form.control} name="status" render={({ field }) => (
-                                                <FormItem className="space-y-1">
-                                                    <FormLabel className="text-[10px] font-bold uppercase text-slate-400 pl-1">Receiving Status <span className="text-destructive">*</span></FormLabel>
-                                                    <Select onValueChange={field.onChange} value={field.value}>
-                                                        <FormControl>
-                                                            <SelectTrigger className="h-10 border-slate-200">
-                                                                <SelectValue placeholder="Select status" />
-                                                            </SelectTrigger>
-                                                        </FormControl>
-                                                        <SelectContent>
-                                                            <SelectItem value="Received" className="text-emerald-600 font-bold">Received</SelectItem>
-                                                            <SelectItem value="Not Received" className="text-red-600 font-bold">Reject</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )} />
-                                            <FormField control={form.control} name="remark" render={({ field }) => (
-                                                <FormItem className="space-y-1">
-                                                    <FormLabel className="text-[10px] font-bold uppercase text-slate-400 pl-1">Remarks</FormLabel>
-                                                    <FormControl>
-                                                        <Input placeholder="Add remarks..." {...field} className="h-10 border-slate-200" />
-                                                    </FormControl>
-                                                </FormItem>
-                                            )} />
-                                        </div>
-                                    </div>
                                 </div>
 
                                 <DialogFooter className="border-t pt-4">
-                                    <Button type="button" variant="ghost" className="h-10 text-slate-500 font-semibold"
+                                    <Button type="button" variant="ghost" disabled={form.formState.isSubmitting} className="h-10 text-slate-500 font-semibold"
                                         onClick={() => { setOpenDialog(false); setSelectedIndent(null); }}>
                                         Cancel
                                     </Button>
-                                    <Button type="submit" disabled={form.formState.isSubmitting}
-                                        className={`h-10 px-8 font-black transition-all shadow-md ${form.watch('status') === 'Not Received' ? 'bg-red-600 hover:bg-red-700' : 'bg-primary hover:bg-primary/90'}`}>
+                                    <Button type="submit" disabled={form.formState.isSubmitting || !selectedItems.length || !decisionStatus}
+                                        className="h-10 px-8 font-black transition-all shadow-md bg-primary hover:bg-primary/90">
                                         {form.formState.isSubmitting ? <Loader size={16} color="white" className="mr-2" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
-                                        Confirm Store In
+                                        {decisionStatus === 'Received' ? `Confirm Receive (${selectedItems.length})` : decisionStatus === 'Not Received' ? `Confirm Reject (${selectedItems.length})` : 'Confirm Selected Items'}
                                     </Button>
                                 </DialogFooter>
                             </form>
