@@ -458,18 +458,20 @@ export default () => {
     }, [openDialog]);
 
     useEffect(() => {
-        form.reset({ status: undefined, items: [] });
+        form.reset({ items: [] });
     }, [selectedIndent, form]);
 
     const selectedItems = form.watch('items') || [];
-    const decisionStatus = form.watch('status');
+    const receivedCount = selectedItems.filter(item => item.status === 'Received').length;
+    const rejectedCount = selectedItems.filter(item => item.status === 'Not Received').length;
+    const decisionsComplete = selectedItems.length > 0 && receivedCount + rejectedCount === selectedItems.length;
     const selectedIds = new Set(selectedItems.map(item => item.id));
     const availableItems = (selectedIndent?.originalItems || []).filter(item => !selectedIds.has(item.id));
 
     function toggleItem(id: number, checked: boolean) {
         const current = form.getValues('items');
         form.setValue('items', checked
-            ? [...current, { id, remark: '' }]
+            ? [...current, { id, status: '' as const, remark: '' }]
             : current.filter(item => item.id !== id), { shouldValidate: false });
         form.clearErrors();
     }
@@ -486,7 +488,7 @@ export default () => {
                 if (error) throw error;
                 savedIds.push(id);
             });
-            toast.success(`${savedIds.length} item(s) ${values.status === 'Received' ? 'received' : 'rejected'}.`);
+            toast.success(`Saved ${values.items.filter(item => item.status === 'Received').length} received, ${values.items.filter(item => item.status === 'Not Received').length} rejected item(s).`);
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : (error as { message?: string })?.message || 'Please try again.';
             toast.error(`Saved ${savedIds.length} of ${values.items.length} selected items. ${message}`);
@@ -539,7 +541,7 @@ export default () => {
                 </Tabs>
 
                 {selectedIndent && (
-                    <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogContent className="sm:max-w-6xl max-h-[90vh] overflow-y-auto">
                         <Form {...form}>
                             <form onSubmit={form.handleSubmit(onSubmit, () => toast.error('Select items, choose a decision and add remarks for rejected items'))} className="space-y-4">
                                 <DialogHeader className="border-b pb-4">
@@ -585,58 +587,76 @@ export default () => {
                                         <div className="bg-muted/50 px-4 py-2 text-xs font-bold text-slate-600">Pending items ({availableItems.length})</div>
                                         <p className="px-4 py-2 text-xs text-muted-foreground">Tick the items to receive or reject. Review your selection below before submitting.</p>
                                         <div className="overflow-x-auto">
-                                            <table className="w-full text-sm">
+                                            <table className="w-full min-w-[960px] text-sm">
                                                 <thead className="bg-muted/30 border-y"><tr>
                                                     <th className="p-3 text-left">Select</th><th className="p-3 text-left">Lift No.</th>
                                                     <th className="p-3 text-left">Product</th><th className="p-3 text-left">Indent No.</th><th className="p-3 text-right">Qty</th>
+                                                    <th className="p-3 text-left">Physical Check</th><th className="p-3 text-left">Qty Matching</th>
+                                                    <th className="p-3 text-left">Price Matching</th><th className="p-3 text-left">Inspector Remarks</th>
                                                 </tr></thead>
                                                 <tbody className="divide-y">
                                                     {availableItems.map(item => <tr key={item.id}>
                                                         <td className="p-3"><input type="checkbox" aria-label={`Select ${item.productName}, lift ${item.liftNumber}, indent ${item.indentNo}`} checked={false} disabled={form.formState.isSubmitting} onChange={event => toggleItem(item.id, event.target.checked)} className="h-4 w-4 accent-green-600" /></td>
                                                         <td className="p-3 text-xs">{item.liftNumber}</td><td className="p-3 text-xs font-semibold">{item.productName}</td>
                                                         <td className="p-3 text-xs">{item.indentNo}</td><td className="p-3 text-right">{item.qty}</td>
+                                                        {[
+                                                            { key: 'physical', value: item.damageOrder, yes: 'Good', no: 'Damaged' },
+                                                            { key: 'quantity', value: item.quantityAsPerBill, yes: 'Matches', no: 'Mismatch' },
+                                                            { key: 'price', value: item.priceAsPerPoCheck, yes: 'Matches', no: 'Mismatch' },
+                                                        ].map(check => <td key={check.key} className="p-3 text-xs">
+                                                            <span className={`inline-block rounded px-2 py-1 font-semibold whitespace-nowrap ${check.value === 'Yes' ? 'bg-emerald-50 text-emerald-700' : check.value === 'No' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>{check.value === 'Yes' ? check.yes : check.value === 'No' ? check.no : 'Pending'}</span>
+                                                        </td>)}
+                                                        <td className="p-3 text-xs min-w-[150px] max-w-[240px] whitespace-pre-wrap break-words">{item.remark || '-'}</td>
                                                     </tr>)}
-                                                    {!availableItems.length && <tr><td colSpan={5} className="p-3 text-xs text-muted-foreground">All remaining items are selected below.</td></tr>}
+                                                    {!availableItems.length && <tr><td colSpan={9} className="p-3 text-xs text-muted-foreground">All remaining items are selected below.</td></tr>}
                                                 </tbody>
                                             </table>
                                         </div>
                                     </div>
                                     {selectedItems.length > 0 && <div className="rounded-xl border border-primary/30 p-4 space-y-4">
                                         <div className="flex items-center gap-2"><TrendingUp className="w-4 h-4 text-primary" /><h4 className="text-sm font-bold">Review selected items ({selectedItems.length})</h4></div>
-                                        <FormField control={form.control} name="status" render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Decision for selected items *</FormLabel>
-                                                <Select onValueChange={field.onChange} value={field.value || ''} disabled={form.formState.isSubmitting}>
-                                                    <FormControl><SelectTrigger><SelectValue placeholder="Select Received or Rejected" /></SelectTrigger></FormControl>
-                                                    <SelectContent><SelectItem value="Received">Received</SelectItem><SelectItem value="Not Received">Rejected</SelectItem></SelectContent>
-                                                </Select>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )} />
-                                        {selectedItems.map((selection, index) => {
-                                            const item = selectedIndent.originalItems?.find(item => item.id === selection.id);
-                                            if (!item) return null;
-                                            return <div key={item.id} className="rounded-lg border p-3 space-y-3">
-                                                <label className="flex items-start gap-3 cursor-pointer">
-                                                    <input type="checkbox" checked disabled={form.formState.isSubmitting} onChange={() => toggleItem(item.id, false)} className="mt-1 h-4 w-4 accent-green-600" />
-                                                    <span><span className="block text-sm font-bold">{item.productName}</span><span className="text-xs text-muted-foreground">Lift: {item.liftNumber} | Indent: {item.indentNo} | Qty: {item.qty}</span></span>
-                                                </label>
-                                                <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                                                    <span>Physical: {item.damageOrder === 'No' ? 'Damaged' : item.damageOrder === 'Yes' ? 'Good' : 'Pending'}</span>
-                                                    <span>Quantity: {item.quantityAsPerBill === 'Yes' ? 'Matches' : item.quantityAsPerBill === 'No' ? 'Mismatch' : 'Pending'}</span>
-                                                    <span>Price: {item.priceAsPerPoCheck === 'Yes' ? 'Matches' : item.priceAsPerPoCheck === 'No' ? 'Mismatch' : 'Pending'}</span>
-                                                </div>
-                                                {item.remark && <p className="text-xs text-amber-800">Inspector remarks: {item.remark}</p>}
-                                                <FormField control={form.control} name={`items.${index}.remark`} render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel>{decisionStatus === 'Not Received' ? 'Remarks *' : 'Remarks'}</FormLabel>
-                                                        <FormControl><Input placeholder="Remarks for this item" {...field} disabled={form.formState.isSubmitting} maxLength={1000} /></FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )} />
-                                            </div>;
-                                        })}
-                                        <p className="text-xs font-medium" role="status">{decisionStatus ? `Only these ${selectedItems.length} selected item(s) will be ${decisionStatus === 'Received' ? 'received' : 'rejected'}.` : 'Choose a decision for the selected items.'} {availableItems.length} unselected item(s) will remain pending.</p>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full min-w-[850px] text-sm">
+                                                <thead className="bg-muted/30 border-y"><tr>
+                                                    <th className="p-3 text-left">Select</th><th className="p-3 text-left">Lift No.</th><th className="p-3 text-left">Product</th>
+                                                    <th className="p-3 text-left">Indent No.</th><th className="p-3 text-right">Qty</th>
+                                                    <th className="p-3 text-left">Received / Rejected *</th><th className="p-3 text-left">Remarks</th>
+                                                </tr></thead>
+                                                <tbody className="divide-y">
+                                                    {selectedItems.map((selection, index) => {
+                                                        const item = selectedIndent.originalItems?.find(item => item.id === selection.id);
+                                                        if (!item) return null;
+                                                        return <tr key={item.id}>
+                                                            <td className="p-3"><input type="checkbox" checked aria-label={`Deselect ${item.productName}, lift ${item.liftNumber}, indent ${item.indentNo}`} disabled={form.formState.isSubmitting} onChange={() => toggleItem(item.id, false)} className="h-4 w-4 accent-green-600" /></td>
+                                                            <td className="p-3 text-xs whitespace-nowrap">{item.liftNumber}</td><td className="p-3 text-xs font-semibold">{item.productName}</td>
+                                                            <td className="p-3 text-xs">{item.indentNo}</td><td className="p-3 text-right">{item.qty}</td>
+                                                            <td className="p-3 min-w-[175px]">
+                                                                <FormField control={form.control} name={`items.${index}.status`} render={({ field }) => (
+                                                                    <FormItem>
+                                                                        <FormLabel className="sr-only">Decision for {item.productName}, lift {item.liftNumber}</FormLabel>
+                                                                        <Select onValueChange={field.onChange} value={field.value || ''} disabled={form.formState.isSubmitting}>
+                                                                            <FormControl><SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger></FormControl>
+                                                                            <SelectContent><SelectItem value="Received">Received</SelectItem><SelectItem value="Not Received">Rejected</SelectItem></SelectContent>
+                                                                        </Select>
+                                                                        <FormMessage />
+                                                                    </FormItem>
+                                                                )} />
+                                                            </td>
+                                                            <td className="p-3 min-w-[240px]">
+                                                                <FormField control={form.control} name={`items.${index}.remark`} render={({ field }) => (
+                                                                    <FormItem>
+                                                                        <FormLabel className="sr-only">Remarks for {item.productName}, lift {item.liftNumber}{selection.status === 'Not Received' ? ' (required)' : ''}</FormLabel>
+                                                                        <FormControl><Input placeholder={selection.status === 'Not Received' ? 'Reason for rejection *' : 'Add remarks...'} {...field} disabled={form.formState.isSubmitting} maxLength={1000} /></FormControl>
+                                                                        <FormMessage />
+                                                                    </FormItem>
+                                                                )} />
+                                                            </td>
+                                                        </tr>;
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <p className="text-xs font-medium" role="status">Selected: {receivedCount} Received, {rejectedCount} Rejected{selectedItems.length - receivedCount - rejectedCount > 0 ? `, ${selectedItems.length - receivedCount - rejectedCount} awaiting decision` : ''}. {availableItems.length} unselected item(s) will remain pending.</p>
                                     </div>}
 
                                 </div>
@@ -646,10 +666,10 @@ export default () => {
                                         onClick={() => { setOpenDialog(false); setSelectedIndent(null); }}>
                                         Cancel
                                     </Button>
-                                    <Button type="submit" disabled={form.formState.isSubmitting || !selectedItems.length || !decisionStatus}
+                                    <Button type="submit" disabled={form.formState.isSubmitting || !decisionsComplete}
                                         className="h-10 px-8 font-black transition-all shadow-md bg-primary hover:bg-primary/90">
                                         {form.formState.isSubmitting ? <Loader size={16} color="white" className="mr-2" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
-                                        {decisionStatus === 'Received' ? `Confirm Receive (${selectedItems.length})` : decisionStatus === 'Not Received' ? `Confirm Reject (${selectedItems.length})` : 'Confirm Selected Items'}
+                                        {`Confirm Selected Items (${selectedItems.length})`}
                                     </Button>
                                 </DialogFooter>
                             </form>
